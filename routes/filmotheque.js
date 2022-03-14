@@ -5,7 +5,7 @@ const filmCtrl = require('../controllers/film');
 const multer = require('../middleware/multer-config');
 
 router.get('/', filmCtrl.getAll);
-router.post('/', multer, filmCtrl.create);
+router.post('/', filmCtrl.create);
 router.get('/:id', filmCtrl.getOne);
 router.put('/', multer, filmCtrl.modify);
 router.delete('/', filmCtrl.deleteAll);

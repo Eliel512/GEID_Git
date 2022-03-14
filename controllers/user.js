@@ -44,7 +44,7 @@ exports.init = (req, res, next) => {
         else if(name.match("DIRECTION")){
           gradeNRoles["DIRECTEUR"].push(name)
         }
-        else if(name.match("CELLULE") || name.match("DIVISION")){
+        else if(name.match("CELLULE") || name.match("DIVISION") || name.match("CORPS")){
           gradeNRoles["CHEF DE DIVISION"].push(name)
         }
         else if(name.match("BUREAU")){

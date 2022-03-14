@@ -32,7 +32,7 @@ exports.addOne = (req, res, next) => {
                         role: user['grade'].role
                     },
                     userId: userId,
-                    contentUrl: `${req.protocol}://${getHost}/ressources/${path[datas.type]}/${filename}`,
+                    contentUrl: `${req.protocol}://${getHost}/ressources/${path[datas.frozenType]}/${filename}`,
                     fileUrl: `${req.protocol}://${getHost}/workspace/${userId}/${where}`
                 });
             break;
@@ -44,7 +44,7 @@ exports.addOne = (req, res, next) => {
                         role: user['grade'].role
                     },
                     userId: userId,
-                    contentUrl: `${req.protocol}://${getHost}/ressources/${path[datas.type]}/${filename}`,
+                    contentUrl: `${req.protocol}://${getHost}/ressources/${path[datas.frozenType]}/${filename}`,
                     fileUrl: `${req.protocol}://${getHost}/workspace/${userId}/${where}`
                 });
             break;
@@ -56,7 +56,7 @@ exports.addOne = (req, res, next) => {
                         role: user['grade'].role
                     },
                     userId: userId,
-                    contentUrl: `${req.protocol}://${getHost}/ressources/${path[datas.type]}/${filename}`,
+                    contentUrl: `${req.protocol}://${getHost}/ressources/${path[datas.frozenType]}/${filename}`,
                     fileUrl: `${req.protocol}://${getHost}/workspace/${userId}/${where}`
                 });
             break;

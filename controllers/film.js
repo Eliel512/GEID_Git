@@ -2,6 +2,7 @@ const { Film } = require('../models/film');
 const { filmFrozen } = require('../models/frozen');
 const getHost = require('./getHost').getHost();
 const fs = require('fs');
+const User = require('../models/user');
 
 exports.create = (req, res, next) => {
   const { userId, frozenId } = req.body;
@@ -14,12 +15,14 @@ exports.create = (req, res, next) => {
           }
         })
           .then(frozen => {
-            const fileUrl = frozen.fileUrl.split(`${getHost}`)[1];
-            const contentUrl = '.' + frozen["contentUrl"].split(`${getHost}`)[1];
-            delete frozen.frozenType;
-            delete frozen.fileUrl;
+            const fileUrl = '.' + frozen._doc.fileUrl.split(`${getHost}`)[1];
+            const contentUrl = '.' + frozen._doc["contentUrl"].split(`${getHost}`)[1];
+            const filmObject = {
+              ...frozen._doc
+            };
+            delete filmObject.fileUrl;
             const film = new Film({
-              ...frozen
+              ...filmObject
             });
             Film.findOne({ contentUrl: film.contentUrl })
               .then(fiilm => {
@@ -44,12 +47,18 @@ exports.create = (req, res, next) => {
               })
               .catch(error => res.status(500).json({ error }));
           })
-          .catch(error => res.status(400).json({ error }));
+          .catch(error => {
+            console.log(error);
+            res.status(400).json({ error })
+          });
       }else{
         return res.status(401).json({ message: 'Non authorisé' });
       }
     })
-    .catch(error => res.status(400).json({ error }));
+    .catch(error => {
+      console.log(error);
+      res.status(400).json({ error })
+    });
 };
 
 exports.getOne = (req, res, next) => {

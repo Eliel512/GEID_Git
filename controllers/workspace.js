@@ -60,9 +60,11 @@ exports.getAll = (req, res, next) => {
       return res.status(500).json({ err });
     }else{
       for(file of files){
+        const { mtime } = fs.statSync(`./workspace/${userId}/${path}/${file}`); 
         result.push({
           'name': file,
-          'url': `${req.protocol}://${getHost}/workspace/${userId}/${path}/${file}`
+          'url': `${req.protocol}://${getHost}/workspace/${userId}/${path}/${file}`,
+          'createdAt': mtime
         });
       }
       res.status(200).json(result);

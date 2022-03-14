@@ -2,6 +2,7 @@ const { Image } = require('../models/image');
 const { imageFrozen } = require('../models/frozen');
 const getHost = require('./getHost').getHost();
 const fs = require('fs');
+const User = require('../models/user');
 
 exports.create = (req, res, next) => {
   const { userId, frozenId } = req.body;
@@ -14,12 +15,14 @@ exports.create = (req, res, next) => {
           }
         })
           .then(frozen => {
-            const fileUrl = frozen.fileUrl.split(`${getHost}`)[1];
-            const contentUrl = '.' + frozen["contentUrl"].split(`${getHost}`)[1];
-            delete frozen.frozenType;
-            delete frozen.fileUrl;
+            const fileUrl = '.' + frozen._doc.fileUrl.split(`${getHost}`)[1];
+            const contentUrl = '.' + frozen._doc["contentUrl"].split(`${getHost}`)[1];
+            const imageObject = {
+              ...frozen._doc
+            };
+            delete imageObject.fileUrl;
             const image = new Image({
-              ...frozen
+              ...imageObject
             });
             Image.findOne({ contentUrl: image.contentUrl })
               .then(img => {

@@ -27,8 +27,6 @@ exports.create = (req, res, next) => {
             const ressource = new Ressource({
               ...ressourceObject
             });
-            console.log(ressourceObject);
-            console.log(ressource);
             Ressource.findOne({ contentUrl: ressource.contentUrl })
               .then(boook => {
                 boook ?
