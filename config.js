@@ -560,37 +560,6 @@ let ROLES = [
         parent: "DIRECTION GENERALE DEVELOPPEMENT & SUIVI DES PERFORMANCES",
         docTypes: TYPES
     },
-    /*
-    {
-        name: "DIVISION CADRAGE ET SYNTHESE BUDGETAIRES",
-        childs: [],
-        parent: "DIRECTION SYNTHESE ET PROGRAMMATION BUDGETAIRES",
-        docTypes: TYPES
-    },
-    {
-        name: "SECRETARIAT DIRECTION SUIVI PERFORMANCES PROVINCES & ETD", "DIVISION SUIVI DES PERFORMANCES I", "DIVISION SUIVI DES PERFORMANCES II", "DIVISION SUIVI DES PERFORMANCES III",
-        childs: [],
-        parent: "DIRECTION SUIVI PERFORMANCES PROVINCES & ETD",
-        docTypes: TYPES
-    },
-    {
-        name: "",
-        childs: [],
-        parent: "",
-        docTypes: TYPES
-    },
-    {
-        name: "",
-        childs: [],
-        parent: "",
-        docTypes: TYPES
-    },
-    {
-        name: "",
-        childs: [],
-        parent: "",
-        docTypes: TYPES
-    },*/
     {
         name: "DIRECTION DES RESSOURCES HUMAINES",
         childs: ["SECRETARIAT DRH", "DIVISION CAPITAL HUMAIN", "DIVISION GESTION ET DEVELOPPEMENT DES COMPETENCES", "DIVISION ACTIONS SOCIALES"],
@@ -998,12 +967,6 @@ let ROLES = [
         docTypes: TYPES
     },
     {
-        name: "",
-        childs: [],
-        parent: "",
-        docTypes: TYPES
-    },
-    {
         name: "DIVISION DEVELOPPEMENT PERFORMANCES",
         
         childs: ["BUREAU DEVELOPPEMENT SECTEURS SOUV., ECO. & INFRAS", "BUREAU DEVELOPPEMENT SECTEURS SOC. ET ADM. GEN.", "BUREAU DEV. SECTEURS ORG. PUBL. & COMPTES SPECIAUX"],
@@ -1337,6 +1300,144 @@ let ROLES = [
         name: "SECRETARIAT DRH",
         childs: [],
         parent: "DIRECTION DES RESSOURCES HUMAINES",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU CADRAGE BUDGETAIRE",
+        childs: [],
+        parent: "DIVISION CADRAGE ET SYNTHESE BUDGETAIRES",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU SYNTHESE BUDGETAIRE",
+        childs: [],
+        parent: "DIVISION CADRAGE ET SYNTHESE BUDGETAIRES",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU REGLEMENTATION ET LOIS DE FINANCES",
+        childs: [],
+        parent: "DIVISION REGLEMENTATION ET SUIVI",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU SUIVI ET STATISTIQUES",
+        childs: [],
+        parent: "DIVISION REGLEMENTATION ET SUIVI",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU EXPLOITATION",
+        childs: [],
+        parent: "DIVISION EXPLOITATION ET MECANISATION BUDGETAIRE",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU MECANISATION BUDGETAIRE",
+        childs: [],
+        parent: "DIVISION EXPLOITATION ET MECANISATION BUDGETAIRE",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU RECETTES DES IMPOTS",
+        childs: [],
+        parent: "DIVISION RECETTES FISCALES",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU RECETTES DE DOUANES ET ACCISES",
+        childs: [],
+        parent: "DIVISION RECETTES FISCALES",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU RECETTES ADMINISTRATIVES ET DE PARTICTIPATIONS",
+        childs: [],
+        parent: "DIVISION RECETTES NON FISCALES",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU RECETTES JUDICIAIRES ET DOMANIALES",
+        childs: [],
+        parent: "DIVISION RECETTES NON FISCALES",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU RECETTES EXTERIEURES",
+        childs: [],
+        parent: "DIVISION DES RECETTES EXTERIEURES, PETROLIERS PRODUCTEURS ET EXCEPTIONNELLES",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU RECETTES DES PETROLIERS PRODUCTEURS ET EXCEPTIONNELLES",
+        childs: [],
+        parent: "DIVISION DES RECETTES EXTERIEURES, PETROLIERS PRODUCTEURS ET EXCEPTIONNELLES",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU INVESTIGATIONS DES RECETTES FISCALES",
+        childs: [],
+        parent: "DIVISION INVESTIGATIONS DES RECETTES",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU INVESTIGATIONS DES RECETTES EXTERIEURES ET DES PETROLIERS PRODUCTEURS",
+        childs: [],
+        parent: "DIVISION INVESTIGATIONS DES RECETTES",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU INVESTIGATIONS DES RECETTES NON FISCALES",
+        childs: [],
+        parent: "DIVISION INVESTIGATIONS DES RECETTES",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU DEPENSES DES INSTITUTIONS",
+        childs: [],
+        parent: "DIVISION DEPENSES DES INSTITUTIONS ET SECTEURS DE SECURITE ET ORDRE PUBLIC",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU DEPENSES DE DEFENSE, ORDRE ET SECURITE",
+        childs: [],
+        parent: "DIVISION DEPENSES DES INSTITUTIONS ET SECTEURS DE SECURITE ET ORDRE PUBLIC",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU DEPENSES DES SECTEURS ECONOMIQUE ET FINANCIER",
+        childs: [],
+        parent: "DIVISION DES DEPENSES DES SECTEURS ECONOMIE, FINANCES ET INFRASTRUCTURES",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU DES DEPENSES DU SECTEUR DES INFRASTRUCTURES",
+        childs: [],
+        parent: "DIVISION DES DEPENSES DES SECTEURS ECONOMIE, FINANCES ET INFRASTRUCTURES",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU DEPENSES SECTEURS DE PRODUCTION",
+        childs: [],
+        parent: "DIVISION DEPENSES SECTEURS SOCIAUX ET DE PRODUTION",
+        docTypes: TYPES
+    },
+    {
+        name: "BUREAU DEPENSES DES SECTEURS SOCIAUX",
+        childs: [],
+        parent: "DIVISION DEPENSES SECTEURS SOCIAUX ET DE PRODUTION",
+        docTypes: TYPES
+    },
+    {
+        name: "",
+        childs: [],
+        parent: "",
+        docTypes: TYPES
+    },
+    {
+        name: "",
+        childs: [],
+        parent: "",
         docTypes: TYPES
     },
     {

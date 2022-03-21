@@ -223,6 +223,15 @@ exports.deleteAll = (req, res, next) => {
     .catch(error => res.status(500).json({ error }));
 };
 
+exports.addCover = (req,res, next) => {
+  Ressource.updateOne({ _id: req.body.contentId },
+    { $set: { coverUrl: `${req.protocol}://${getHost}/ressources/covers/${req.body.path}` } })
+    .then(() => res.status(200).json({ message: 'Couverture ajoutée avec succès!' }))
+    .catch(error => {
+      console.log(error);
+      res.status(400).json({ error: error.toString() });
+    });
+};
 
 exports.getStruct = (req, res, next) => {
   User.findOne({ _id: JSON.parse(req.params.struct)["userId"] })

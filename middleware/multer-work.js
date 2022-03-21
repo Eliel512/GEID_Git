@@ -1,6 +1,6 @@
 const multer = require('multer');
 const mime = require('mime-types');
-const MIME_TYPES = {
+/*const MIME_TYPES = {
   'text/plain': 'text',
   'image/jpg': 'jpg',
   'image/jpeg': 'jpg',
@@ -21,7 +21,7 @@ const MIME_TYPES = {
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
   'application/rtf': 'rtf'
 };
-
+*/
 const storage = multer.diskStorage({
   destination: (req, file, callback) => {
     const path = "workspace/"+req.body.userId+"/"+req.body.path;

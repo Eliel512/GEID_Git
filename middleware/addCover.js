@@ -12,12 +12,12 @@ const MIME_TYPES = {
 
 const storage = multer.diskStorage({
     destination: (req, file, callback) => {
-      callback(null, 'profils/');
+      callback(null, `ressources/covers/${req.body.path}`);
     },
     filename: (req, file, callback) => {
-      const name = `profil_${req.body.userId}`;
+      const name = `cover_${req.body.contentId}`;
       const extension = MIME_TYPES[file.mimetype];
-      callback(null, name + Date.now() + '.' + extension);
+      callback(null, name + '.' + extension);
     }
   });
   

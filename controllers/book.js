@@ -121,6 +121,10 @@ exports.getAll = (req, res, next) => {
   );
 };
 
+exports.addCover = (req,res, next) => {
+  
+};
+
 exports.deleteAll = (req, res, next) => {
   const count = 0;
   Book.find({  })
