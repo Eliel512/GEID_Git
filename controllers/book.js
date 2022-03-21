@@ -122,7 +122,13 @@ exports.getAll = (req, res, next) => {
 };
 
 exports.addCover = (req,res, next) => {
-  
+  Book.updateOne({ _id: req.body.contentId },
+    { $set: { coverUrl: `${req.protocol}://${getHost}/ressources/covers/${req.body.path}` } })
+    .then(() => res.status(200).json({ message: 'Couverture ajoutée avec succès!' }))
+    .catch(error => {
+      console.log(error);
+      res.status(400).json({ error: error.toString() });
+    });
 };
 
 exports.deleteAll = (req, res, next) => {
