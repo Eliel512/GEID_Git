@@ -1,4 +1,5 @@
 const { Book } = require('../models/book');
+const Type = require('../models/type');
 const { bookFrozen } = require('../models/frozen');
 const User = require('../models/user');
 const getHost = require('./getHost').getHost();
@@ -107,18 +108,39 @@ exports.delete = (req, res, next) => {
     .catch(error => res.status(500).json({ error }));
 };
 
+exports.getTypes = (req, res, next) => {
+  Type.find({ name: 'LIVRES' })
+    .then(type => res.status(200).json(type.subtypes))
+    .catch(() => res.status(400).json({ message: 'Aucun type trouvé' }));
+}
+
 exports.getAll = (req, res, next) => {
-  Book.find({  }).then(
-    (books) => {
-      res.status(200).json(books);
-    }
-  ).catch(
-    (error) => {
-      res.status(400).json({
-        error: error
-      });
-    }
-  );
+  const type = req.body.type;
+  if(type){
+    Book.find({ type: type }, { _id: 0, __v: 0 }).then(
+      (books) => {
+        res.status(200).json(books);
+      }
+    ).catch(
+      () => {
+        res.status(400).json({
+          message: 'Type incorrect'
+        });
+      }
+    );  
+  }else{
+    Book.find({  }, { _id: 0, __v: 0 }).then(
+      (books) => {
+        res.status(200).json(books);
+      }
+    ).catch(
+      (error) => {
+        res.status(400).json({
+          error: error
+        });
+      }
+    );
+  }
 };
 
 exports.addCover = (req,res, next) => {

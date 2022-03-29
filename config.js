@@ -1428,7 +1428,7 @@ let ROLES = [
         parent: "DIVISION DEPENSES SECTEURS SOCIAUX ET DE PRODUTION",
         docTypes: TYPES
     },
-    {
+    /*{
         name: "",
         childs: [],
         parent: "",
@@ -1439,7 +1439,7 @@ let ROLES = [
         childs: [],
         parent: "",
         docTypes: TYPES
-    },
+    },*/
     {
         name: "BUREAU ARCHIVES",
         childs: [],
