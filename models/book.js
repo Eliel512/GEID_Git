@@ -19,8 +19,8 @@ const bookSchema = new Schema({
 	type: {
 		type: String,
 		required: true,
-		enum: ['LIVRE', 'ARTICLE SCIENTIFIQUE', 'REVUE', 'BROCHURE'],
-		default: 'LIVRE'
+		enum: ['LIVRES', 'ARTICLES', 'REVUES', 'BROCHURES'],
+		default: 'LIVRES'
 	},
     description: {
 		type: String, 
