@@ -11,7 +11,7 @@ const adminAuth = require('./middleware/adminAuth');
 
 app = express();
 
-mongoose.connect('mongodb://localhost:27017',
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017',
   { useNewUrlParser: true,
     useUnifiedTopology: true })
   .then(() => console.log('Connexion à MongoDB réussie !'))
@@ -26,7 +26,6 @@ db.once('open', () => {
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-
 app.use((req, res, next) => {
 	res.setHeader('Access-Control-Allow-Origin', '*');
 	res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content, Accept, Content-Type, Authorization');
@@ -39,9 +38,13 @@ app.use(morgan("tiny"));
 
 app.use('/ressources', express.static(path.join(__dirname, 'ressources')));
 app.use('/workspace', express.static(path.join(__dirname, 'workspace')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api/stuff', stuffRoutes);
 app.use('/api/auth', userRoutes);
 app.use('/admin', auth, adminAuth, adminRoutes);
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '/public/index.html'));
+})
 
 module.exports = app;

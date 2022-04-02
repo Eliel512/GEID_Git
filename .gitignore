@@ -57,7 +57,10 @@ datas/
 backend/
 
 # Statics files directories
-ressources/
+ressources/archives/*.*
+ressources/mediatheque/phototheque/*.*
+ressources/mediatheque/filmotheque/*.*
+ressources/mediatheque/bibliotheque/*.*
 workspace/
 profils/
 
