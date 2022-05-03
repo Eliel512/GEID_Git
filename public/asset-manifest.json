@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/static/css/main.2ea4c935.css",
-    "main.js": "/static/js/main.a8dfb072.js",
+    "main.css": "/static/css/main.9da6af30.css",
+    "main.js": "/static/js/main.65999fc2.js",
     "static/js/787.d0e189a3.chunk.js": "/static/js/787.d0e189a3.chunk.js",
     "static/media/Comprendre la virtualisation en 7 minutes.mp4": "/static/media/Comprendre la virtualisation en 7 minutes.d46b37471a9618654f10.mp4",
     "static/media/carousel2.jpg": "/static/media/carousel2.1c2e649fbf50a6062f88.jpg",
@@ -15,8 +15,6 @@
     "static/media/photo.png": "/static/media/photo.f71b34995bd4622cfb41.png",
     "static/media/archive.jpg": "/static/media/archive.8a836ec0631960359bcd.jpg",
     "static/media/archive.png": "/static/media/archive.8a836ec0631960359bcd.png",
-    "static/media/map-point-google-map-marker-gif-11562858751s4qufnxuml.png": "/static/media/map-point-google-map-marker-gif-11562858751s4qufnxuml.c803d13e3d19c7f90beb.png",
-    "static/media/toppng.com-map-point-google-map-marker-gif-302x474.png": "/static/media/toppng.com-map-point-google-map-marker-gif-302x474.0724929b05350befe310.png",
     "static/media/logodantic.png": "/static/media/logodantic.0ad9d7906afcbd7cd0a8.png",
     "static/media/band1_bandeau-collecte.jpg_img.jpg": "/static/media/band1_bandeau-collecte.jpg_img.69acab0ad9dd762a67b0.jpg",
     "static/media/time.jpg": "/static/media/time.dd15a22b1fe865b5b0ef.jpg",
@@ -38,18 +36,17 @@
     "static/media/livre2.jpg": "/static/media/livre2.a06f00cc292876bd7a05.jpg",
     "static/media/rdc.png": "/static/media/rdc.e1fb21f408746a97e725.png",
     "static/media/carousel9.jpg": "/static/media/carousel9.76d95a223f12bba28fe4.jpg",
-    "static/media/inconnue.png": "/static/media/inconnue.56f2908d53b2e81f9e1c.png",
     "static/media/slick.svg": "/static/media/slick.2630a3e3eab21c607e21.svg",
     "static/media/slick.eot": "/static/media/slick.a4e97f5a2a64f0ab1323.eot",
     "static/media/slick.ttf": "/static/media/slick.c94f7671dcc99dce43e2.ttf",
     "static/media/slick.woff": "/static/media/slick.295183786cd8a1389865.woff",
     "index.html": "/index.html",
-    "main.2ea4c935.css.map": "/static/css/main.2ea4c935.css.map",
-    "main.a8dfb072.js.map": "/static/js/main.a8dfb072.js.map",
+    "main.9da6af30.css.map": "/static/css/main.9da6af30.css.map",
+    "main.65999fc2.js.map": "/static/js/main.65999fc2.js.map",
     "787.d0e189a3.chunk.js.map": "/static/js/787.d0e189a3.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.2ea4c935.css",
-    "static/js/main.a8dfb072.js"
+    "static/css/main.9da6af30.css",
+    "static/js/main.65999fc2.js"
   ]
 }
