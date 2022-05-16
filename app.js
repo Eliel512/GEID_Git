@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const path = require('path');
 const cors = require('cors');
 const morgan = require('morgan');
+const compression = require('compression');
+const helmet = require('helmet');
 const stuffRoutes = require('./routes/stuff');
 const userRoutes = require('./routes/user');
 const adminRoutes = require('./routes/admin');
@@ -15,7 +17,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017',
   { useNewUrlParser: true,
     useUnifiedTopology: true })
   .then(() => console.log('Connexion à MongoDB réussie !'))
-  .catch(() => console.log('Connexion à MongoDB échouée !'));
+  .catch(() => console.log('Connexion à MongoDB échouée !\nVeuillez entrez une adresse correcte dans la variabled de la variable d\'environnement MONGODB_URI'));
 
 const db = mongoose.connection;
 
@@ -33,8 +35,10 @@ app.use((req, res, next) => {
 	next();
 });
 
+app.use(helmet());
 app.use(cors());
 app.use(morgan("tiny"));
+app.use(compression());
 
 app.use('/ressources', express.static(path.join(__dirname, 'ressources')));
 app.use('/workspace', express.static(path.join(__dirname, 'workspace')));

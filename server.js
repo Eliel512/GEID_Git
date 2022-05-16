@@ -1,7 +1,11 @@
 require('dotenv').config()
 
 const http = require('http');
+const cluster = require('cluster');
+const numCPU = require('os').cpus().length;
 const app = require('./app');
+
+const isDev = process.env.NODE_ENV !== 'production';
 
 const normalizePort = val => {
   const port = parseInt(val, 10);
@@ -39,11 +43,29 @@ const errorHandler = error => {
 
 const server = http.createServer(app);
 
+if(isDev && cluster.isMaster){
+  console.error(`Node cluster master ${process.pid} is running`);
+
+  for(let i = 0; i < numCPU; i++){
+    cluster.fork();
+  }
+
+  cluster.on('exit', (worker, code, signal) => {
+    console.error(
+      `Node cluster worker 
+      ${worker.process.pid} 
+      exited: code ${code}, 
+      signal: ${signal}`);
+  })
+}else {
+  server.listen(port);
+}
+
 server.on('error', errorHandler);
 server.on('listening', () => {
   const address = server.address();
   const bind = typeof address === 'string' ? 'pipe ' + address : 'port ' + port;
-  console.log('Listening on ' + bind);
+  console.log(`Node 
+  ${isDev ? 'dev server': 'cluster worker '+ process.pid} 
+  : Listening on ${bind}`);
 });
-
-server.listen(port);

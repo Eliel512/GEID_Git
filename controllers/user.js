@@ -6,16 +6,26 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const config = require('../config');
 const getHost = require('./getHost').getHost();
-
+//BudgetDantic@20222023
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 25,
+    port: 465,
+    secure: true,
     auth: {
-      user: 'danticbudget@gmail.com',
-      pass: 'BudgetDantic@20222023'
+      user: process.env.GEID_EMAIL,
+      pass: process.env.GEID_PASS
     },
-    tls: {
+    /*tls: {
       rejectUnauthorized: false
+  }*/
+});
+
+transporter.verify((error, success) => {
+  if(error){
+    console.log(error);
+  }
+  else{
+    console.log('Connexion au serveur SMTP réussie!')
   }
 });
 
@@ -187,7 +197,7 @@ exports.login = (req, res, next) => {
 exports.validate = (req, res, next) => {
   const num = Math.floor(Math.random()*100);
   const mailOptions = {
-    from: 'danticbudget@gmail.com',
+    from: process.env.GEID_EMAIL,
     to: req.body.email,
     subject: `GEDANTIC ${num} mail validation`,
     text: `Votre code de validation: ${req.body.key}`
@@ -195,7 +205,7 @@ exports.validate = (req, res, next) => {
 
   transporter.sendMail(mailOptions, (error, info) => {
     if(error){
-      res.status(401).json({ error });
+      res.status(401).json({ message: 'Une erreur est survenue' });
     }else{
       res.status(200).json({ message: info.response});
     }
