@@ -9,6 +9,7 @@ const isValidObjectId = value => {
     }
     return value === valueId;
 };
+
 const isValidChannelCoordinates = value => {
     const { space, channel } = value;
     return isValidObjectId(space) && isValidObjectId(channel);
@@ -25,16 +26,22 @@ const messageSchema = new Schema({
     required: true
   },
   sender: {
-    type: mongoose.Types.ObjectId,
+    type: String,
     required: true,
     validate: {
-        validator: value => isValidObjectId(value)
+        validator: value => isValidObjectId(value),
+        message: function(){
+            return 'La clé doit correspondre à un id d\'utilisateur valide';
+        }
     }
   },
   recipient: {
     type: {
         type: String,
-        enum: ["user", "space"],
+        enum: {
+            values: ["user", "space"],
+            message: 'Le destinataire est soit \'user\' soit \'space\'.'
+        },
         required: true
     },
     coordinates: {
@@ -49,7 +56,7 @@ const messageSchema = new Schema({
                 return isValidChannelCoordinates(value);
             },
             message: function(){
-                return 'Les coordonées doivent correspndre à un id d\'utilisateur valide ou un objet ayant une clé \'space\' contenant l\'id de l\'espace et une clé \'channel\' contenant l\'id du channel';
+                return 'Les coordonées doivent correspondre à un id d\'utilisateur valide ou un objet ayant une clé \'space\' contenant l\'id de l\'espace et une clé \'channel\' contenant l\'id du channel';
             }
         }
     }

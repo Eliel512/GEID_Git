@@ -13,7 +13,7 @@ const isValidObjectId = value => {
 
 const memberSchema = new Schema({
     _id: {
-        type: mongoose.Types.ObjectId,
+        type: String,
         validate: {
             validator: function(value){
                 return isValidObjectId(value);
@@ -40,6 +40,10 @@ const spaceSchema = new Schema({
     required: true,
     default: new Date()
   },
+  name: {
+    type: String,
+    require: true
+  },
   description: {
     type: String,
     required: true,
@@ -63,7 +67,7 @@ const spaceSchema = new Schema({
         required: true
     },
     _id: {
-        type: mongoose.Types.ObjectId,
+        type: String,
         validate: {
             validator: function(value){
                 return isValidObjectId(value);
@@ -79,4 +83,4 @@ const spaceDB = mongoose.connection.useDb('UserInfo');
 
 const Space = spaceDB.model('spaces', spaceSchema);
 
-module.exports = Space;
+module.exports = { Space, memberSchema };
