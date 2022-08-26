@@ -63,7 +63,7 @@ exports.getAll = (req, res, next) => {
         const { mtime } = fs.statSync(`./workspace/${userId}/${path}/${file}`); 
         result.push({
           'name': file,
-          'url': `${req.protocol}://${getHost}/workspace/${userId}/${path}/${file}`,
+          'url': `https://${getHost}/workspace/${userId}/${path}/${file}`,
           'createdAt': mtime
         });
       }

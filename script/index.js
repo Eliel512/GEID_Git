@@ -12,7 +12,7 @@ require('console-warn');
 const args = querystring.parse(process.argv.filter((arg, index)=> index >= 2 && arg).join('&').toLowerCase());
 
 let PORT = args.port || 3000;                                  
- 
+
 function runScript(srcipt, args, other) {
 
 fs.readFile(__dirname + '/config.json', (error, data) => {

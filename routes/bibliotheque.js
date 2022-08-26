@@ -7,7 +7,7 @@ const multer = require('../middleware/multer-config');
 
 router.get('/', bookCtrl.getAll);
 router.post('/', /*auth, multer,*/ bookCtrl.create);
-router.post('/cover', /*auth, multer,*/ bookCtrl.addCover);
+//router.put('/cover', /*auth, multer,*/ bookCtrl.setCover);
 router.get('/:id', bookCtrl.getOne);
 router.put('/', /*auth,*/ multer, bookCtrl.modify);
 router.delete('/', bookCtrl.deleteAll);

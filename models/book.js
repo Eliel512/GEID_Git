@@ -36,7 +36,7 @@ const bookSchema = new Schema({
 	},
 	coverUrl: {
 		type: String, 
-		required: false
+		required: true
 	},
 	contentUrl: {
 		type: String, 
