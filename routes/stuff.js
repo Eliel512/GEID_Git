@@ -9,6 +9,7 @@ const bibliothequeRoutes = require('./bibliotheque');
 const filmothequeRoutes = require('./filmotheque');
 const photothequeRoutes = require('./phototheque');
 const frozenRoutes = require('./frozen');
+const coverRoutes = require('./cover');
 
 router.use('/workspace', auth, workspaceRoutes);
 router.use('/archives/public', publicRoutes);
@@ -17,5 +18,6 @@ router.use('/bibliotheque', bibliothequeRoutes);
 router.use('/filmotheque', filmothequeRoutes);
 router.use('/phototheque', photothequeRoutes);
 router.use('/frozen', auth, frozenRoutes);
+router.use('/cover', auth, coverRoutes);
 
 module.exports = router;

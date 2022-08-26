@@ -39,7 +39,7 @@ const ressourceSchema = new Schema({
 	},
 	coverUrl: {
 		type: String, 
-		required: false
+		required: true
 	}
 }, { discriminatorKey: 'kind' });
 

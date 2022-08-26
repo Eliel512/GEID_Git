@@ -51,7 +51,7 @@ exports.init = (req, res, next) => {
             }
           }
         }
-        else if(name.match("DIRECTION")){
+        else if(name.match("DIRECTION") && !name.match("SECRETARIAT")){
           gradeNRoles["DIRECTEUR"].push(name)
         }
         else if(name.match("CELLULE") || name.match("DIVISION") || name.match("CORPS")){
@@ -73,7 +73,7 @@ exports.init = (req, res, next) => {
 };
 
 exports.signup = (req, res, next) => {
-    //console.log(req.body);
+    console.log(req.body);
     // 620bf719b15f670a9fe5a427
     // 620a27432e05c11da6e012ee
     bcrypt.hash(req.body.password, 10)

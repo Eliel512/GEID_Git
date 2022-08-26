@@ -1,5 +1,6 @@
 const { Frozen, bookFrozen, imageFrozen, filmFrozen, ressourceFrozen } = require('../models/frozen');
 const User = require('../models/user.js');
+const Cover = require('../models/cover');
 const getHost = require('./getHost').getHost();
 
 const path = {
@@ -12,13 +13,29 @@ const getKeyByValue = (object, value) => {
     if(value == 'mediatheque') throw 'Valeur invalide';
     return Object.keys(object).find(key => object[key].match(value));
 }
+const getCoverUrl = async coverName => {
+    const cover = await Cover.findOne({ name: coverName  });
+    const contentUrl = cover.contentUrl || false;
+    return contentUrl;
+};
 
-exports.addOne = (req, res, next) => {
+exports.addOne = async (req, res, next) => {
     const { userId, datas, where } = req.body;
     const filename = where.split('/')[1];
     const public = datas.public ? 'public' : false;
+    const coverName = datas.coverName || false;
+    let coverUrl = '';
+    if(coverName){
+        coverUrl = await getCoverUrl(coverName);
+        console.log(coverUrl);
+	if(!coverUrl){
+	    res.status(400).json({ message: 'Nom de couverture incorrecte'  })
+	}
+    }
+    delete datas.coverName;
     delete datas._id;
     delete datas.public;
+    console.log(datas);
 
     User.findOne({ _id: userId })
       .then(user => {
@@ -31,9 +48,10 @@ exports.addOne = (req, res, next) => {
                         id: userId,
                         role: user['grade'].role
                     },
+		            coverUrl: coverUrl,
                     userId: userId,
-                    contentUrl: `${req.protocol}://${getHost}/ressources/${path[datas.frozenType]}/${filename}`,
-                    fileUrl: `${req.protocol}://${getHost}/workspace/${userId}/${where}`
+                    contentUrl: `https://${getHost}/ressources/${path[datas.frozenType]}/${filename}`,
+                    fileUrl: `https://${getHost}/workspace/${userId}/${where}`
                 });
             break;
             case 'film':
@@ -44,8 +62,8 @@ exports.addOne = (req, res, next) => {
                         role: user['grade'].role
                     },
                     userId: userId,
-                    contentUrl: `${req.protocol}://${getHost}/ressources/${path[datas.frozenType]}/${filename}`,
-                    fileUrl: `${req.protocol}://${getHost}/workspace/${userId}/${where}`
+                    contentUrl: `https://${getHost}/ressources/${path[datas.frozenType]}/${filename}`,
+                    fileUrl: `https://${getHost}/workspace/${userId}/${where}`
                 });
             break;
             case 'image':
@@ -56,8 +74,8 @@ exports.addOne = (req, res, next) => {
                         role: user['grade'].role
                     },
                     userId: userId,
-                    contentUrl: `${req.protocol}://${getHost}/ressources/${path[datas.frozenType]}/${filename}`,
-                    fileUrl: `${req.protocol}://${getHost}/workspace/${userId}/${where}`
+                    contentUrl: `https://${getHost}/ressources/${path[datas.frozenType]}/${filename}`,
+                    fileUrl: `https://${getHost}/workspace/${userId}/${where}`
                 });
             break;
             case 'ressource':
@@ -67,9 +85,10 @@ exports.addOne = (req, res, next) => {
                         id: userId,
                         role: public || user['grade'].role
                     },
+		            coverUrl: coverUrl,
                     userId: userId,
-                    contentUrl: `${req.protocol}://${getHost}/ressources/archives/${filename}`,
-                    fileUrl: `${req.protocol}://${getHost}/workspace/${userId}/${where}`
+                    contentUrl: `https://${getHost}/ressources/archives/${filename}`,
+                    fileUrl: `https://${getHost}/workspace/${userId}/${where}`
                 });
             break;
             default:
@@ -77,11 +96,11 @@ exports.addOne = (req, res, next) => {
         }
         frozen.save()
           .then(() => {
-            res.status(201).json({ message: 'Fichier envoyé avec succès!' })
+            res.status(201).json({ message: 'Fichier envoyé avec succès!' });
           })
           .catch(error => {
-              console.log(error);
-              res.status(400).json({ error })
+              //console.log(error);
+              res.status(400).json({ error });
           })
       })
       .catch(error => {
