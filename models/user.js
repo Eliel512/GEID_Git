@@ -1,12 +1,18 @@
 const mongoose = require('mongoose'), { Schema } = require('mongoose');
 const uniqueValidator= require('mongoose-unique-validator');
 const validator = require('validator');
+const { isValidObjectId } = require('../tools/validators');
 
 const userInfoSchema = new Schema({
   joinedAt: {
     type: Date,
     required: true,
     default: new Date(),
+  },
+  isValid: {
+    type: Boolean,
+    required: true,
+    default: false
   },
   fname: {
       type: String,
@@ -61,6 +67,15 @@ const userInfoSchema = new Schema({
       },
       default: ['workspace'],
       required: true
+    }
+  },
+  contacts: {
+    type: [String],
+    required: true,
+    ref: 'userInfo',
+    validate: {
+      validator: values => values.every(isValidObjectId),
+      message: () => 'Une référence de contact doit correspondre à un id d\'utilisateur valide.'
     }
   },
   imageUrl: {

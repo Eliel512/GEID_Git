@@ -11,6 +11,7 @@ module.exports = {
             "PORT": 3000,
             "PATH": process.env.PATH,
             "NODE_ENV": "development",
+            "TOKEN_KEY": "RANDOM_TOKEN_SECRET",
             "GEID_EMAIL": "danticbudget@gmail.com",
             "GEID_PASS": "ozmhyownmptmkchd",
             "MONGODB_URI": "mongodb://127.0.0.1:27017",

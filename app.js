@@ -7,8 +7,7 @@ const morgan = require('morgan');
 const compression = require('compression');
 //const Pusher = require('pusher');
 //const helmet = require('helmet');
-const stuffRoutes = require('./routes/stuff');
-const userRoutes = require('./routes/user');
+const apiRoutes = require('./routes/api');
 const adminRoutes = require('./routes/admin');
 const auth = require('./middleware/auth');
 const adminAuth = require('./middleware/adminAuth');
@@ -101,18 +100,18 @@ app.use((req, res, next) => {
 
 app.use('/ressources', express.static(path.join(__dirname, 'ressources')));
 app.use('/workspace', express.static(path.join(__dirname, 'workspace')));
+app.use('/salon', express.static(path.join(__dirname, 'salon')));
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/api/stuff', stuffRoutes);
-app.use('/api/auth', userRoutes);
+app.use('/api', apiRoutes);
 app.use('/admin', auth, adminAuth, adminRoutes);
 app.get('/analytics', (req, res, next) => {
     require('./analytics_service').getAnalytics()
         .then(analytics => res.render('analytics', { analytics: JSON.stringify(analytics) }))
-	.catch(error => {
-		console.log(error);
-		res.redirect('/');
-	});
+	      .catch(error => {
+		      console.log(error);
+		      res.redirect('/');
+	      });
 });
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '/public/index.html'));

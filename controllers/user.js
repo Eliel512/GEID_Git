@@ -73,7 +73,7 @@ exports.init = (req, res, next) => {
 };
 
 exports.signup = (req, res, next) => {
-    console.log(req.body);
+    //console.log(req.body);
     // 620bf719b15f670a9fe5a427
     // 620a27432e05c11da6e012ee
     bcrypt.hash(req.body.password, 10)
@@ -142,10 +142,15 @@ exports.signup = (req, res, next) => {
 };
 
 exports.login = (req, res, next) => {
-    User.findOne({ email: req.body.email }, {joinedAt:0, __v:0})
+    User.findOne({ email: req.body.email }, {joinedAt: 0, __v: 0})
       .then(user => {
         if (!user) {
           return res.status(404).json({ error: 'Utilisateur non trouvé !' });
+        }
+        if(!user.isValid){
+          return res.status(401).json({
+            message: 'Veuillez valider votre adresse mail avant de vous connecter.'
+          });
         }
         bcrypt.compare(req.body.password, user.password)
           .then(valid => {
@@ -165,11 +170,19 @@ exports.login = (req, res, next) => {
                 userEmail: user.email,
                 userGrade: user.grade,
                 userImage: user.imageUrl,
+                phoneCell: user.phoneCell,
                 permission: user.permission,
                 docTypes: docTypes,
                 token: jwt.sign(
-                    {userId: user._id},
-                    'RANDOM_TOKEN_SECRET',
+                    {user: {
+                      _id: user._id,
+                      fname: user.fname,
+                      mname: user.mname,
+                      lname: user.lname,
+                      grade: user.grade,
+                      docTypes: user.docTypes
+                    }},
+                    process.env.TOKEN_KEY,
                     {expiresIn: '24h'}
                 )
               }) : res.status(200).json({
@@ -179,11 +192,19 @@ exports.login = (req, res, next) => {
                 userGrade: user.grade,
                 userEmail: user.email,
                 userImage: user.imageUrl,
+                phoneCell: user.phoneCell,
                 permission: user.permission,
                 docTypes: docTypes,
                 token: jwt.sign(
-                    {userId: user._id},
-                    'RANDOM_TOKEN_SECRET',
+                    {user: {
+                      _id: user._id,
+                      fname: user.fname,
+                      mname: user.mname,
+                      lname: user.lname,
+                      grade: user.grade,
+                      docTypes: user.docTypes
+                    }},
+                    process.env.TOKEN_KEY,
                     {expiresIn: '24h'}
                 )
               });
@@ -207,7 +228,14 @@ exports.validate = (req, res, next) => {
     if(error){
       res.status(401).json({ message: 'Une erreur est survenue' });
     }else{
-      res.status(200).json({ message: info.response});
+      User.updateOne({ email: req.body.email }, { $set: { isValid: true } })
+        .then(() => res.status(200).json({ message: info.response}))
+        .catch(err => {
+          console.log(err);
+          res.status(500).json({
+            message: 'Une erreur est survenue, veuillez réessayer!'
+          })
+        });
     }
   })
 };
@@ -215,7 +243,7 @@ exports.validate = (req, res, next) => {
 exports.addProfil = (req, res, next) => {
   User.updateOne(
     { _id: req.body.userId },
-    { imageUrl: `${req.protocol}://${getHost}/profils/profil_${req.body.userId}` }
+    { imageUrl: `${req.protocol}s://${getHost}/profils/profil_${req.body.userId}` }
     )
       .then(user => {
         if (!user) {
@@ -224,4 +252,13 @@ exports.addProfil = (req, res, next) => {
         res.status(201).json({ message: 'Photo de profile ajoutée avec succès !' })
       })
       .catch(error => res.status(400).json({ error }));
+};
+
+exports.getUsersList = (req, res, next) => {
+  User.find({  }, { __v:0, password:0 })
+    .then(users => res.status(200).json(users))
+    .catch(error => {
+      console.log(error);
+      res.status(500).json({ message: 'Une erreur est survenue!' });
+    });
 };

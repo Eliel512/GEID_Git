@@ -37,6 +37,7 @@
     "portscanner": "^2.2.0",
     "pusher": "^5.1.0-beta",
     "request-ip": "^2.1.3",
+    "socket.io": "^4.5.1",
     "validator": "^13.7.0"
   }
 }
