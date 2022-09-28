@@ -4,6 +4,7 @@ const http = require('http');
 const cluster = require('cluster');
 const numCPU = require('os').cpus().length;
 const app = require('./app');
+const socketServer = require('./socket');
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -42,6 +43,7 @@ const errorHandler = error => {
 };
 
 const server = http.createServer(app);
+socketServer.registerSocketServer(server);
 
 if(isDev && cluster.isMaster){
   console.error(`Node cluster master ${process.pid} is running`);
@@ -65,7 +67,9 @@ server.on('error', errorHandler);
 server.on('listening', () => {
   const address = server.address();
   const bind = typeof address === 'string' ? 'pipe ' + address : 'port ' + port;
-  console.log(`Node 
-  ${isDev ? 'dev server': 'cluster worker '+ process.pid} 
-  : Listening on ${bind}`);
+  console.log(
+    `Node ${isDev ? 'dev server': 'cluster worker '+ process.pid} : Listening on ${bind}`
+    );
 });
+
+module.exports = server;

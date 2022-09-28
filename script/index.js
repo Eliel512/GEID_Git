@@ -121,7 +121,7 @@ function turnProcess(error, host, PORT) {
    if(error) starting(error, host, PORT);
    else {
       runScript(
-      'nodemon',
+      'node',
      [],
       { env: {...process.env, host: host, PORT: PORT} }
       );

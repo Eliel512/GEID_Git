@@ -51,15 +51,16 @@ node_modules/
 jspm_packages/
 
 # Database directory
-datas/
+data/
 
 # Replicas directory
-backend/
+all/
 
 # Statics files directories
 ressources/
 workspace/
 profils/
+salon/
 
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/

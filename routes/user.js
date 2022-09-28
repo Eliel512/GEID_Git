@@ -10,5 +10,6 @@ router.post('/validate', userCtrl.validate);
 router.post('/profil', addProfil, userCtrl.addProfil);
 router.post('/permission', permissionCtrl.add);
 router.get('/init', userCtrl.init);
+router.get('/users', userCtrl.getUsersList);
 
 module.exports = router;
