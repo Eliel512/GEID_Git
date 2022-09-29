@@ -12,6 +12,9 @@ lerna-debug.log*
 # Database's playground
 *.mongodb
 
+# ecosystem file
+ecosystem.config.js
+
 # Zips
 *.zip
 

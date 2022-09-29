@@ -59,7 +59,7 @@ module.exports = {
           .populate({
             path: 'members._id',
             model: User,
-            select: '_id fname lname mname email'
+            select: '_id fname lname mname email grade'
           })
           .exec((err, chat) => {
             if(err){
@@ -106,12 +106,12 @@ module.exports = {
           .populate({
             path: 'members._id',
             model: User,
-            select: '_id fname lname mname email'
+            select: '_id fname lname mname email grade'
           })
           .populate({
             path: 'createdBy',
             model: User,
-            select: '_id fname lname mname email'
+            select: '_id fname lname mname email grade'
           })
           .exec((err, chats) => {
             if(err){
@@ -144,12 +144,12 @@ module.exports = {
           .populate({
             path: 'members._id',
             model: User,
-            select: '_id fname lname mname email'
+            select: '_id fname lname mname email grade'
           })
           .populate({
             path: 'createdBy',
             model: User,
-            select: '_id fname lname mname email'
+            select: '_id fname lname mname email grade'
           })
           .exec((err, chat) => {
             if(err){
