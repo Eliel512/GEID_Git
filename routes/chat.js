@@ -5,8 +5,10 @@ const roomCtrl = require('../controllers/room');
 const chatCtrl = require('../controllers/chat');
 
 const multer = require('../middleware/multer-chat');
+const { check } = require('../middleware/chat');
 
 router.post('/direct', multer, chatCtrl.sendDirectFile);
+router.post('/file', multer, chatCtrl.sendFile);
 router.post('/invite', invitationCtrl.sendInvite);
 router.post('/reject', invitationCtrl.rejectInvite);
 router.post('/accept', invitationCtrl.acceptInvite);

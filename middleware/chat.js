@@ -1,7 +1,10 @@
 const User = require('../models/user');
-const Space = require('../models/space');
 const Chat = require('../models/chat');
 const fs = require('fs');
+const busboy = require('busboy');
+const os = require('os');
+const path = require('path');
+
 /*
 const isChannelMember = async (member, channelId) => {
     const channel = await Channel.findOne({ _id: channelId });
@@ -20,6 +23,112 @@ const isSpaceChannel = async (channelId, spaceId) => {
 */
 
 module.exports = {
+    check: async (req, res, next) => {
+        let to, type, date, ref, filename;
+        const userId = res.locals.userId;
+        const bb = busboy({ headers: req.headers });
+        bb.on('field', (name, val, info) => {
+            if(`${name}` === 'to'){
+                to = val;
+            }else if(`${name}` === 'type'){
+                type = val;
+            }else if(`${name}` === 'date'){
+                date = val;
+            }else if(`${name}` === 'ref'){
+                ref = val;
+            }
+          });
+          /*bb.on('file', (name, file, info) => {
+            console.log(name.);
+            let construct = name.split('.');
+            construct.pop();
+            construct = construct.join('')+`${Date.now()}`;
+            filename = construct.split(' ').join('_');
+            const saveTo = path.join(os.tmpdir(), `salon/${filename}`);
+            file.pipe(fs.createWriteStream(saveTo));
+          });*/
+          bb.on('close', async () => {
+            let query;
+            req.data = {
+                to: to,
+                date: date,
+                type: type,
+                ref: ref,
+                filename: filename
+            };
+            switch(type){
+                case 'direct':
+                  let userContacts = await User.findOne({ _id: userId }, { contacts: 1 });
+                  userContacts = userContacts.contacts;
+                  if(!userContacts.includes(to)){
+                      return res.status(404).json({
+                          message: 'Cet utilisateur ne fait pas partie de vos contacts'
+                      });
+                  }
+                  query = {
+                    "members._id": { $all: [userId, to] },
+                    type: 'direct'
+                  };
+                  break;
+              
+                case 'room':
+                  const chatExists = await Chat.exists({
+                    _id: to,
+                    type: 'room',
+                    "members._id": userId
+                  });
+                  if(chatExists){
+                    query = {
+                      "_id": to
+                    };
+                  }else{
+                    return res.status(404).json({ message: 'Chat introuvable.' });
+                  }
+                  break;
+              
+                default:
+                  return res.status(400).json({ message: '\'type\' incorrect.' })
+              }
+      
+              if(new Date(date) == 'Invalid Date'){
+                  return res.status(400).json({ message: 'La date est incorrecte.' });
+              }
+      
+              Chat.findOne(query)
+                .then(chat => {
+                  if(chat){
+                      req.chatId = chat._id.toString();
+                      next();
+                  }else{
+                      const newChat = new Chat({
+                          members: [{
+                            _id: userId,
+                            role: 'simple'
+                          }, {
+                            _id: to,
+                            role: 'simple'
+                          }],
+                          type: 'direct'
+                        });
+      
+                        newChat.save()
+                          .then(() => {
+                              req.chatId = newChat._id.toString();
+                              next();
+                          })
+                          .catch(err => {
+                            console.log(err);
+                            res.status(500).json({ message: 'Une erreur est survenue. Veuillez réessayer.' });
+                        });
+                  }
+                })
+                .catch(err => {
+                  console.log(err);
+                  res.status(500).json({ message: 'Une erreur est survenue. Veuillez réessayer.' });
+                });
+          });
+          req.pipe(bb);
+    },
     getChat: async (socket, message) => {
         const { userId } = socket.data;
         const { chatId } = message;
