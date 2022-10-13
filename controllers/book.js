@@ -109,9 +109,14 @@ exports.delete = (req, res, next) => {
 };
 
 exports.getTypes = (req, res, next) => {
-  Type.find({ name: 'LIVRES' })
-    .then(type => res.status(200).json(type.subtypes))
-    .catch(() => res.status(400).json({ message: 'Aucun type trouvé' }));
+  Type.findOne({ name: 'LIVRES' })
+    .then(type => {
+      console.log(type);
+      res.status(200).json(type.subtypes)
+    })
+    .catch(() => res.status(500).json({
+      message: 'Une erreur est survenue, veuillez réessayer.'
+    }));
 }
 
 exports.getAll = (req, res, next) => {

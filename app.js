@@ -38,6 +38,8 @@ app.set('views', path.join(__dirname, 'views'));
 require('hbs').registerHelper('toJson', data => JSON.stringify(data));
 app.set('view engine', 'hbs');
 
+mongoose.set('useCreateIndex', true);
+
 morgan.token('clientIp', function (req, res) { return getIp(req) });
 
 mongoose.connect(process.env.MONGODB_URI,
@@ -54,7 +56,7 @@ db.once('open', () => {
 });
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
 	res.setHeader('Access-Control-Allow-Origin', '*');
 	res.setHeader("Access-Control-Allow-Credentials", "true");
@@ -99,6 +101,7 @@ app.use((req, res, next) => {
 });
 
 app.use('/ressources', express.static(path.join(__dirname, 'ressources')));
+app.use('/profils', express.static(path.join(__dirname, 'profils')));
 app.use('/workspace', express.static(path.join(__dirname, 'workspace')));
 app.use('/salon', express.static(path.join(__dirname, 'salon')));
 app.use(express.static(path.join(__dirname, 'public')));
