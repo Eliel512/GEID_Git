@@ -15,10 +15,13 @@ const storage = multer.diskStorage({
       callback(null, 'profils/');
     },
     filename: (req, file, callback) => {
-      const name = `profil_${req.body.userId}`;
+      const name = `${req.userId}`;      
       const extension = MIME_TYPES[file.mimetype];
-      callback(null, name + Date.now() + '.' + extension);
+      if(!extension){
+        next(new Error('Extension de fichier incorrecte'));
+      }
+      callback(null, name + '.' + extension);
     }
-  });
-  
-  module.exports = multer({storage: storage}).single('file');
+});
+
+module.exports = multer({storage: storage}).single('file');

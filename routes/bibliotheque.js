@@ -6,6 +6,7 @@ const multer = require('../middleware/multer-config');
 //const auth = require('../middleware/mediaAuth');
 
 router.get('/', bookCtrl.getAll);
+router.get('/types', bookCtrl.getTypes);
 router.post('/', /*auth, multer,*/ bookCtrl.create);
 //router.put('/cover', /*auth, multer,*/ bookCtrl.setCover);
 router.get('/:id', bookCtrl.getOne);

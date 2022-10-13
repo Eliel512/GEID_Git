@@ -35,7 +35,7 @@ exports.addOne = async (req, res, next) => {
     delete datas.coverName;
     delete datas._id;
     delete datas.public;
-    console.log(datas);
+    //console.log(datas);
 
     User.findOne({ _id: userId })
       .then(user => {

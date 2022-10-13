@@ -7,9 +7,9 @@ const { filmSchemaFrozen } = require('./film');
 const frozenSchema = new Schema({
     sendedAt: {
 	    type: Date,
-	    required: true,
-	    default: new Date()/*.toLocaleString('en-GB', { timeZone: 'Africa/Lagos' })*/,
-	},
+	    required: true,        
+	    default: Date.now, //.toLocaleString('en-GB', { timeZone: 'Africa/Lagos' })
+    },
     createdBy: {
 		id: {type: String, required: true},
 		role: {type: String, required: true}
@@ -24,6 +24,8 @@ const frozenSchema = new Schema({
         required: [true, 'fileUrl are required'],
     }
 }, { discriminatorKey: 'kind' });
+
+frozenSchema.index({ sendedAt: 1 }, { expireAfterSeconds: 604800, name: 'sendet_At' });
 
 const archiDB = mongoose.connection.useDb('archives');
 

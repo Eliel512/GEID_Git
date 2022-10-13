@@ -240,18 +240,63 @@ exports.validate = (req, res, next) => {
   })
 };
 
+exports.edit = (req, res, next) => {
+  const { password } = req.body;
+  let body = {};
+
+  if(!(req.body.email || password || req.body.phoneCell)){
+    return res.status(400).json({ message: 'Données invalides.' });
+  }
+
+  Object.keys(req.body).forEach(key => {
+    switch(key){
+      case 'email':
+        body.email = req.body[key];
+        break;
+      case 'phoneCell':
+        body.phoneCell = req.body[key];
+        break;
+    }
+  });
+ 
+  if(password){
+    bcrypt.hash(password, 10)
+      .then(hash => {
+        User.updateOne({ _id: res.locals.user._id }, { password: hash, ...body })
+          .then(() => res.status(200).json({ message: 'Profile édité avec succès!' }))
+          .catch(error => {
+            console.log(error);
+            res.status(400).json({ message: 'Certaines données semblent invalides.' });
+          });
+      })
+      .catch(error => {
+        console.log(error);
+        res.status(500).json({ message: 'Une erreur est survenue, veuillez réessayer.' });
+      });
+    }else {
+      User.updateOne({ _id: res.locals.user._id }, { ...body })
+        .then(() => res.status(200).json({ message: 'Profile édité avec succès!' }))
+        .catch(error => {
+          console.log(error);
+          res.status(400).json({ message: 'Certaines données semblent invalides.' });
+        });
+    }  
+};
+
 exports.addProfil = (req, res, next) => {
   User.updateOne(
-    { _id: req.body.userId },
-    { imageUrl: `${req.protocol}s://${getHost}/profils/profil_${req.body.userId}` }
+    { _id: req.userId },
+    { imageUrl: `${req.protocol}s://${getHost}/profils/${req.file.filename}` }
     )
-      .then(user => {
-        if (!user) {
-          return res.status(400).json({ message: 'Utilisateur non trouvé !' });
-        }
-        res.status(201).json({ message: 'Photo de profile ajoutée avec succès !' })
+      .then(() => {        
+        res.status(200).json({ imageUrl: `${req.protocol}s://${getHost}/profils/${req.file.filename}` })
       })
-      .catch(error => res.status(400).json({ error }));
+      .catch(error => {
+        console.log(error);
+        res.status(500).json({        
+        message: 'Une erreur est survenue, veuillez réessayer.'
+      })
+    });
 };
 
 exports.getUsersList = (req, res, next) => {
