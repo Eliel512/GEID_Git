@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const frozenCtrl = require('../controllers/frozen');
+const frozenCtrl = require('../controllers/mediaLibrary/frozen');
 
 router.get('/:datas', frozenCtrl.getAllForOne);
 router.post('/', frozenCtrl.addOne);

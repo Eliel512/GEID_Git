@@ -1,22 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const auth = require('../middleware/users/auth');
 
 const workspaceRoutes = require('./workspace');
-const archiveRoutes = require('./archive');
-const publicRoutes = require('./public');
-const bibliothequeRoutes = require('./bibliotheque');
-const filmothequeRoutes = require('./filmotheque');
-const photothequeRoutes = require('./phototheque');
+const archiveRoutes = require('./archive.routes');
+const bookRoutes = require('./book.routes');
+const filmRoutes = require('./film.routes');
+const imageRoutes = require('./image.routes');
 const frozenRoutes = require('./frozen');
 const coverRoutes = require('./cover');
 
 router.use('/workspace', auth, workspaceRoutes);
-router.use('/archives/public', publicRoutes);
 router.use('/archives', auth, archiveRoutes);
-router.use('/bibliotheque', bibliothequeRoutes);
-router.use('/filmotheque', filmothequeRoutes);
-router.use('/phototheque', photothequeRoutes);
+router.use('/bibliotheque', bookRoutes);
+router.use('/filmotheque', filmRoutes);
+router.use('/phototheque', imageRoutes);
 router.use('/frozen', auth, frozenRoutes);
 router.use('/cover', auth, coverRoutes);
 

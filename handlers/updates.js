@@ -1,8 +1,8 @@
 const serverStore = require('../serverStore');
-const User = require('../models/user');
-const Invitation = require('../models/invitation');
-const Chat = require('../models/chat');
-const Message = require('../models/message');
+const User = require('../models/users/user.model');
+const Invitation = require('../models/chats/invitation.model');
+const Chat = require('../models/chats/chat.model');
+const Message = require('../models/chats/message.model');
 const ErrorHandlers = require('./errors');
 
 module.exports = {

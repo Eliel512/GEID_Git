@@ -1,5 +1,5 @@
-const User = require('../models/user');
-const Role = require('../models/roles');
+const User = require('../models/users/user.model');
+const Role = require('../models/users/role.model');
 const fs = require('fs');
 const _ = require('lodash');
 
@@ -175,7 +175,7 @@ exports.getAllRoles = (req, res, next) => {
     });
 };
 
-exports.addOneRole = (req, res, next) => {
+exports.addOneRole = async (req, res, next) => {
   const roleObject = {
     ...req.body
   };
@@ -183,10 +183,30 @@ exports.addOneRole = (req, res, next) => {
   const role = new Role({
     ...roleObject
   });
+
+  try{
+    const parentExists = await Role.exists({ name: role.parent });
+    if(!parentExists){
+      return res.status(400).json({ message: `Le role ${role.parent} n'existe pas` });      
+    }
+    await Role.updateOne({ name: role.parent }, { $push: { childs: role.name } });
+    for(child of role.childs){
+      const isExists = await Role.exists({ name: child });
+      if(!isExists){
+        return res.status(400).json({ message: `Le role ${child} n'existe pas` });
+      }
+    }
+  }catch(err){
+    console.log(err);
+    res.status(400).json({ message: "Parent incorrect" })
+  }
+
   role.save()
-    .then(() => res.status(201).json({
+    .then(() => {
+      res.status(201).json({
       message: 'Opération éffectuée avec succès!'
-    }))
+      })
+    })
     .catch(error => {
       console.log(error);
       res.status(400).json({

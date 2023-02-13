@@ -2,8 +2,8 @@ const multer = require('multer');
 const mime = require('mime-types');
 const fs = require('fs');
 
-const Chat = require('../models/chat');
-const User = require('../models/user');
+const Chat = require('../models/chats/chat.model');
+const User = require('../models/users/user.model');
 
 const getPath = async (userId, type, to) => {
   let query;

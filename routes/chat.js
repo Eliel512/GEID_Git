@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const invitationCtrl = require('../controllers/invitation');
-const roomCtrl = require('../controllers/room');
-const chatCtrl = require('../controllers/chat');
+const invitationCtrl = require('../controllers/chats/invitation');
+const roomCtrl = require('../controllers/chats/room');
+const chatCtrl = require('../controllers/chats/chat');
 
 const multer = require('../middleware/multer-chat');
-const { check } = require('../middleware/chat');
+//const { check } = require('../middleware/chat');
 
 router.post('/direct', multer, chatCtrl.sendDirectFile);
 router.post('/file', multer, chatCtrl.sendFile);

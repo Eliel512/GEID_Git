@@ -5,20 +5,13 @@ const moment = require('moment');
 const cors = require('cors');
 const morgan = require('morgan');
 const compression = require('compression');
-//const Pusher = require('pusher');
 //const helmet = require('helmet');
 const apiRoutes = require('./routes/api');
 const adminRoutes = require('./routes/admin');
-const auth = require('./middleware/auth');
+const auth = require('./middleware/users/auth');
 const adminAuth = require('./middleware/adminAuth');
 const RequestLog = require('./models/request_log');
-
-/*const pusher = new Pusher({
-    appId: process.env.PUSHER_APP_ID,
-    key: process.env.PUSHER_APP_KEY,
-    secret: process.env.PUSHER_APP_SECRET,
-    cluster: process.env.PUSHER_APP_CLUSTER
-});*/
+const gfcpf = require('./public/geid-front-config-platform');
 
 function getIp(req) {
     let ip = req.connection.remoteAddress;
@@ -34,26 +27,23 @@ function getIp(req) {
 app = express();
 
 app.set('trust proxy', true);
-app.set('views', path.join(__dirname, 'views'));
-require('hbs').registerHelper('toJson', data => JSON.stringify(data));
-app.set('view engine', 'hbs');
-
-mongoose.set('useCreateIndex', true);
 
 morgan.token('clientIp', function (req, res) { return getIp(req) });
+
+mongoose.set('useCreateIndex', true);
 
 mongoose.connect(process.env.MONGODB_URI,
   { useNewUrlParser: true,
     useUnifiedTopology: true })
   .then(() => console.log('Connexion à MongoDB réussie !'))
-  .catch(() => console.log('Connexion à MongoDB échouée !\nVeuillez entrez une adresse correcte dans la variabled de la variable d\'environnement MONGODB_URI'));
+  .catch(() => console.log('Connexion à MongoDB échouée !\nVeuillez entrez une adresse correcte dans la variable d\'environnement MONGODB_URI'));
 
-const db = mongoose.connection;
+//const db = mongoose.connection;
 
-db.on('error', console.error.bind(console, 'connection error:'));
-db.once('open', () => {
-  console.log('connected');
-});
+// db.on('error', console.error.bind(console, 'connection error:'));
+// db.once('open', () => {
+//   console.log('connected');
+// });
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -100,11 +90,10 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use('/ressources', express.static(path.join(__dirname, 'ressources')));
+app.use('/archives', express.static(path.join(__dirname, 'archives')));
 app.use('/profils', express.static(path.join(__dirname, 'profils')));
 app.use('/workspace', express.static(path.join(__dirname, 'workspace')));
 app.use('/salon', express.static(path.join(__dirname, 'salon')));
-app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api', apiRoutes);
 app.use('/admin', auth, adminAuth, adminRoutes);
@@ -116,8 +105,8 @@ app.get('/analytics', (req, res, next) => {
 		      res.redirect('/');
 	      });
 });
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '/public/index.html'));
-});
+
+// Geid config frontend apps
+gfcpf(app);
 
 module.exports = app;
