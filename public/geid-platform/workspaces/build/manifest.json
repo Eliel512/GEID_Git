@@ -1,0 +1,67 @@
+{
+  "short_name": "Geid EP",
+  "name": "Gestion électronique de l'information et des documents",
+  "icons": [
+    {
+      "src": "web/icon16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "web/icon32.png",
+      "type": "image/png",
+      "sizes": "32x32"
+    },
+    {
+      "src": "web/icon96.png",
+      "type": "image/png",
+      "sizes": "96x96"
+    },
+    {
+      "src": "ios-safari-web-clip/icon57.png",
+      "type": "image/png",
+      "sizes": "57x57"
+    },
+    {
+      "src": "ios-safari-web-clip/icon60.png",
+      "type": "image/png",
+      "sizes": "60x60"
+    },
+    {
+      "src": "ios-safari-web-clip/icon72.png",
+      "type": "image/png",
+      "sizes": "72x72"
+    },
+    {
+      "src": "ios-safari-web-clip/icon76.png",
+      "type": "image/png",
+      "sizes": "76x76"
+    },
+    {
+      "src": "windows/icon70.png",
+      "type": "image/png",
+      "sizes": "70x70"
+    },
+    {
+      "src": "others/icon64.png",
+      "type": "image/png",
+      "sizes": "64x64"
+    },
+    {
+      "src": "others/icon96.png",
+      "type": "image/png",
+      "sizes": "96x96"
+    },
+    {
+      "src": "others/icon100.png",
+      "type": "image/png",
+      "sizes": "100x100"
+    }
+    
+    
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#ffffff05",
+  "background_color": "#eeeeee05"
+}

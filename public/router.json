@@ -1,0 +1,27 @@
+[
+    {
+        "path": "public/geid-platform/archives/build",
+        "url": "/apps/archives"
+    },
+    {
+    	"path": "public/geid-platform/workspaces/build",
+    	"url": "/apps/workspaces",
+        "isRoot": true
+    },
+    {
+    	"path": "public/geid-platform/medialibrary/build",
+    	"url": "/apps/medialibrary"
+    },
+    {
+    	"path": "public/geid-platform/lisolonabudget/build",
+    	"url": "/apps/lisolonabudget"
+    },
+    {
+    	"path": "public/geid-platform/censorship-service/build",
+    	"url": "/apps/censorshipservice"
+    },
+    {
+        "path": "public/geid-platform/platform/build",
+        "url": null
+    }
+]

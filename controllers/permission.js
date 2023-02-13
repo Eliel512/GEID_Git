@@ -1,4 +1,4 @@
-const User = require('../models/user');
+const User = require('../models/users/user.model');
 
 exports.add = (req, res, next) => {
     User.updateOne({ _id: req.body.userId }, {$set: {'grade.permission': req.body.permissions}})

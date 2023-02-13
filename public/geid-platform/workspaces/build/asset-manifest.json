@@ -1,0 +1,22 @@
+{
+  "files": {
+    "main.css": "/apps/workspaces/static/css/main.3c568ac6.css",
+    "main.js": "/apps/workspaces/static/js/main.60aeab1c.js",
+    "static/js/787.f7d7d6d1.chunk.js": "/apps/workspaces/static/js/787.f7d7d6d1.chunk.js",
+    "static/media/5a229b479641b7.webp": "/apps/workspaces/static/media/5a229b479641b7.26338722151221741.7d043765507f83a412b4.webp",
+    "static/media/group_speak.webp": "/apps/workspaces/static/media/group_speak.9b483ada3f57d68934b9.webp",
+    "static/media/archives_workbooks.webp": "/apps/workspaces/static/media/archives_workbooks.4653a8204083b34a4595.webp",
+    "static/media/5a3636b951df37.webp": "/apps/workspaces/static/media/5a3636b951df37.87798883151350239.2c69c66db1d49b179571.webp",
+    "static/media/kisspng-hand-stop-sign-symbol-cl.webp": "/apps/workspaces/static/media/kisspng-hand-stop-sign-symbol-cl.1031335eb05a63c0451f.webp",
+    "static/media/icons8-microsoft-word-2019.svg": "/apps/workspaces/static/media/icons8-microsoft-word-2019.cf6e656f8830c1024fe285ab813c10c4.svg",
+    "static/media/icons8-microsoft-excel-2019.svg": "/apps/workspaces/static/media/icons8-microsoft-excel-2019.0b08e5ebb8ce76823e207fe7bcd7187b.svg",
+    "index.html": "/apps/workspaces/index.html",
+    "main.3c568ac6.css.map": "/apps/workspaces/static/css/main.3c568ac6.css.map",
+    "main.60aeab1c.js.map": "/apps/workspaces/static/js/main.60aeab1c.js.map",
+    "787.f7d7d6d1.chunk.js.map": "/apps/workspaces/static/js/787.f7d7d6d1.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.3c568ac6.css",
+    "static/js/main.60aeab1c.js"
+  ]
+}

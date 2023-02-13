@@ -1,0 +1,16 @@
+{
+  "files": {
+    "main.css": "/apps/archives/static/css/main.1879a3d7.css",
+    "main.js": "/apps/archives/static/js/main.e9f5e786.js",
+    "static/js/787.acbb0889.chunk.js": "/apps/archives/static/js/787.acbb0889.chunk.js",
+    "static/media/archives_workbooks.webp": "/apps/archives/static/media/archives_workbooks.4653a8204083b34a4595.webp",
+    "index.html": "/apps/archives/index.html",
+    "main.1879a3d7.css.map": "/apps/archives/static/css/main.1879a3d7.css.map",
+    "main.e9f5e786.js.map": "/apps/archives/static/js/main.e9f5e786.js.map",
+    "787.acbb0889.chunk.js.map": "/apps/archives/static/js/787.acbb0889.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.1879a3d7.css",
+    "static/js/main.e9f5e786.js"
+  ]
+}

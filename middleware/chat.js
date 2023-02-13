@@ -1,5 +1,5 @@
-const User = require('../models/user');
-const Chat = require('../models/chat');
+const User = require('../models/users/user.model');
+const Chat = require('../models/chats/chat.model');
 const fs = require('fs');
 const busboy = require('busboy');
 const os = require('os');

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const coverCtrl = require('../controllers/cover');
+const coverCtrl = require('../controllers/mediaLibrary/cover');
 const multer = require ('../middleware/addCover');
 
 router.get('/', coverCtrl.getAll);

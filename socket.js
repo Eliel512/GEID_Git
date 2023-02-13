@@ -36,7 +36,7 @@ const registerSocketServer = server => {
       });
 
       socket.on('contacts', () => {
-        updateContacts(socket.user._id);
+        updateContacts(socket.userId);
       });
 
       socket.on('disconnect', () => {

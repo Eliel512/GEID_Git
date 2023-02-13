@@ -1,28 +1,28 @@
 const serverStore = require('../serverStore');
-const Message = require('../models/message');
-const Chat = require('../models/chat');
-const User = require('../models/user');
+const Message = require('../models/chats/message.model');
+const Chat = require('../models/chats/chat.model');
+const User = require('../models/users/user.model');
 const { updatePendingInvitations, updateContacts, updateChatHistory, updateChatsHistories } = require('./updates');
 const ErrorHandlers = require('./errors');
 const { writeFileSync } = require('fs');
 
 module.exports = {
     newConnectionHandler: async (socket, io) => {
-        const userDetails = socket.user;
+        const userDetails = socket.userId;
         serverStore.addNewConnectedUser({
             socketId: socket.id,
-            userId: userDetails._id
+            userId: userDetails
         });
         socket.emit('connexion', {});
-        updateContacts(/*socket.id,*/ userDetails._id);
-        updatePendingInvitations(/*socket.id,*/ userDetails._id);
+        updateContacts(/*socket.id,*/ userDetails);
+        updatePendingInvitations(/*socket.id,*/ userDetails);
     },
     disconnectHandler: socket => {
         serverStore.removeConnectedUser(socket.id);
     },
     directMessageHandler: async (socket, data) => {
         const { to, content, date, ref, type } = data;
-        const userId = socket.user._id;
+        const userId = socket.userId;
 
         if(!content){
             return ErrorHandlers.msg(
@@ -88,7 +88,7 @@ module.exports = {
         });
     },
     directChatHandler: (socket, data) => {
-      const userId = socket.user._id;
+      const userId = socket.userId;
         if(!data || !data.to){
           return updateChatsHistories(userId, socket.id);
         }
@@ -106,7 +106,7 @@ module.exports = {
     },
     roomMessageHandler: (socket, data) => {
       const { to, content, date, ref, type } = data;
-        const userId = socket.user._id;
+        const userId = socket.userId;
 
         if(!content){
             return ErrorHandlers.msg(

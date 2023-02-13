@@ -54,13 +54,27 @@ exports.getAll = (req, res, next) => {
   const userId = JSON.parse(req.params.data)["userId"];
   const path = JSON.parse(req.params.data)["path"];
   let result = [];
+  try {
+    fs.mkdirSync(`./workspace/${userId}/${path}`, { recursive: true });
+  } catch (error) {
+    if (error.code !== 'EEXIST') {
+      console.log(err);
+      return res.status(500).json({ message: 'Une erreur est survenue' });
+    }
+  }
   fs.readdir(`./workspace/${userId}/${path}`, (err, files) => {
     if(err){
       console.log(err);
-      return res.status(500).json({ err });
+      return res.status(500).json({ message: 'Une erreur est survenue' });
     }else{
-      for(file of files){
-        const { mtime } = fs.statSync(`./workspace/${userId}/${path}/${file}`); 
+      for(let file of files){
+        let mtime;
+        try {
+          mtime = fs.statSync(`./workspace/${userId}/${path}/${file}`).mtime;
+        } catch (error) {
+          console.log(error);
+          return res.status(500).json({ message: 'Une erreur est survenue' });      
+        } 
         result.push({
           'name': file,
           'url': `https://${getHost}/workspace/${userId}/${path}/${file}`,

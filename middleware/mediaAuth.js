@@ -1,4 +1,4 @@
-const User = require('../models/user');
+const User = require('../models/users/user.model');
 const authorizeds = [
     "BUREAU BIBLIOTHEQUE, PHOTOTHEQUE ET FILMOTHEQUE",
     "DIVISION ARCHIVES, BIBLIOTHEQUE ET PUBLICATIONS",
