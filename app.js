@@ -94,6 +94,7 @@ app.use('/archives', express.static(path.join(__dirname, 'archives')));
 app.use('/profils', express.static(path.join(__dirname, 'profils')));
 app.use('/workspace', express.static(path.join(__dirname, 'workspace')));
 app.use('/salon', express.static(path.join(__dirname, 'salon')));
+app.use('/ressources', express.static(path.join(__dirname, 'ressources')));
 
 app.use('/api', apiRoutes);
 app.use('/admin', auth, adminAuth, adminRoutes);

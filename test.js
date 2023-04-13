@@ -1,16 +1,18 @@
-const mongoose = require('mongoose');
-const Chat = require('./models/chat');
+const express = require('express');
+const morgan = require('morgan');
+const cors = require('cors');
 
-mongoose.connect('mongodb://127.0.0.1:27017',
-  { useNewUrlParser: true,
-    useUnifiedTopology: true })
-  .then(() => console.log('Connexion à MongoDB réussie !'))
-  .catch(() => console.log('Connexion à MongoDB échouée !\nVeuillez entrez une adresse correcte dans la variabled de la variable d\'environnement MONGODB_URI'));
+const app = express();
 
+const PORT = 5000;
 
-(
-  async () => {
-    const isExists = await Chat.exists({ members: { $elemMatch: { _id: "628b448e69f93ad38f0f13a1", role: 'simple' } } });
-    console.log(isExists);
-  }
-)();
+app.use(cors());
+app.use(morgan('tiny'));
+app.get('/', (req, res) => {
+  console.log(`host: ${req.get('host')}\nhostname: ${req.hostname}`);
+  return res.status(200).send('<h1>Hello world!</h1>');
+});
+
+app.listen(PORT, () => {
+  console.log('Listening on: %d', PORT);
+});

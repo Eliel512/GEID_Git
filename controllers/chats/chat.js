@@ -30,7 +30,8 @@ module.exports = {
                 ref: req.body.ref,
                 type: 'file',
                 sender: userId,
-                createdAt: req.body.date
+                createdAt: req.body.date,
+                clientId: req.body.clientId
               });
               message.save()
                 .then(() => {
@@ -67,7 +68,8 @@ module.exports = {
                 ref: req.body.ref,
                 type: 'file',
                 sender: userId,
-                createdAt: req.body.date
+                createdAt: req.body.date,
+                clientId: req.body.clientId
               });
               message.save()
                 .then(() => {
@@ -143,7 +145,8 @@ module.exports = {
               ref: req.body.ref,
               type: 'file',
               sender: userId,
-              createdAt: req.body.date
+              createdAt: req.body.date,
+              clientId: req.body.clientId
             });
             message.save()
               .then(() => {

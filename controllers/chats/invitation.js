@@ -10,9 +10,9 @@ module.exports = {
         const objectsList = ['connexion', 'salon'];
 
         try {
-            const userEmail = await User.findOne({ _id: res.locals.userId }, { email: 1 }).email;
-            if (targetMail === userEmail) {
-                res.status(409).json({
+            const userEmail = await User.findOne({ _id: res.locals.userId }, { email: 1 });
+            if (targetMail === userEmail.email) {
+                return res.status(409).json({
                     message: 'Vous ne pouvez pas envoyé d\'invitation à votre propre adresse.'
                 });
             }

@@ -1,7 +1,7 @@
 const auth = require('./middleware/socketAuth');
 const socketHandler = require('./handlers/socket');
 const serverStore = require('./serverStore');
-const { updateContacts } = require('./handlers/updates');
+const { updateContacts, updateCallHistory } = require('./handlers/updates');
 
 const registerSocketServer = server => {
   const { Server } = require('socket.io');
@@ -35,13 +35,42 @@ const registerSocketServer = server => {
         socketHandler.roomMessageHandler(socket, data);
       });
 
+      socket.on('ping', data => {
+        socketHandler.pingHandler(socket, data);
+      });
+
       socket.on('contacts', () => {
         updateContacts(socket.userId);
+      });
+
+      socket.on('call', data => {
+        socketHandler.callHandler(socket, data);
+      });
+
+      socket.on('call-history', () => {
+        updateCallHistory(socket);
+      });
+
+      socket.on('pick-up', data => {
+        socketHandler.pickUpHandler(socket, data);
+      });
+
+      socket.on('hang-up', data => {
+        socketHandler.hangUpHandler(socket, data);
+      });
+
+      socket.on('signal', data => {
+        socketHandler.signalHandler(socket, data);
+      });
+
+      socket.on('status', data => {
+        socketHandler.statusHandler(socket, data);
       });
 
       socket.on('disconnect', () => {
         socketHandler.disconnectHandler(socket);
       });
+
 
     });
 

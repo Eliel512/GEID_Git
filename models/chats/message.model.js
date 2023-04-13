@@ -10,8 +10,8 @@ const messageSchema = new Schema({
     type: String,
     required:true,
     enum: {
-      values: ['text', 'file'],
-      message: 'La clé \'type\' est soit \'text\' soit \'file\'.'
+      values: ['text', 'file', 'event', 'voice', 'call'],
+      message: 'La clé \'type\' est comprise dans la liste: \'text\', \'file\' \'event\', \'voice\', \'call\'.'
     }
   },
   content: {
@@ -37,19 +37,20 @@ const messageSchema = new Schema({
             return 'La clé \'sender\' doit correspondre à un id d\'utilisateur valide';
         }
     }
-  }/*,
-  receiver: {
+  },
+  clientId: {
     type: String,
-    required: true,
-    ref: 'userInfo',
-    validate: {
-        validator: value => isValidObjectId(value),
-        message: function(){
-            return 'La clé \'recipient\' doit correspondre à un id de chat valide.';
-        }
-    }
-  }*/
-});
+    required: false
+  },
+  status: {
+    type: mongoose.Mixed,
+    required: false
+  },
+  details: {
+    type: mongoose.Mixed,
+    required: false
+  }
+}, { timestamps: true });
 
 const Message = mongoose.model('messages', messageSchema);
 

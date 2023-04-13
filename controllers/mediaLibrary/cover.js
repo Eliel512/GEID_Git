@@ -20,7 +20,7 @@ module.exports = {
     const cover = new Cover({
       name: name.toUpperCase(),
       docTypes: docTypes.filter(doc => doctypes.includes(doc)),
-      contentUrl: `https://${getHost}/ressources/covers/${req.file.filename}`
+      contentUrl: `/ressources/covers/${req.file.filename}`
     });
     cover.save()
       .then(() => res.status(201).json({ message: 'Couverture ajoutée avec succès!' }))

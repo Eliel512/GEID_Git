@@ -9,6 +9,10 @@ const userSchema = new Schema({
     required: [true, 'Le champ \'isValid\' est requis.'],
     default: false
   },
+  connected_at: {
+    type: Date,
+    required: false
+  },
   fname: {
     type: String,
     required: [true, 'Le champ \'fname\' est requis.']

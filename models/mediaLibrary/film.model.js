@@ -13,11 +13,11 @@ const filmSchema = new Schema({
 	},
 	event: {
 		type: String,
-		required: true
+		required: false
 	},
 	tags: {
 		type: [String],
-		required: true
+		required: false
 	},
 	contentUrl: {
 		type: String, 

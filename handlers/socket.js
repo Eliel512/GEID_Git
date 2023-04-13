@@ -2,9 +2,22 @@ const serverStore = require('../serverStore');
 const Message = require('../models/chats/message.model');
 const Chat = require('../models/chats/chat.model');
 const User = require('../models/users/user.model');
-const { updatePendingInvitations, updateContacts, updateChatHistory, updateChatsHistories } = require('./updates');
+const {
+  updatePendingInvitations,
+  updateContacts,
+  updateChatHistory,
+  updateChatsHistories,
+  updateIncomingCalls,
+  updateStatus,
+  updateCallHistory
+} = require('./updates');
 const ErrorHandlers = require('./errors');
 const { writeFileSync } = require('fs');
+const errors = require('./errors');
+
+const delay = time => {
+  return new Promise(resolve => setTimeout(resolve, time));
+}
 
 module.exports = {
     newConnectionHandler: async (socket, io) => {
@@ -16,12 +29,34 @@ module.exports = {
         socket.emit('connexion', {});
         updateContacts(/*socket.id,*/ userDetails);
         updatePendingInvitations(/*socket.id,*/ userDetails);
+        updateStatus(socket.userId);
+        updateCallHistory(userDetails);
     },
     disconnectHandler: socket => {
+        const userId = socket.userId;
+        User.updateOne({ _id: userId }, { $set: { connected_at: Date.now() } })
+          .then(async () => {
+            const receiverList = [];
+            const userDetails = await User.findOne({ _id: userId }, { connected_at: 1, contacts: 1 });
+            userDetails.contacts.forEach(contact => {
+              receiverList.push(...serverStore.getActiveConnections(contact));
+            });
+            const io = serverStore.getSocketServerInstance();
+            receiverList.forEach(socketId => {
+              io.to(socketId).emit('status', {
+                who: userId,
+                status: userDetails.connected_at
+              });
+            });
+          })
+          .catch(error => {
+            console.log(error);
+            ErrorHandlers.msg(socket.id, 'Une erreur est survenue.');
+          })
         serverStore.removeConnectedUser(socket.id);
     },
     directMessageHandler: async (socket, data) => {
-        const { to, content, date, ref, type } = data;
+        const { to, content, date, ref, type, clientId } = data;
         const userId = socket.userId;
 
         if(!content){
@@ -45,6 +80,7 @@ module.exports = {
             sender: userId,
             type: type,
             createdAt: date,
+            clientId: clientId,
             ref: ref
         });
 
@@ -105,7 +141,7 @@ module.exports = {
         });
     },
     roomMessageHandler: (socket, data) => {
-      const { to, content, date, ref, type } = data;
+      const { to, content, date, ref, type, clientId } = data;
         const userId = socket.userId;
 
         if(!content){
@@ -120,6 +156,7 @@ module.exports = {
             sender: userId,
             type: type,
             createdAt: date,
+            clientId: clientId,
             ref: ref
         });
 
@@ -149,5 +186,387 @@ module.exports = {
           .catch(err => {
             ErrorHandlers.err(err, socket.id);
         });
+    },
+    pingHandler: async (socket, data) => {
+      const { type, target } = data;
+      switch(type){
+        case 'direct':
+          for(let i = 0; i < 20; i++){
+            await delay(2000);
+            socket.emit('rings', {
+              status: serverStore.getActiveConnections(target).length > 0 ? 'connected' : 'not connected'
+            });
+          }
+      }
+    },
+    callHandler: async (socket, data) => {
+      const userId = socket.userId;
+      const { target, type, details, clientId } = data;
+      const date = details.date;
+      const receiverList = [];
+      let message;
+      let targetSocketList;
+      let roomDetails;
+      let status;
+
+      delete details.date;
+      details.target = target;
+
+      if(target === userId){
+        return ErrorHandlers.msg(socket.id, 'Operation impossible');
+      }
+
+      switch (type) {
+        case 'direct':
+          const userDetails = await User.findOne({ _id: userId }, { contacts: 1 });
+
+          if(!userDetails.contacts.includes(target)){
+              return ErrorHandlers.msg(
+                  socket.id,
+                  'Cet utilisateur ne fait pas partie de vos contacts.'
+                  )
+          }
+
+          targetSocketList = serverStore.getActiveConnections(target);
+          if (targetSocketList.length !== 0) {
+            receiverList.push(...targetSocketList);
+          }
+          status = 0;
+          break;
+
+        case 'room':
+          roomDetails = await Chat.findOne({ _id: target, 'members._id': userId, type: 'room' },
+          { name: 1, 'members._id': 1 });
+
+          if(!roomDetails){
+            return ErrorHandlers.msg(socket.id, 'Lisanga introuvable')
+          }
+
+          details.members = [];
+          
+          roomDetails.members.forEach(member => {
+            const memberId = member._id;
+            if (memberId !== userId) {
+              details.members.push(memberId);
+              const targetSocketList = serverStore.getActiveConnections(memberId);
+              if (targetSocketList.length !== 0) {
+                receiverList.push(...targetSocketList);
+              }
+            }
+          });
+
+          status = {
+            '0': [...roomDetails.members],
+            '1': [],
+            '2': [],
+            '3': [],
+            '4': []
+          };
+
+          delete roomDetails.members;
+          break;
+
+        default:
+          return ErrorHandlers.msg(socket.id, '\'type\' incorrect');
+      }
+
+      const userDetails = await User.findById(userId, '_id fname mname lname email imageUrl');
+      message = new Message({
+        content: `${userDetails.fname} ${userDetails.lname} a démarré un appel`,
+        sender: userId,
+        type: 'call',
+        createdAt: date || new Date(),
+        status: status,
+        clientId: clientId,
+        details: details
+      });
+
+      const io = serverStore.getSocketServerInstance();
+
+      message.save()
+        .then(() => {
+          receiverList.forEach(socketId => {
+            io.to(socketId).emit('incoming-call', {
+              from: userDetails,
+              details: details,
+              callId: message._id,
+              room: roomDetails ? roomDetails : undefined 
+            });
+          });
+          updateIncomingCalls(userId, target, type, message._id, 'call');
+          
+          Chat.findOne({ type: type }).or([{ _id: target } , { "members._id": { $all: [userId, target] }}])
+            .then(chat => {
+              if(chat){
+                  chat.messages.push(message._id);
+                  chat.save()
+                    .then(() => {
+                      updateChatHistory(chat._id.toString());
+                    })
+                    .catch(err => {
+                      ErrorHandlers.err(err, socket.id);
+                  });
+              }else{
+                newChat = new Chat({
+                  members: [{
+                    _id: userId,
+                    role: 'simple'
+                  }, {
+                    _id: target,
+                    role: 'simple'
+                  }],
+                  messages: [message._id],
+                  type: 'direct'
+                });
+
+                newChat.save()
+                  .then(() => updateChatHistory(newChat._id.toString()))
+                  .catch(err => {
+                    ErrorHandlers.err(err, socket.id);
+                });
+              }
+           })
+            .catch(err => {
+              ErrorHandlers.err(err, socket.id);
+          });
+        })
+        .catch(err => {
+          ErrorHandlers.err(err, socket.id);
+        });
+    },
+    pickUpHandler: async (socket, data) => {
+      const userId = socket.userId;
+      const { from, type, callId } = data;
+      const receiverList = [];
+      let callDetails;
+      let chatId;
+
+      if (userId === from) {
+        return ErrorHandlers.msg(socket.id, 'Operation impossible');
+      }
+
+      const userDetails = await User.findById(userId, '_id fname mname lname email imageUrl contacts');
+
+      switch(type){
+        case 'direct':
+          if(!userDetails.contacts.includes(from)){
+            return ErrorHandlers.msg(socket.id, 'Cet utilisateur ne fait pas partie de vos contacts.')
+          }
+          callDetails = await Message.findOne({ _id: callId, status: 0, sender: from, 'details.target': userId, type: 'call' });
+          if(!callDetails){
+            return ErrorHandlers.msg(socket.id, 'Appel introuvable');
+          }
+          chatId = await Chat.findOne({ 'members._id': { $all: [from, userId] } }, { _id: 1 });
+          chatId = chatId._id.toString();
+
+          receiverList.push(...serverStore.getActiveConnections(from));
+          updateCallHistory(from);
+          callDetails.status = 1;
+          break;
+
+        case 'room':
+          const roomDetails = await Chat.findOne({ _id: from, 'members._id': userId, type: 'room' }, { 'members._id': 1 });
+          if(!roomDetails){
+            ErrorHandlers.msg(socket.id, 'Lisanga introuvable');
+          }
+          callDetails = await Message.findOne({ _id: callId, 'details.target': from, type: 'call' });
+          if(!callDetails){
+            return ErrorHandlers.msg(socket.id, 'Appel introuvable');
+          }
+          chatId = from;
+
+          delete callDetails.status[0];
+          callDetails.status[1].push(userId);
+
+          roomDetails.members.forEach(member => {
+            const memberId = member._id;
+            if(memberId !== userId){
+              updateCallHistory(memberId);
+              receiverList.push(...serverStore.getActiveConnections(memberId));
+            }
+          });
+          break;
+
+        default:
+          return ErrorHandlers.msg(socket.id, '\'type\' incorrect');
+      }
+      
+      const io = serverStore.getSocketServerInstance();
+      receiverList.forEach(socketId => {
+        io.to(socketId).emit('pick-up', {
+          who: userDetails
+        });
+      });
+
+      callDetails.save()
+        .then(() => updateChatHistory(chatId))
+        .catch(err => {
+          ErrorHandlers.err(err, socket.id);
+        })
+      updateCallHistory(userId);
+
+    },
+  hangUpHandler: async (socket, data) => {
+    const userId = socket.userId;
+    const { from, type, details, callId } = data;
+    const receiverList = [];
+    let status = null;
+    let callDetails;
+
+    if (userId === from) {
+      return ErrorHandlers.msg(socket.id, 'Operation impossible');
     }
+
+    const userDetails = await User.findById(userId, '_id fname mname lname email imageUrl');
+    switch(details.response){
+      case 'unanswered':
+        status = 0;
+        break;
+      case 'rejected':
+        status = 0;
+        break;
+      case 'stop':
+        status = 0;
+        break;
+      case 'end':
+        status = 1;
+        break;
+    }
+
+    switch (type) {
+      case 'direct':
+        receiverList.push(...serverStore.getActiveConnections(from));
+        callDetails = await Message.findOne({
+          _id: callId, status: status || 0,
+          sender: details.response === 'stop' ? userId : from,
+          'details.target': details.response === 'stop' ? from : userId,
+          type: 'call'
+        });
+        if (!callDetails) {
+          return ErrorHandlers.msg(socket.id, 'Appel introuvable');
+        }
+        if(status != null){
+          let chatId = await Chat.findOne({ 'members._id': { $all: [from, userId] }, type: 'direct' }, { _id: 1 });
+          chatId = chatId._id.toString();
+          callDetails.status = status === 1 ? 2 : details.response === 'rejected' ? 4 : 3;
+          callDetails.save()
+            .then(() => {
+              setTimeout(() => updateChatHistory(chatId), 100);
+            })
+            .catch(err => {
+              ErrorHandlers.err(err, socket.id);
+            })
+        }
+        updateCallHistory(from);
+        updateCallHistory(userId);
+        break;
+
+      case 'room':
+        const roomDetails = await Chat.findOne({ _id: from, 'members._id': userId, type: 'room' }, { 'members._id': 1 });
+
+        if (!roomDetails) {
+          return ErrorHandlers.msg(socket.id, 'Lisanga introuvable');
+        }
+
+        callDetails = await Message.findOne({
+          _id: callId,
+          'details.target': from,
+          type: 'call'
+        });
+
+        if (!callDetails) {
+          return ErrorHandlers.msg(socket.id, 'Appel introuvable');
+        }
+
+        if (status != null) {
+          for(key in callDetails.status){
+            if(callDetails.status[key].includes(userId)){
+              const userIndex = callDetails.status[key].indexOf(userId);
+              callDetails.status[key].slice(userIndex, userIndex);
+              break;
+            }
+          }
+          callDetails.status[status === 1 ? '2' : details.response === 'rejected' ? '4' : '3'].push(userId);
+          callDetails.save()
+            .then(() => {
+              setTimeout(() => updateChatHistory(from), 100);
+            })
+            .catch(err => {
+              ErrorHandlers.err(err, socket.id);
+            })
+        }
+        roomDetails.members.forEach(member => {
+
+          const memberId = member._id;
+
+          if(memberId !== userId){
+            receiverList.push(...serverStore.getActiveConnections(memberId));
+            updateCallHistory(memberId);
+          }
+        });
+        //updateChatHistory(from);
+        break;
+
+      default:
+        return ErrorHandlers.msg(socket.id, '\'type\' incorrect');
+    }
+
+    const io = serverStore.getSocketServerInstance();
+    receiverList.forEach(socketId => {
+      io.to(socketId).emit('hang-up', {
+        who: userDetails,
+        details: details || {}
+      });
+    });
+  },
+  signalHandler: async (socket, data) => {
+    const userId = socket.userId;
+    const { type, to, details } = data;
+    const receiverList = [];
+    switch(type){
+      case 'direct':
+        const userDetails = await User.findById(userId, 'contacts');
+        if(!userDetails.contacts.includes(to)){
+          ErrorHandlers.msg(socket.id, 'La cible ne figure pas dans vos contacts.')
+        }
+        receiverList.push(...serverStore.getActiveConnections(to));
+        break;
+      case 'room':
+        const roomDetails = await Chat.findOne({ _id: to, 'members._id': userId, type: 'room' }, { 'members._id': 1 });
+        roomDetails.members.forEach(member => {
+          const memberId = member._id;
+          if(memberId !== userId){
+            receiverList.push(...serverStore.getActiveConnections(memberId));
+          }
+        });
+        break;
+      default:
+        ErrorHandlers.msg(socket.id, '\'type\' incorrect');
+    }
+
+    const io = serverStore.getSocketServerInstance();
+    receiverList.forEach(socketId => {
+      io.to(socketId).emit('signal', {
+        from: userId,
+        details: details || {}
+      });
+    });
+  },
+  statusHandler: async (socket, data) => {
+    //const userId = socket.userId;
+    const { who } = data;
+    let connected = true;
+    let connected_at;
+
+    if(serverStore.getActiveConnections(who).length === 0){
+      const userDetails = await User.findOne({ _id: who }, { connected_at: 1 });
+      connected_at = userDetails.connected_at;
+      connected = false;
+    }
+
+    socket.emit('status', {
+      who: who,
+      status: connected ? 'online' : connected_at
+    });
+  }
 };
