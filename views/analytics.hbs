@@ -1,0 +1,102 @@
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+          integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+<div class="container" id="app">
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Requêtes totales</h5>
+                    <div class="card-text">
+                        <h3>\{{ totalRequests }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Temps de réponse moyen</h5>
+                    <div class="card-text">
+                        <h3>\{{ averageResponseTime }} secondes</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Jour le plus chargé de la semaine</h5>
+                    <div class="card-text" style="width: 18rem;" v-for="day in requestsPerDay">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                \{{ day._id }} (\{{ day.numberOfRequests }} requêtes)
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Heure la plus chargée du jour</h5>
+                    <div class="card-text" style="width: 18rem;" v-for="hour in requestsPerHour">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                \{{ hour._id }} (\{{ hour.numberOfRequests }} requêtes)
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Ressources les plus visitées</h5>
+                    <div class="card-text" style="width: 18rem;" v-for="route in statsPerRoute">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                \{{ route._id.method }} \{{ route._id.url }} (\{{ route.numberOfRequests }} requêtes)
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Routes les plus lentes</h5>
+                    <div class="card-text" style="width: 18rem;" v-for="route in statsPerRoute">
+                        <ul class="list-group list-group-flush">
+                            \{{ route._id.method }} \{{ route._id.url }} (\{{ route.responseTime }} s)
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.analytics = JSON.parse({{{ toJson analytics }}});
+
+    const app = new Vue({
+        el: '#app',
+
+        data: window.analytics
+    });
+</script>
+
+<!--<script src="https://js.pusher.com/4.2/pusher.min.js"></script>-->
+
+<!--<script>const pusher = new Pusher("afe8843e634234387127", { cluster: "ap2"});pusher.subscribe('analytics').bind('updated', (data) => {Object.keys(data.analytics).forEach(stat => {window.analytics[stat] = data.analytics[stat];})})</script>-->

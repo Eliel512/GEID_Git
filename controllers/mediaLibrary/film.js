@@ -8,15 +8,15 @@ exports.create = (req, res, next) => {
   const { userId, frozenId } = req.body;
   User.findOne({ _id: userId })
     .then(user => {
-      if(user.grade["permission"].find(el => el === 'filmotheque')){
+      if (user.auth['readNWrite'].includes('films')){
         filmFrozen.findOneAndDelete({ _id: frozenId },{
           projection:{
             sendedAt:0, _id:0, __v:0, createdBy:0
           }
         })
           .then(frozen => {
-            const fileUrl = '.' + frozen._doc.fileUrl.split(`${getHost}`)[1];
-            const contentUrl = '.' + frozen._doc["contentUrl"].split(`${getHost}`)[1];
+            const fileUrl = '.' + frozen._doc.fileUrl;
+            const contentUrl = '.' + frozen._doc["contentUrl"];
             const filmObject = {
               ...frozen._doc
             };
@@ -32,7 +32,7 @@ exports.create = (req, res, next) => {
                      message: 'Le fichier envoyé est déjà enregistré sur le serveur.'
                     }) : film.save()
                           .then(() => {
-                            fs.link(fileUrl,
+                            fs.copyFile(fileUrl,
                               contentUrl,
                               err => {
                                 if(err){
@@ -45,7 +45,10 @@ exports.create = (req, res, next) => {
                           })
                           .catch(error => res.status(400).json({ error }));
               })
-              .catch(error => res.status(500).json({ error }));
+              .catch(error => {
+                console.log(error);
+                res.status(500).json({ error })
+              });
           })
           .catch(error => {
             console.log(error);

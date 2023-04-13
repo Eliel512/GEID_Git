@@ -1,13 +1,12 @@
 const { Frozen, bookFrozen, imageFrozen, filmFrozen } = require('../../models/mediaLibrary/frozen.model');
 const User = require('../../models/users/user.model');
 const Cover = require('../../models/mediaLibrary/cover.model');
-const getHost = require('./getHost').getHost();
 
 const path = {
     //'ressource': 'archives',
-    'book': 'mediatheque/bibliotheque',
-    'image': 'mediatheque/phototheque',
-    'film': 'mediatheque/filmotheque'
+    'books': 'mediatheque/bibliotheque',
+    'images': 'mediatheque/phototheque',
+    'films': 'mediatheque/filmotheque'
 };
 const getKeyByValue = (object, value) => {
     if(value == 'mediatheque') throw 'Valeur invalide';
@@ -22,20 +21,17 @@ const getCoverUrl = async coverName => {
 exports.addOne = async (req, res, next) => {
     const { userId, datas, where } = req.body;
     const filename = where.split('/')[1];
-    const public = datas.public ? 'public' : false;
     const coverName = datas.coverName || false;
     let coverUrl = '';
     if(coverName){
         coverUrl = await getCoverUrl(coverName);
-        console.log(coverUrl);
-	if(!coverUrl){
-	    res.status(400).json({ message: 'Nom de couverture incorrecte'  })
-	}
+	    if(!coverUrl){
+	        res.status(400).json({ message: 'Nom de couverture incorrecte'  })
+	    }
     }
     delete datas.coverName;
     delete datas._id;
     delete datas.public;
-    //console.log(datas);
 
     User.findOne({ _id: userId })
       .then(user => {
@@ -50,8 +46,8 @@ exports.addOne = async (req, res, next) => {
                     },
 		            coverUrl: coverUrl,
                     userId: userId,
-                    contentUrl: `https://${getHost}/ressources/${path[datas.frozenType]}/${filename}`,
-                    fileUrl: `https://${getHost}/workspace/${userId}/${where}`
+                    contentUrl: `/ressources/${path[`${datas.frozenType}s`]}/${filename}`,
+                    fileUrl: `/workspace/${userId}/${where}`
                 });
             break;
             case 'film':
@@ -62,8 +58,8 @@ exports.addOne = async (req, res, next) => {
                         role: user['grade'].role
                     },
                     userId: userId,
-                    contentUrl: `https://${getHost}/ressources/${path[datas.frozenType]}/${filename}`,
-                    fileUrl: `https://${getHost}/workspace/${userId}/${where}`
+                    contentUrl: `/ressources/${path[`${datas.frozenType}s`]}/${filename}`,
+                    fileUrl: `/workspace/${userId}/${where}`
                 });
             break;
             case 'image':
@@ -74,8 +70,8 @@ exports.addOne = async (req, res, next) => {
                         role: user['grade'].role
                     },
                     userId: userId,
-                    contentUrl: `https://${getHost}/ressources/${path[datas.frozenType]}/${filename}`,
-                    fileUrl: `https://${getHost}/workspace/${userId}/${where}`
+                    contentUrl: `/ressources/${path[`${datas.frozenType}s`]}/${filename}`,
+                    fileUrl: `/workspace/${userId}/${where}`
                 });
             break;
             /*case 'ressource':
@@ -87,8 +83,8 @@ exports.addOne = async (req, res, next) => {
                     },
 		            coverUrl: coverUrl,
                     userId: userId,
-                    contentUrl: `https://${getHost}/ressources/archives/${filename}`,
-                    fileUrl: `https://${getHost}/workspace/${userId}/${where}`
+                    contentUrl: `/ressources/archives/${filename}`,
+                    fileUrl: `/workspace/${userId}/${where}`
                 });
             break;*/
             default:
@@ -110,14 +106,15 @@ exports.addOne = async (req, res, next) => {
 }
 
 exports.getAllForOne = (req, res, next) => {
-    const userId = JSON.parse(req.params.datas)['userId'];
+    const userId = res.locals.userId;
     const where = JSON.parse(req.params.datas)['where'];
     let type;
     try{
         type = getKeyByValue(path, where);
+        type = type.slice(0, -1);
         User.findOne({ _id: userId })
           .then(user => {
-              if(user.grade["permission"].find(el => el === where)){
+              if (user.auth["readNWrite"].includes(`${type}s`)){
                   Frozen.find({ frozenType: type }, {createdAt: 0, kind: 0, frozenType: 0, userId: 0, contentUrl: 0, __v: 0})
                     .then(frozens => res.status(200).json(frozens))
                     .catch(error => {
@@ -187,7 +184,7 @@ exports.modify = (req, res, next) => {
                 default:
                     res.status(400).json({ message: 'Type incorrect' })
             }
-            if(user.grade["permission"].find(el => el === where)){
+            if(user.auth["readNWrite"].includes(where)){
                 Frozen.updateOne({ _id: datas.id }, { ...frozen, _id: datas.id })
                   .then(() => res.status(200).json({ message: 'Document modifié avec succès!' }))
                   .catch(error => res.status(400).json({ error }));
@@ -207,7 +204,7 @@ exports.deleteOne = (req, res, next) => {
     const where = frozenType === 'ressource' ? 'archives' : path[frozenType].split('/')[1];
     User.findOne({ _id: userId })
       .then(user => {
-        if(user.grade["permission"].find(el => el === where)){
+        if(user.auth["readNWrite"].includes(where)){
             Frozen.deleteOne({ _id: JSON.parse(req.params.datas)["frozenId"], frozenType: frozenType })
               .then(count => res.status(200).json({ message: `${count.deletedCount} document(s) supprimé(s)` }))
               .catch(error => res.status(400).json({ error }));

@@ -9,15 +9,15 @@ exports.create = (req, res, next) => {
   const { userId, frozenId } = req.body;
   User.findOne({ _id: userId })
     .then(user => {
-      if(user.grade["permission"].find(el => el === 'bibliotheque')){
+      if(user.auth['readNWrite'].includes('books')){
         bookFrozen.findOneAndDelete({ _id: frozenId },{
           projection:{
             sendedAt:0, _id:0, __v:0, createdBy:0
           }
         })
           .then(frozen => {
-            const fileUrl = '.' + frozen._doc.fileUrl.split(`${getHost}`)[1];
-            const contentUrl = '.' + frozen._doc["contentUrl"].split(`${getHost}`)[1];
+            const fileUrl = '.' + frozen._doc.fileUrl;
+            const contentUrl = '.' + frozen._doc["contentUrl"];
             const bookObject = {
               ...frozen._doc
             };
@@ -33,7 +33,7 @@ exports.create = (req, res, next) => {
                      message: 'Le fichier envoyé est déjà enregistré sur le serveur.'
                     }) : book.save()
                           .then(() => {
-                            fs.link(fileUrl,
+                            fs.copyFile(fileUrl,
                               contentUrl,
                               err => {
                                 if(err){
@@ -44,16 +44,28 @@ exports.create = (req, res, next) => {
                                 }
                               });
                           })
-                          .catch(error => res.status(400).json({ error }));
+                          .catch(error => {
+                            console.log(error);
+                            res.status(400).json({ error })
+                          });
               })
-              .catch(error => res.status(500).json({ error }));
+              .catch(error => {
+                console.log(error);
+                res.status(500).json({ error })
+              });
           })
-          .catch(error => res.status(400).json({ error }));
+          .catch(error => {
+            console.log(error);
+            res.status(400).json({ error })
+          });
       }else{
         return res.status(401).json({ message: 'Non authorisé' });
       }
     })
-    .catch(error => res.status(400).json({ error }));
+    .catch(error => {
+      console.log(error);
+      res.status(400).json({ error })
+    });
 };
 
 exports.getOne = (req, res, next) => {
@@ -72,41 +84,41 @@ exports.getOne = (req, res, next) => {
   );
 };
 
-exports.modify = (req, res, next) => {
-  const bookData = JSON.parse(req.body.book);
-  const bookObject = req.file ?
-  {
-    ...bookData,
-    contentUrl: `${req.protocol}://${getHost}/ressources/mediatheque/bibliotheque/${req.file.filename}`
-  } : { ...bookData };
-  const bookId = JSON.parse(req.params.path.split('=')[1])["id"];
-  Book.findOneAndUpdate({ _id: bookId }, { ...bookObject, _id: bookId })
-    .then(book => {
-      if(!req.file){
-        res.status(200).json({ message: 'Livre modifié !'});
-      }else{
-        const filename = book.contentUrl.split('/ressources/mediatheque/bibliotheque/')[1];
-        fs.unlink(`ressources/mediatheque/bibliotheque/${filename}`, () => {
-          res.status(200).json({ message: 'Livre modifié !'})
-        });
-      }
+// exports.modify = (req, res, next) => {
+//   const bookData = JSON.parse(req.body.book);
+//   const bookObject = req.file ?
+//   {
+//     ...bookData,
+//     contentUrl: `${req.protocol}://${getHost}/ressources/mediatheque/bibliotheque/${req.file.filename}`
+//   } : { ...bookData };
+//   const bookId = JSON.parse(req.params.path.split('=')[1])["id"];
+//   Book.findOneAndUpdate({ _id: bookId }, { ...bookObject, _id: bookId })
+//     .then(book => {
+//       if(!req.file){
+//         res.status(200).json({ message: 'Livre modifié !'});
+//       }else{
+//         const filename = book.contentUrl.split('/ressources/mediatheque/bibliotheque/')[1];
+//         fs.uncopyFile(`ressources/mediatheque/bibliotheque/${filename}`, () => {
+//           res.status(200).json({ message: 'Livre modifié !'})
+//         });
+//       }
 
-    })
-    .catch(error => res.status(400).json({ error })); 
-};
+//     })
+//     .catch(error => res.status(400).json({ error })); 
+// };
 
-exports.delete = (req, res, next) => {
-  Book.findOne({ _id: req.params.id.split('=')[1] })
-    .then(book => {
-      const filename = book.contentUrl.split('/ressources/mediatheque/bibliotheque/')[1];
-      fs.unlink(`ressources/mediatheque/bibliotheque/${filename}`, () => {
-        Book.deleteOne({ _id: req.params.id.split('=')[1] })
-          .then(() => res.status(200).json({ message: 'Livre supprimé !'}))
-          .catch(error => res.status(400).json({ error }));
-      });
-    })
-    .catch(error => res.status(500).json({ error }));
-};
+// exports.delete = (req, res, next) => {
+//   Book.findOne({ _id: req.params.id.split('=')[1] })
+//     .then(book => {
+//       const filename = book.contentUrl.split('/ressources/mediatheque/bibliotheque/')[1];
+//       fs.uncopyFile(`ressources/mediatheque/bibliotheque/${filename}`, () => {
+//         Book.deleteOne({ _id: req.params.id.split('=')[1] })
+//           .then(() => res.status(200).json({ message: 'Livre supprimé !'}))
+//           .catch(error => res.status(400).json({ error }));
+//       });
+//     })
+//     .catch(error => res.status(500).json({ error }));
+// };
 
 exports.getTypes = (req, res, next) => {
   Type.findOne({ name: 'LIVRES' })

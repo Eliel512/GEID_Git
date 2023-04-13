@@ -2,18 +2,15 @@ const Joi = require('joi');
 
 const signupSchema = Joi.object({
     fname: Joi.string()
-        .pattern(/^[a-zA-Z][a-zA-Z\s]*$/)
-        .min(3)
+        .min(2)
         .required(),
 
     lname: Joi.string()
-        .pattern(/^[a-zA-Z][a-zA-Z\s]*$/)
-        .min(3)
+        .min(2)
         .required(),
 
     mname: Joi.string()
-        .pattern(/^[a-zA-Z][a-zA-Z\s]*$/)
-        .min(3)
+        .min(2)
         .optional(),
     
     email: Joi.string()

@@ -10,8 +10,8 @@ router.get('/types', bookCtrl.getTypes);
 router.post('/', /*auth, multer,*/ bookCtrl.create);
 //router.put('/cover', /*auth, multer,*/ bookCtrl.setCover);
 router.get('/:id', bookCtrl.getOne);
-router.put('/', /*auth,*/ multer, bookCtrl.modify);
-router.delete('/', bookCtrl.deleteAll);
-router.delete('/:id', bookCtrl.delete);
+//router.put('/', /*auth,*/ multer, bookCtrl.modify);
+//router.delete('/', bookCtrl.deleteAll);
+//router.delete('/:id', bookCtrl.delete);
 
 module.exports = router;

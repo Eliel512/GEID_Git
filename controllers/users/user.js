@@ -101,6 +101,8 @@ exports.validate = (req, res, next) => {
 };
 
 exports.edit = (req, res, next) => {
+  //64071e41c042e427fe4561c3
+  // eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NDA3MWU0MWMwNDJlNDI3ZmU0NTYxYzMiLCJpYXQiOjE2NzkwNzI2MjgsImV4cCI6MTY3OTI0NTQyOH0.Y_AcpfFzP-VcYGUUJ0_qtKnW925tMWrOggkPIlvv2_U
   const { password } = req.body;
   let body = {};
 
@@ -173,19 +175,21 @@ exports.checkUser = async (req, res) => {
   switch(type){
     case 'token':
       try {
-        const token = req.headers.authorization.split(' ')[1];
+        const token = req.body.token;
         const decodedToken = jwt.verify(token, process.env.TOKEN_KEY);
         //const userId = decodedToken.user._id;        
       }catch{
-        return res.status(400).json({ message: 'false' });
+        return res.status(404).json({ found: false });
       }
       break;
     case 'email':
       const userExists = await User.exists({ email: req.body.email });
       if(!userExists){
-        return res.status(404).json({ message: 'false' });        
+        return res.status(404).json({ found: false });        
       }
       break;
+    default:
+      return res.status(400).json({ message: '\'type\' incorrect.'})
   }
-  return res.status(200).json({ message: 'true' });
+  return res.status(200).json({ found: true });
 };
