@@ -14,7 +14,8 @@
     },
     {
     	"path": "public/geid-platform/lisolonabudget/build",
-    	"url": "/apps/lisolonabudget"
+    	"url": "/apps/lisolonabudget",
+    	"isRoot": true
     },
     {
     	"path": "public/geid-platform/censorship-service/build",
