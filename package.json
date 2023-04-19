@@ -27,7 +27,7 @@
     "html": "^1.0.0",
     "ipware": "^2.0.0",
     "joi": "^17.8.3",
-    "jsonwebtoken": "^8.5.1",
+    "jsonwebtoken": "^9.0.0",
     "lodash": "^4.17.21",
     "moment": "^2.29.3",
     "mongoose": "^5.11.8",
