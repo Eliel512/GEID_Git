@@ -3,6 +3,7 @@ const Message = require('../../models/chats/message.model');
 const Chat = require('../../models/chats/chat.model');
 const { updateChatHistory } = require('../../handlers/updates');
 const getHost = require('./getHost').getHost();
+const mimeTypes = require('mime-types');
 
 module.exports = {
     sendDirectFile: async (req, res) => {
@@ -139,11 +140,13 @@ module.exports = {
       Chat.findOne(query)
         .then(chat => {
           if(chat){
-            const content = `${req.protocol}s://${getHost}/salon/${chat._id}/${req.file.filename}`;
+            const content = `salon/${chat._id}/${req.file.filename}`;
+            const type = req.body.type;
             const message = new Message({
               content: content,
               ref: req.body.ref,
-              type: 'file',
+              type: type,
+              subtype: type === 'doc' ? mimeTypes.lookup(req.file.filename) || 'AUTRE' : req.body.subtype,
               sender: userId,
               createdAt: req.body.date,
               clientId: req.body.clientId
@@ -163,7 +166,7 @@ module.exports = {
               })
               .catch(error => {
                 console.log(error);
-                res.status(500).json({ message: 'Une erreur est survenur, veuillez réessayer.' });
+                res.status(500).json({ message: 'Une erreur est survenue, veuillez réessayer.' });
               });
           }else{
             res.status(500).json({ message: 'Une erreur est survenue, veuillez réessayer.' })
