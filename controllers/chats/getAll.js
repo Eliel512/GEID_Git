@@ -43,13 +43,28 @@ module.exports = (req, res) => {
             path:'to',
             model: User,
             select: '_id fname mname lname email grade imageUrl'
+          }),
+        Message.find({
+          type: 'call',
+          $or: [{
+            sender: userId
+          },
+          { 'details.target': userId },
+          { 'details.members': userId }
+          ]
+        })
+          .populate({
+            path: 'sender',
+            model: User,
+            select: '_id fname lname mname email grade imageUrl'
           })
     ])
       .then(values => {
           res.status(200).json({
               chats: values[0],
               contacts: values[1].contacts,
-              invitations: values[2]
+              invitations: values[2],
+              'callHistory': values[3]
           })
       })
       .catch(error => {

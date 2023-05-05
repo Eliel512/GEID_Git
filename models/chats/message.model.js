@@ -10,9 +10,26 @@ const messageSchema = new Schema({
     type: String,
     required:true,
     enum: {
-      values: ['text', 'file', 'event', 'voice', 'call'],
+      values: ['text', 'doc', 'media', 'event', 'voice', 'call'],
       message: 'La clé \'type\' est comprise dans la liste: \'text\', \'file\' \'event\', \'voice\', \'call\'.'
     }
+  },
+  subtype: {
+    type: String,
+    required: false,
+    validate: {
+      validator: function(value) {
+        if(this.type === 'media'){
+          const enums = ['AUDIO', 'VIDEO', 'IMAGE']
+          if (!enums.includes(value.toUpperCase())) {
+            return false;
+          }
+        }
+        return true;
+      },
+      message: 'Sous-type invalide.'
+    },
+    set: value => value.toUpperCase()
   },
   content: {
     type: String,
