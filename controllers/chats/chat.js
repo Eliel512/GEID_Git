@@ -140,34 +140,41 @@ module.exports = {
       Chat.findOne(query)
         .then(chat => {
           if(chat){
-            const content = `salon/${chat._id}/${req.file.filename}`;
-            const type = req.body.type;
-            const message = new Message({
-              content: content,
-              ref: req.body.ref,
-              type: type,
-              subtype: type === 'doc' ? mimeTypes.lookup(req.file.filename) || 'AUTRE' : req.body.subtype,
-              sender: userId,
-              createdAt: req.body.date,
-              clientId: req.body.clientId
+            const messagesIds = [];
+            const promises = req.files.map(file => {
+              const content = `salon/${chat._id}/${file.filename}`;
+              const fileType = req.body.fileType;
+              const message = new Message({
+                content: content,
+                ref: req.body.ref,
+                type: fileType,
+                subtype: fileType === 'doc' ? mimeTypes.lookup(file.filename) || 'AUTRE' : req.body.subtype,
+                sender: userId,
+                createdAt: req.body.date,
+                clientId: req.body.clientId
+              });
+              messagesIds.push(message._id);
+              return message.save()
             });
-            message.save()
+
+            Promise.all(promises)
               .then(() => {
-                chat.messages.push(message._id);
+                chat.messages.push(...messagesIds);
                 chat.save()
                   .then(() => {
                     updateChatHistory(chat._id.toString());
-                    res.status(201).json({ message: 'Fichier envoyé avec succès!' });
-                })
+                    res.status(201).json({ message: 'Fichier(s) envoyé(s) avec succès!' });
+                  })
                   .catch(err => {
                     console.log(err);
-                    res.status(500).json({ message: 'Une erreur est survenur, veuillez réessayer.' })
-                });
+                    return res.status(500).json({ message: 'Une erreur est survenue, veuillez réessayer.' })
+                  });
               })
               .catch(error => {
                 console.log(error);
-                res.status(500).json({ message: 'Une erreur est survenue, veuillez réessayer.' });
+                res.status(500).json({ message: 'Une erreur est survenue, veuillez réessayer' });
               });
+            
           }else{
             res.status(500).json({ message: 'Une erreur est survenue, veuillez réessayer.' })
           }

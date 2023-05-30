@@ -1,6 +1,14 @@
+// const session = require('express-session');
+// const sharedsession = require('express-socket.io-session');
+// const mongoose = require('mongoose');
+// const MongoStore = require('connect-mongo');
+// const CallSession = require('./models/chats/callSession.model');
+const eiows = require('eiows');
 const auth = require('./middleware/socketAuth');
 const socketHandler = require('./handlers/socket');
+const roomHandler = require('./handlers/room');
 const serverStore = require('./serverStore');
+const roomStore = require('./roomStore');
 const { updateContacts, updateCallHistory } = require('./handlers/updates');
 
 const registerSocketServer = server => {
@@ -9,21 +17,47 @@ const registerSocketServer = server => {
     cors: {
       origin: '*',
       methods: ["GET", "POST"]
-    }
+    },
+    wsEngine: eiows.Server
   });
+
+  // const roomIo = io.of('/room');
+
+  // const store = MongoStore.create({
+  //   client: mongoose.connection.getClient(), // Utiliser le client mongoose existant
+  //   collectionName: CallSession.collection.name, // Nom de la collection pour les sessions
+  //   modelName: CallSession.modelName, // Nom du modèle mongoose pour les sessions
+  //   stringify: false, // Ne pas convertir la session en chaîne JSON
+  //   ttl: 60 * 60 * 24 // 1 Jour
+  // });
+
+  // store.on('error', function (error) {
+  //   console.error(error);
+  // });
+
+  // const sessionMiddleware = session({
+  //   secret: process.env.SESSION_SECRET,
+  //   cookie: {
+  //     maxAge: 1000 * 60 * 60 * 24, // La durée de vie du cookie de session en millisecondes
+  //     secure: true // Activer le cookie sécurisé si vous utilisez HTTPS
+  //   },
+  //   store: store, // L'objet de stockage de session MongoDB
+  //   resave: false, // Force la sauvegarde de la session à chaque requête
+  //   saveUninitialized: false // Force la création d'une session même si elle est vide
+  // });
 
   serverStore.setSocketServerInstance(io);
 
   io.use(auth)
     .on('connection', (socket) => {
-      
+
       socketHandler.newConnectionHandler(socket, io);
 
       socket.on('direct-message', data => {
         socketHandler.directMessageHandler(socket, data);
       });
 
-      socket.on('direct-file', (data, callback) => {
+      socket.on('direct-file', data => {
         socketHandler.directFileHandler(socket, data);
       });
 
@@ -76,92 +110,34 @@ const registerSocketServer = server => {
 
 }
 
+// roomIo.use(auth)
+//   //.use(sharedsession(sessionMiddleware))
+//   .on('connection', socket => {
+//     console.log('connected to room');
+//     socketHandler.newConnectionHandler(socket, roomIo);
+
+//     roomStore.setSocketServerInstance(roomIo);
+
+//     roomStore.addNewConnectedUser({
+//       socketId: socket.id,
+//       userId: socket.userId
+//     });
+
+//     socket.on('schedule', data => {
+//       roomHandler.scheduleHandler(socket, data);
+//     });
+
+//     socket.on('create', data => {
+//       roomHandler.createHandler(socket, data);
+//     });
+
+//     socket.on('join', data => {
+//       roomHandler.joinRoom(socket, data);
+//     });
+
+//     socket.on('call', data => {
+//       roomHandler.callHandler(socket, data);
+//     });
+//   });
+
 module.exports = { registerSocketServer };
-
-/*const server = require('./server');
-const { Server } = require("socket.io");
-const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ["GET", "POST"],
-    credentials: true,
-    transports: ['websocket', 'polling'],
-  },
-  allowEIO3: true
-});
-
-const auth = require('./middleware/socketAuth');
-const { getChat, createChat, createRoom } = require('./middleware/chat');
-const { sendMessage, createSpace, readChat, readChats } = require('./controllers/chat');
-
-const users = {};
-
-io.use(auth)
-  .on('connection', (socket) => {
-
-    users[socket.data.userId] = socket;
-
-    console.log(`connected users: ${ Object.keys(users).join(' ') }`);
-
-    socket.emit('connexion', {
-      message: 'Connecté'
-    });
-
-    socket.on('sendMessage', async message => {
-        socket.intent = 'send';
-        const chatTest = await getChat(socket, message);
-        if(chatTest === true){
-            sendMessage(socket, message, users);
-            console.log('Message sended');
-        }else if (chatTest === false && message.to) {
-            const createTest = await createChat(socket);
-            if(createTest === true){
-                sendMessage(socket, message, users);
-                console.log('Message sended');
-            }
-        }
-
-      });
-    
-    socket.on('readChats', () => {
-        readChats(socket);
-    });
-
-    socket.on('readChat', chatId => {
-      readChat(socket, chatId);
-    });
-
-    socket.on('readMessage', message => {
-        readMessage(socket, message);
-    });
-
-    socket.on('createSpace', async space => {
-        socket.intent = 'crtSp';
-        console.log('Creating space...');
-        createSpace(socket, space);
-    });
-
-    socket.on('nwroom', async roomObj => {
-      const createTest = await createChat(
-        createRoom(socket, roomObj)
-      );
-      if(createTest === true){
-        socket.emit('success', {
-          message: 'Discussion créée avec succès!'
-        })
-        socket.emit('nwchat');
-      }else{
-        socket.emit('error', {
-          status: 400,
-          message: 'Une erreur est survenue, veuillez vérifier les informations entrées.'
-        })
-      }
-    });
-
-    socket.on('nwchat', () => socket.emit('readChats'))
-
-    socket.on('disconnect', () => {
-      console.log(`${socket.data.userId} disconnected`);
-    });
-  });
-  */

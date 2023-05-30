@@ -210,7 +210,7 @@ module.exports = {
       let status;
 
       delete details.date;
-      details.target = target;
+      details.mark = target;
 
       if(target === userId){
         return ErrorHandlers.msg(socket.id, 'Operation impossible');
@@ -302,6 +302,7 @@ module.exports = {
                   chat.save()
                     .then(() => {
                       updateChatHistory(chat._id.toString());
+                      chat.members.forEach(member => updateCallHistory(member._id));
                     })
                     .catch(err => {
                       ErrorHandlers.err(err, socket.id);
@@ -320,7 +321,10 @@ module.exports = {
                 });
 
                 newChat.save()
-                  .then(() => updateChatHistory(newChat._id.toString()))
+                  .then(() => {
+                    updateChatHistory(newChat._id.toString());
+                    newChat.members.forEach(member => updateCallHistory(member._id));
+                  })
                   .catch(err => {
                     ErrorHandlers.err(err, socket.id);
                 });
@@ -352,7 +356,7 @@ module.exports = {
           if(!userDetails.contacts.includes(from)){
             return ErrorHandlers.msg(socket.id, 'Cet utilisateur ne fait pas partie de vos contacts.')
           }
-          callDetails = await Message.findOne({ _id: callId, status: 0, sender: from, 'details.target': userId, type: 'call' });
+          callDetails = await Message.findOne({ _id: callId, status: 0, sender: from, 'details.mark': userId, type: 'call' });
           if(!callDetails){
             return ErrorHandlers.msg(socket.id, 'Appel introuvable');
           }
@@ -369,14 +373,17 @@ module.exports = {
           if(!roomDetails){
             ErrorHandlers.msg(socket.id, 'Lisanga introuvable');
           }
-          callDetails = await Message.findOne({ _id: callId, 'details.target': from, type: 'call' });
+          callDetails = await Message.findOne({ _id: callId, 'details.mark': from, type: 'call' });
           if(!callDetails){
             return ErrorHandlers.msg(socket.id, 'Appel introuvable');
           }
           chatId = from;
 
-          delete callDetails.status[0];
+          const userIndex = callDetails.status[0].indexOf(userId);
+          callDetails.status[0].slice(userIndex, userIndex);
+
           callDetails.status[1].push(userId);
+          callDetails.markModified('status');
 
           roomDetails.members.forEach(member => {
             const memberId = member._id;
@@ -439,7 +446,7 @@ module.exports = {
         callDetails = await Message.findOne({
           _id: callId, status: status || 0,
           sender: details.response === 'stop' ? userId : from,
-          'details.target': details.response === 'stop' ? from : userId,
+          'details.mark': details.response === 'stop' ? from : userId,
           type: 'call'
         });
         if (!callDetails) {
@@ -470,7 +477,7 @@ module.exports = {
 
         callDetails = await Message.findOne({
           _id: callId,
-          'details.target': from,
+          'details.mark': from,
           type: 'call'
         });
 
@@ -487,6 +494,7 @@ module.exports = {
             }
           }
           callDetails.status[status === 1 ? '2' : details.response === 'rejected' ? '4' : '3'].push(userId);
+          callDetails.markModified('status');
           callDetails.save()
             .then(() => {
               setTimeout(() => updateChatHistory(from), 100);
