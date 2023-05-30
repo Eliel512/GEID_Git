@@ -86,7 +86,7 @@ module.exports = {
             }
           });
     },
-    updateChatsHistories: (userId) => {
+    updateChatsHistories: (userId, end = false) => {
         Chat.find({ "members._id": userId })
           .populate({
             path: 'messages',
@@ -118,7 +118,7 @@ module.exports = {
 
                 activeConnections.forEach(socketId => {
                     io.to(socketId).emit('chats', {
-                        chats: chats
+                        chats: end ? [chats.findLast(el => true)] : chats
                     });
                 });
             }
@@ -258,7 +258,7 @@ module.exports = {
                     const receiverList = serverStore.getActiveConnections(userId);
 
                     receiverList.forEach(socketId => {
-                        io.to(socketId).emit('call-history', messages);
+                        io.to(socketId).emit('call-history', [messages.findLast(msg => true)]);
                     });
                 }
             });

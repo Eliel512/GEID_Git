@@ -1,13 +1,14 @@
 {
   "files": {
-    "main.css": "/apps/lisolonabudget/static/css/main.c9a9a8d7.css",
-    "main.js": "/apps/lisolonabudget/static/js/main.08ff1076.js",
+    "main.css": "/apps/lisolonabudget/static/css/main.c3648e5b.css",
+    "main.js": "/apps/lisolonabudget/static/js/main.da3f8249.js",
     "static/js/787.7f8ff8b3.chunk.js": "/apps/lisolonabudget/static/js/787.7f8ff8b3.chunk.js",
     "static/media/ring-ton-outgoing-call.wav": "/apps/lisolonabudget/static/media/ring-ton-outgoing-call.46460192d08ba4fae99b.wav",
     "static/media/mixkit-on-hold-ringtone.wav": "/apps/lisolonabudget/static/media/mixkit-on-hold-ringtone.3422ee21f809708b1fb1.wav",
     "static/media/Halloween-Cradles.mp3": "/apps/lisolonabudget/static/media/Halloween-Cradles.e52b1da48a0e65a8c08d.mp3",
     "static/media/end-call.wav": "/apps/lisolonabudget/static/media/end-call.37ae8abc0838a8d564c6.wav",
     "static/media/busyphone.mp3": "/apps/lisolonabudget/static/media/busyphone.6d1a2032a8c7079abad6.mp3",
+    "worker.js": "/apps/lisolonabudget/c854788fb6b5578b3479.worker.js",
     "static/media/computer-error.wav": "/apps/lisolonabudget/static/media/computer-error.3b8dc4d3f284c98fa983.wav",
     "static/media/_DSC7640.webp": "/apps/lisolonabudget/static/media/_DSC7640.480bdc0ae9b3b8a57f84.webp",
     "static/media/Formation-communication-pour-mobiliser-une-équipe-et-atteindre-les-objectifs.jpg": "/apps/lisolonabudget/static/media/Formation-communication-pour-mobiliser-une-équipe-et-atteindre-les-objectifs.61a9e5647a6125a47f0f.61a9e5647a6125a47f0f.jpg",
@@ -19,15 +20,18 @@
     "static/media/calldisconnect.mp3": "/apps/lisolonabudget/static/media/calldisconnect.dd1a360a8700b4211032.mp3",
     "static/media/banana-peel-slip-zip-sound.wav": "/apps/lisolonabudget/static/media/banana-peel-slip-zip-sound.f80b3254ac261eefca75.wav",
     "static/media/geid_logo_blue.webp": "/apps/lisolonabudget/static/media/geid_logo_blue.707c230a31de24d464fd.webp",
+    "static/media/miui12dr_m5r75343.mp3": "/apps/lisolonabudget/static/media/miui12dr_m5r75343.6051b8acf2e3e1630e0b.mp3",
     "static/media/group_speak.webp": "/apps/lisolonabudget/static/media/group_speak.9b483ada3f57d68934b9.webp",
     "static/media/geid_logo_blue_without_title.webp": "/apps/lisolonabudget/static/media/geid_logo_blue_without_title.f54279024e98be825868.webp",
+    "static/media/icons8-microsoft-word-2019.svg": "/apps/lisolonabudget/static/media/icons8-microsoft-word-2019.cf6e656f8830c1024fe285ab813c10c4.svg",
+    "static/media/icons8-microsoft-excel-2019.svg": "/apps/lisolonabudget/static/media/icons8-microsoft-excel-2019.0b08e5ebb8ce76823e207fe7bcd7187b.svg",
     "index.html": "/apps/lisolonabudget/index.html",
-    "main.c9a9a8d7.css.map": "/apps/lisolonabudget/static/css/main.c9a9a8d7.css.map",
-    "main.08ff1076.js.map": "/apps/lisolonabudget/static/js/main.08ff1076.js.map",
+    "main.c3648e5b.css.map": "/apps/lisolonabudget/static/css/main.c3648e5b.css.map",
+    "main.da3f8249.js.map": "/apps/lisolonabudget/static/js/main.da3f8249.js.map",
     "787.7f8ff8b3.chunk.js.map": "/apps/lisolonabudget/static/js/787.7f8ff8b3.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.c9a9a8d7.css",
-    "static/js/main.08ff1076.js"
+    "static/css/main.c3648e5b.css",
+    "static/js/main.da3f8249.js"
   ]
 }

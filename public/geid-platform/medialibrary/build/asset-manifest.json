@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.css": "/apps/medialibrary/static/css/main.ea747f8f.css",
-    "main.js": "/apps/medialibrary/static/js/main.86c101b6.js",
-    "static/js/251.ded2f9f9.chunk.js": "/apps/medialibrary/static/js/251.ded2f9f9.chunk.js",
+    "main.css": "/apps/medialibrary/static/css/main.81b67129.css",
+    "main.js": "/apps/medialibrary/static/js/main.fc300b5a.js",
+    "static/js/251.542d3339.chunk.js": "/apps/medialibrary/static/js/251.542d3339.chunk.js",
     "static/js/787.5bb06764.chunk.js": "/apps/medialibrary/static/js/787.5bb06764.chunk.js",
-    "static/js/252.1fd8a6b6.chunk.js": "/apps/medialibrary/static/js/252.1fd8a6b6.chunk.js",
+    "static/js/252.7cb294ee.chunk.js": "/apps/medialibrary/static/js/252.7cb294ee.chunk.js",
     "static/media/20221007_110306.gif": "/apps/medialibrary/static/media/20221007_110306.9719353d2abe67c86ef4.gif",
     "static/media/20221007_103726.gif": "/apps/medialibrary/static/media/20221007_103726.be7edec197fcb2da03f2.gif",
     "static/media/geidphotolib.png": "/apps/medialibrary/static/media/geidphotolib.7ca649508ebfa2043c73.png",
@@ -42,6 +42,7 @@
     "static/media/roboto-cyrillic-700-normal.woff2": "/apps/medialibrary/static/media/roboto-cyrillic-700-normal.d010f1f324e111a22e53.woff2",
     "static/media/roboto-cyrillic-400-normal.woff2": "/apps/medialibrary/static/media/roboto-cyrillic-400-normal.71a33b6b50457b2c903a.woff2",
     "static/media/roboto-cyrillic-300-normal.woff2": "/apps/medialibrary/static/media/roboto-cyrillic-300-normal.1431d1cef06ad04f5458.woff2",
+    "static/media/5a229b479641b7.webp": "/apps/medialibrary/static/media/5a229b479641b7.26338722151221741.7d043765507f83a412b4.webp",
     "static/media/roboto-greek-300-normal.woff2": "/apps/medialibrary/static/media/roboto-greek-300-normal.db2632771401f61463fe.woff2",
     "static/media/roboto-greek-400-normal.woff2": "/apps/medialibrary/static/media/roboto-greek-400-normal.c35e4c3958e209d17b31.woff2",
     "static/media/roboto-greek-500-normal.woff2": "/apps/medialibrary/static/media/roboto-greek-500-normal.9ac81fefbe6c319ea40b.woff2",
@@ -50,6 +51,7 @@
     "static/media/roboto-vietnamese-400-normal.woff2": "/apps/medialibrary/static/media/roboto-vietnamese-400-normal.3230f9b040f3c630e0c3.woff2",
     "static/media/roboto-vietnamese-700-normal.woff2": "/apps/medialibrary/static/media/roboto-vietnamese-700-normal.3425a701027d0699e369.woff2",
     "static/media/roboto-vietnamese-300-normal.woff2": "/apps/medialibrary/static/media/roboto-vietnamese-300-normal.32fc45a3d1e8ea11fabc.woff2",
+    "static/media/geid_logo_blue_without_title.webp": "/apps/medialibrary/static/media/geid_logo_blue_without_title.f54279024e98be825868.webp",
     "static/media/icons8-microsoft-word-2019.svg": "/apps/medialibrary/static/media/icons8-microsoft-word-2019.cf6e656f8830c1024fe285ab813c10c4.svg",
     "static/media/roboto-greek-ext-500-normal.woff2": "/apps/medialibrary/static/media/roboto-greek-ext-500-normal.6fb9cffb1d3e72bf9293.woff2",
     "static/media/roboto-greek-ext-400-normal.woff2": "/apps/medialibrary/static/media/roboto-greek-ext-400-normal.169619821ea93019d1bb.woff2",
@@ -57,14 +59,14 @@
     "static/media/roboto-greek-ext-700-normal.woff2": "/apps/medialibrary/static/media/roboto-greek-ext-700-normal.bd9854c751441ccc1a70.woff2",
     "static/media/icons8-microsoft-excel-2019.svg": "/apps/medialibrary/static/media/icons8-microsoft-excel-2019.0b08e5ebb8ce76823e207fe7bcd7187b.svg",
     "index.html": "/apps/medialibrary/index.html",
-    "main.ea747f8f.css.map": "/apps/medialibrary/static/css/main.ea747f8f.css.map",
-    "main.86c101b6.js.map": "/apps/medialibrary/static/js/main.86c101b6.js.map",
-    "251.ded2f9f9.chunk.js.map": "/apps/medialibrary/static/js/251.ded2f9f9.chunk.js.map",
+    "main.81b67129.css.map": "/apps/medialibrary/static/css/main.81b67129.css.map",
+    "main.fc300b5a.js.map": "/apps/medialibrary/static/js/main.fc300b5a.js.map",
+    "251.542d3339.chunk.js.map": "/apps/medialibrary/static/js/251.542d3339.chunk.js.map",
     "787.5bb06764.chunk.js.map": "/apps/medialibrary/static/js/787.5bb06764.chunk.js.map",
-    "252.1fd8a6b6.chunk.js.map": "/apps/medialibrary/static/js/252.1fd8a6b6.chunk.js.map"
+    "252.7cb294ee.chunk.js.map": "/apps/medialibrary/static/js/252.7cb294ee.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.ea747f8f.css",
-    "static/js/main.86c101b6.js"
+    "static/css/main.81b67129.css",
+    "static/js/main.fc300b5a.js"
   ]
 }

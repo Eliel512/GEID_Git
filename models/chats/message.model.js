@@ -8,7 +8,7 @@ const messageSchema = new Schema({
   },
   type: {
     type: String,
-    required:true,
+    required: true,
     enum: {
       values: ['text', 'doc', 'media', 'event', 'voice', 'call'],
       message: 'La clé \'type\' est comprise dans la liste: \'text\', \'file\' \'event\', \'voice\', \'call\'.'
@@ -18,8 +18,8 @@ const messageSchema = new Schema({
     type: String,
     required: false,
     validate: {
-      validator: function(value) {
-        if(this.type === 'media'){
+      validator: function (value) {
+        if (this.type === 'media') {
           const enums = ['AUDIO', 'VIDEO', 'IMAGE']
           if (!enums.includes(value.toUpperCase())) {
             return false;
@@ -40,8 +40,8 @@ const messageSchema = new Schema({
     required: false,
     ref: 'message',
     validate: {
-        validator: value => isValidObjectId(value),
-        message: () => 'La clé \'ref\' doit correspondre à un id de message valide.'
+      validator: value => isValidObjectId(value),
+      message: () => 'La clé \'ref\' doit correspondre à un id de message valide.'
     }
   },
   sender: {
@@ -49,10 +49,10 @@ const messageSchema = new Schema({
     required: true,
     ref: 'userInfo',
     validate: {
-        validator: value => isValidObjectId(value),
-        message: function(){
-            return 'La clé \'sender\' doit correspondre à un id d\'utilisateur valide';
-        }
+      validator: value => isValidObjectId(value),
+      message: function () {
+        return 'La clé \'sender\' doit correspondre à un id d\'utilisateur valide';
+      }
     }
   },
   clientId: {
