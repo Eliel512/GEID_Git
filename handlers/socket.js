@@ -199,6 +199,42 @@ module.exports = {
           }
       }
     },
+    lastHandler: async (socket, data) => {
+      User.findById(socket.userId, 'connected_at')
+        .then(user => {
+          data = data ? data : {};
+          user = user ? user : {};
+          const date = data.date ? data.date : user.connected_at;
+          Chat.find({ 'members._id': socket.userId, createdAt: { $gte: date } })
+          .populate({
+            path: 'messages',
+            model: Message,
+            populate: {
+                path: 'sender',
+                model: User,
+                select: '_id fname lname mname email imageUrl'
+            }
+          })
+          .populate({
+            path: 'members._id',
+            model: User,
+              select: '_id fname lname mname email grade imageUrl'
+          })
+          .exec((err, chats) => {
+            if(err){
+                console.log(err);
+                return ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+            }
+            const io = serverStore.getSocketServerInstance();
+            io.to(socket.id).emit('last', chats);
+            // socket.emit('last', chats);
+          })
+        })
+        .catch(err => {
+          console.log(err);
+          ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+        });
+    },
     callHandler: async (socket, data) => {
       const userId = socket.userId;
       const { target, type, details, clientId } = data;

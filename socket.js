@@ -21,7 +21,7 @@ const registerSocketServer = server => {
     wsEngine: eiows.Server
   });
 
-  // const roomIo = io.of('/room');
+  const roomIo = io.of('/room');
 
   // const store = MongoStore.create({
   //   client: mongoose.connection.getClient(), // Utiliser le client mongoose existant
@@ -77,6 +77,10 @@ const registerSocketServer = server => {
         updateContacts(socket.userId);
       });
 
+      socket.on('last', () => {
+        socketHandler.lastHandler(socket.userId);
+      });
+
       socket.on('call', data => {
         socketHandler.callHandler(socket, data);
       });
@@ -108,36 +112,60 @@ const registerSocketServer = server => {
 
     });
 
+  roomIo.use(auth)
+    //.use(sharedsession(sessionMiddleware))
+    .on('connection', socket => {
+      socketHandler.newConnectionHandler(socket, roomIo);
+
+      roomStore.setSocketServerInstance(roomIo);
+
+      roomStore.addNewConnectedUser({
+        socketId: socket.id,
+        userId: socket.userId,
+        socket: socket
+      });
+
+      socket.on('schedule', data => {
+        roomHandler.scheduleHandler(socket, data);
+      });
+
+      socket.on('create', data => {
+        roomHandler.createHandler(socket, data);
+      });
+
+      socket.on('join', data => {
+        roomHandler.joinRoom(socket, data);
+      });
+
+      socket.on('leave', data => {
+        roomHandler.leaveRoom(socket, data);
+      });
+
+      socket.on('signal', data => {
+        roomHandler.leaveRoom(socket, data);
+      });
+
+      socket.on('call', data => {
+        roomHandler.callHandler(socket, data);
+      });
+
+      socket.on('ringing', data => {
+        roomHandler.ringHandler(socket, data);
+      });
+
+      socket.on('busy', data => {
+        roomHandler.busyHandler(socket, data);
+      });
+
+      socket.on('hang-up', data => {
+        roomHandler.hangUpHandler(socket, data);
+      });
+
+      socket.on('disconnect', () => {
+        roomHandler.disconnectHandler(socket);
+      });
+
+    });
 }
-
-// roomIo.use(auth)
-//   //.use(sharedsession(sessionMiddleware))
-//   .on('connection', socket => {
-//     console.log('connected to room');
-//     socketHandler.newConnectionHandler(socket, roomIo);
-
-//     roomStore.setSocketServerInstance(roomIo);
-
-//     roomStore.addNewConnectedUser({
-//       socketId: socket.id,
-//       userId: socket.userId
-//     });
-
-//     socket.on('schedule', data => {
-//       roomHandler.scheduleHandler(socket, data);
-//     });
-
-//     socket.on('create', data => {
-//       roomHandler.createHandler(socket, data);
-//     });
-
-//     socket.on('join', data => {
-//       roomHandler.joinRoom(socket, data);
-//     });
-
-//     socket.on('call', data => {
-//       roomHandler.callHandler(socket, data);
-//     });
-//   });
 
 module.exports = { registerSocketServer };

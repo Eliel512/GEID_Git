@@ -14,9 +14,9 @@ const signupSchema = Joi.object({
         .optional(),
     
     email: Joi.string()
-        .email({ minDomainSegments: 2, allowFullyQualified: true })
-        .min(5)
         .required(),
+        // .email({ minDomainSegments: 2, allowFullyQualified: true })
+        // .min(5)
 
     grade: Joi.string()
         .min(5)

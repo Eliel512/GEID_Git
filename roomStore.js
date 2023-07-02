@@ -1,3 +1,5 @@
+const socket = require("./handlers/socket");
+
 const connectedUsers = new Map();
 
 let io = null;
@@ -9,8 +11,11 @@ module.exports = {
     getSocketServerInstance: () => {
         return io;
     },
-    addNewConnectedUser: ({ socketId, userId }) => {
-        connectedUsers.set(socketId, { userId });
+    addNewConnectedUser: ({ socket, socketId, userId }) => {
+        connectedUsers.set(socketId, {
+            userId: userId,
+            socket: socket
+        });
 
         //console.log('Connected users');
         //console.log(connectedUsers);
@@ -28,5 +33,17 @@ module.exports = {
             }
         })
         return activeConnections;
+    },
+    getUserSocketInstance: userId => {
+        const result = {};
+        result.add = function(key, value){
+            this[key] = value;
+        };
+        connectedUsers.forEach((value, key) => {
+            if (value.userId === userId) {
+                result.add('socket', value.socket);
+            }
+        });
+        return result;
     }
 };

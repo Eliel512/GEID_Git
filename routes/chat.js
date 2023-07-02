@@ -7,6 +7,7 @@ const getToken = require('../controllers/chats/getToken')
 const getAll = require('../controllers/chats/getAll');
 const getCallDetails = require('../controllers/chats/room/getCallDetails');
 const getAllCallDetails = require('../controllers/chats/room/getAllCallDetails');
+const createRoom = require('../controllers/chats/room/createRoom');
 
 const multer = require('../middleware/multer-chat');
 const nocache = require('../middleware/chats/nocache');
@@ -16,11 +17,13 @@ router.get('/', getAll);
 
 router.post('/direct', multer, chatCtrl.sendDirectFile);
 router.post('/file', multer, chatCtrl.sendFile);
+//router.post('/voice', multer, sendVoice);
 router.post('/invite', invitationCtrl.sendInvite);
 router.post('/reject', invitationCtrl.rejectInvite);
 router.post('/accept', invitationCtrl.acceptInvite);
 router.get('/invites', invitationCtrl.getInvite);   
 
+router.post('/room/call/', createRoom);
 router.get('/room/call/', getAllCallDetails);
 router.get('/room/call/:id', getCallDetails);
 router.post('/room/new', roomCtrl.createRoom);

@@ -78,7 +78,7 @@ const callSessionSchema = new Schema({
                     required: true
                 },
             },
-            authorizations: {
+            auth: {
                 shareScreen: {
                     type: Boolean,
                     required: true
