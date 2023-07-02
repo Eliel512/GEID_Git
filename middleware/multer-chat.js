@@ -74,7 +74,6 @@ const getPath = async (userId, type, to) => {
 const storage = multer.diskStorage({
     destination: async (req, file, callback) => {
       const path = await getPath(req.userId, req.body.type, req.body.to);
-      console.log(path);
       try{
         fs.accessSync(path, fs.constants.F_OK);
         callback(null, path);
@@ -91,8 +90,8 @@ const storage = multer.diskStorage({
     filename: (req, file, callback) => {
       let construct = file.originalname.split('.');
       construct.pop();
-      construct = construct.join('')+`${Date.now()}`;
-      const name = construct.split(' ').join('_');
+      construct = construct.join('')+`-${Date.now()}`;
+      const name = construct/*.split(' ').join('_')*/;
       const extension = mime.extension(file.mimetype);
       if(!extension){
         next(new Error('Invalid file type'));
@@ -102,4 +101,4 @@ const storage = multer.diskStorage({
     }
   });
   
-  module.exports = multer({storage: storage}).single('file');
+module.exports = multer({storage: storage}).single('file');

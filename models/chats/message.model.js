@@ -2,10 +2,6 @@ const mongoose = require('mongoose'), { Schema } = require('mongoose');
 const isValidObjectId = require('../../tools/isValidObjectId');
 
 const messageSchema = new Schema({
-  createdAt: {
-    type: Date,
-    required: true
-  },
   type: {
     type: String,
     required: true,

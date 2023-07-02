@@ -140,29 +140,24 @@ module.exports = {
       Chat.findOne(query)
         .then(chat => {
           if(chat){
-            const messagesIds = [];
-            const promises = req.files.map(file => {
-              const content = `salon/${chat._id}/${file.filename}`;
-              const fileType = req.body.fileType;
-              const message = new Message({
-                content: content,
-                ref: req.body.ref,
-                type: fileType,
-                subtype: fileType === 'doc' ? mimeTypes.lookup(file.filename) || 'AUTRE' : req.body.subtype,
-                sender: userId,
-                createdAt: req.body.date,
-                clientId: req.body.clientId
-              });
-              messagesIds.push(message._id);
-              return message.save()
+            const content = `salon/${chat._id}/${req.file.filename}`;
+            const fileType = req.body.fileType;
+            const message = new Message({
+              content: content,
+              ref: req.body.ref,
+              type: fileType,
+              subtype: fileType === 'doc' ? mimeTypes.lookup(req.file.filename) || 'AUTRE' : req.body.subtype,
+              sender: userId,
+              createdAt: req.body.date,
+              clientId: req.body.clientId
             });
 
-            Promise.all(promises)
+            message.save()
               .then(() => {
-                chat.messages.push(...messagesIds);
+                chat.messages.push(message._id);
                 chat.save()
                   .then(() => {
-                    updateChatHistory(chat._id.toString());
+                    updateChatHistory(chat._id);
                     res.status(201).json({ message: 'Fichier(s) envoyé(s) avec succès!' });
                   })
                   .catch(err => {
@@ -172,9 +167,8 @@ module.exports = {
               })
               .catch(error => {
                 console.log(error);
-                res.status(500).json({ message: 'Une erreur est survenue, veuillez réessayer' });
+                res.status(500).json({ message: 'Une erreur est survenue' });
               });
-            
           }else{
             res.status(500).json({ message: 'Une erreur est survenue, veuillez réessayer.' })
           }

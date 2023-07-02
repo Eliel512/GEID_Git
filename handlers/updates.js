@@ -50,6 +50,10 @@ module.exports = {
           .populate({
             path: 'messages',
             model: Message,
+            options: {
+                sort: { createdAt: -1 },
+                limit: 1
+            },
             populate: {
                 path: 'sender',
                 model: User,
@@ -59,7 +63,7 @@ module.exports = {
           .populate({
             path: 'members._id',
             model: User,
-              select: '_id fname lname mname email grade imageUrl'
+            select: '_id fname lname mname email grade imageUrl'
           })
           .exec((err, chat) => {
             if(err){
@@ -82,7 +86,6 @@ module.exports = {
                     });
                 })
             }else{
-
             }
           });
     },

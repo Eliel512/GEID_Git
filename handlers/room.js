@@ -46,7 +46,7 @@ const callSessionSchema = Joi.object({
                     .required()
             })
                 .required(),
-            authorizations: Joi.object({
+            auth: Joi.object({
                 shareScreen: Joi.boolean()
                     .required()
             })
@@ -183,7 +183,7 @@ module.exports = {
             }
 
             do {
-                roomId = generateId(6);
+                roomId = generateId(9);
             } while (await callSession.exists({ _id: roomId }));
         } catch (error) {
             console.log(error);
@@ -210,7 +210,7 @@ module.exports = {
                         isCamActive: participant._id === userId ? Boolean(data.state.isCamActive) : undefined,
                         isInRoom: participant._id === userId ? true : false
                     },
-                    authorizations: {
+                    auth: {
                         shareScreen: participant._id === userId ? true : false
                     }
                 }
@@ -258,21 +258,19 @@ module.exports = {
         callSession.findOne({ _id: data.id, 'participants.identity': socket.userId })
             .then(async callDetails => {
                 if (!callDetails) {
-                    const io = serverStore.getSocketServerInstance()
+                    const io = serverStore.getSocketServerInstance();
                     return io.to(socket.id).emit('error', {
                         message: 'Appel introuvable'
                     });
                 }
-                callDetails.participants.forEach(participant => {
-                    if (participant.identity === socket.userId) {
-                        if (participant.state.isInRoom) {
-                            const io = serverStore.getSocketServerInstance()
-                            return io.to(socket.id).emit('error', {
-                                message: 'L\'utilisateur figure deja dans l\'appel'
-                            });
-                        }
+                for(const participant of callDetails.participants){
+                    if ((participant.identity === socket.userId) && participant.state.isInRoom) {
+                        const io = serverStore.getSocketServerInstance()
+                        return io.to(socket.id).emit('error', {
+                            message: 'L\'utilisateur figure deja dans l\'appel'
+                        });
                     }
-                });
+                }
                 socket.join(data.id);
                 callDetails.participants.forEach(participant => {
                     if (participant.identity === socket.userId) {
@@ -286,7 +284,7 @@ module.exports = {
                                 socket.userId, '_id fname mname lname grade email'
                             );
                             const io = serverStore.getSocketServerInstance();
-                            io.to(data.id).emit('new-connexion', {
+                            io.to(data.id).emit('join', {
                                 who: userDetails,
                                 where: {
                                     _id: callDetails.id,
@@ -308,5 +306,284 @@ module.exports = {
                 console.log(error);
                 return ErrorHandlers.msg(socket.id, 'Une erreur est surnvenue');
             });
+    },
+    leaveRoom: (socket, data) => {
+        callSession.findOne({ _id: data.id, 'participants.identity': socket.userId })
+            .then(async callDetails => {
+                if (!callDetails) {
+                    const io = serverStore.getSocketServerInstance();
+                    return io.to(socket.id).emit('error', {
+                        message: 'Appel introuvable'
+                    });
+                }
+                for (const participant of callDetails.participants) {
+                    if ((participant.identity === socket.userId) && !participant.state.isInRoom) {
+                        const io = serverStore.getSocketServerInstance();
+                        return io.to(socket.id).emit('error', {
+                            message: 'L\'utilisateur ne figure pas dans l\'appel'
+                        });
+                    }
+                }
+                socket.leave(data.id);
+                callDetails.participants.forEach(participant => {
+                    if (participant.identity === socket.userId) {
+                        participant.state.isInRoom = false;
+                    }
+                });
+                callDetails.save()
+                    .then(async () => {
+                        try {
+                            const userDetails = await User.findById(
+                                socket.userId, '_id fname mname lname grade email'
+                            );
+                            const io = serverStore.getSocketServerInstance();
+                            io.to(data.id).emit('leave', {
+                                who: userDetails,
+                                where: {
+                                    _id: callDetails.id,
+                                    summary: callDetails.summary,
+                                    description: callDetails.description
+                                }
+                            });
+                        } catch (error) {
+                            console.log(error);
+                            ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+                        }
+                    })
+                    .catch(error => {
+                        console.log(error);
+                        return ErrorHandlers.msg(socket.id, 'Une erreur est survenue')
+                    });
+            })
+            .catch(error => {
+                console.log(error);
+                return ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+            });
+    },
+    signal: (socket, data) => {
+        callSession.findOne({ _id: data.id, 'participants.identity': socket.userId })
+            .then(async callDetails => {
+                const io = serverStore.getSocketServerInstance();
+                if(!callDetails){
+                    return io.to(socket.id).emit('error', {
+                        message: 'Appel introuvable'
+                    });
+                }
+                switch(data.type){
+                    case 'state':
+                        callDetails.participants.forEach(member => {
+                            if(member.identity === socket.userId){
+                                member.state = {
+                                    ...member.state,
+                                    ...data.obj
+                                }
+                            }
+                        });
+                        break;
+                    case 'auth':
+                        callDetails.participants.forEach(member => {
+                            if (member.identity === socket.userId) {
+                                member.auth = {
+                                    ...member.auth,
+                                    ...data.obj
+                                }
+                            }
+                        });
+                        break;
+                    default:
+                        return io.to(socket.id).emit('error', {
+                            message: '\'type\' incorrect'
+                        });
+                }
+                const userDetails = await User.findById(socket.userId, '_id fname mname lname grade email');
+                
+                io.to(data.id).emit('signal', {
+                    who: userDetails,
+                    where: {
+                        _id: callDetails.id,
+                        summary: callDetails.summary,
+                        description: callDetails.description
+                    },
+                    what: {
+                        [data.type]: {
+                            ...data.obj
+                        }
+                    }
+                });
+            })
+            .catch(err => {
+                console.log(err);
+                return ErrorHandlers.msg(socket.id, 'Une erreur est survenue')
+            });
+    },
+    ringHandler: async (socket, data) => {
+        const userDetails = await User.findById(socket.userId, '_id fname mname lname grade email imageUrl');
+        const callDetails = await callSession.findById(data.roomId, '_id summary description location');
+        const location = data.type == 'direct' ? data.target : callDetails.location;
+        delete callDetails.location;
+
+        const io = serverStore.getSocketServerInstance();
+        io.to(data.roomId).emit('ringing', {
+            who: userDetails,
+            where: {
+                ...callDetails,
+                location: location
+            }
+        });
+    },
+    busyHandler: async (socket, data) => {
+        const userDetails = await User.findById(socket.userId, '_id fname mname lname grade email imageUrl');
+        const callDetails = await callSession.findById(data.roomId, '_id summary description location');
+        const location = data.type == 'direct' ? data.target : callDetails.location;
+        delete callDetails.location;
+
+        const io = serverStore.getSocketServerInstance();
+        io.to(data.roomId).emit('busy', {
+            who: userDetails,
+            where: {
+                ...callDetails,
+                location: location
+            }
+        });
+    },
+    hangUpHandler: async (socket, data) => {
+        callSession.findOne({ _id: data.id, 'participants.identity': socket.userId })
+            .then(async callDetails => {
+                if (!callDetails) {
+                    const io = serverStore.getSocketServerInstance();
+                    return io.to(socket.id).emit('error', {
+                        message: 'Appel introuvable'
+                    });
+                }
+                const userDetails = await User.findById(
+                        socket.userId, '_id fname mname lname grade email'
+                    );
+                for (const participant of callDetails.participants) {
+                    if ((participant.identity == socket.userId) && !participant.state.isInRoom) {
+                        const io = serverStore.getSocketServerInstance();
+                        return io.to(data.id).emit('hang-up', {
+                            who: userDetails,
+                            where: {
+                                _id: callDetails._id,
+                                summary: callDetails.summary,
+                                description: callDetails.description,
+                                location: data.type == 'direct' ? data.target : callDetails.location
+                            }
+                        });
+                    }
+                }
+                socket.leave(data.id);
+                callDetails.participants.forEach(participant => {
+                    if (participant.identity == socket.userId) {
+                        participant.state.isInRoom = false;
+                    }
+                });
+                callDetails.save()
+                    .then(async () => {
+                        try {
+                            const userDetails = await User.findById(
+                                socket.userId, '_id fname mname lname grade email'
+                            );
+                            const io = serverStore.getSocketServerInstance();
+                            io.to(data.id).emit('hang-up', {
+                                who: userDetails,
+                                where: {
+                                    _id: callDetails._id,
+                                    summary: callDetails.summary,
+                                    description: callDetails.description,
+                                    location: data.type == 'direct' ? data.target : callDetails.location
+                                }
+                            });
+                        } catch (error) {
+                            console.log(error);
+                            ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+                        }
+
+                        let toDelete = true;
+
+                        for(let i = 0; i < callDetails.participants.length; i++){
+                            if (callDetails.participants[i].isInRoom){
+                                toDelete = false;
+                                break;
+                            }
+                        }
+                        if(toDelete){
+                            callSession.deleteOne({ _id: data.id })
+                                .catch(error => {
+                                    console.log(error);
+                                    return ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+                                });
+                        }
+                    })
+                    .catch(error => {
+                        console.log(error);
+                        return ErrorHandlers.msg(socket.id, 'Une erreur est survenue')
+                    });
+            })
+            .catch(error => {
+                console.log(error);
+                return ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+            });
+    },
+    disconnectHandler: async (socket, data) => {
+        const userId = socket.userId;
+        User.updateOne({ _id: userId }, { $set: { connected_at: Date.now() } })
+            .then(async () => {
+                const receiverList = [];
+                const userDetails = await User.findOne({ _id: userId }, { connected_at: 1, contacts: 1 });
+                userDetails.contacts.forEach(contact => {
+                    receiverList.push(...serverStore.getActiveConnections(contact));
+                });
+                const io = serverStore.getSocketServerInstance();
+                receiverList.forEach(socketId => {
+                    io.to(socketId).emit('status', {
+                        who: userId,
+                        status: userDetails.connected_at
+                    });
+                });
+            })
+            .catch(error => {
+                console.log(error);
+                ErrorHandlers.msg(socket.id, 'Une erreur est survenue.');
+            })
+        callSession.find({ 'participants.identity': userId })
+            .then(callSessions => {
+                callSessions.forEach(callSession => {
+                    callSession.participants.forEach(participant => {
+                        if(participant.identity == userId && participant.state.isInRoom){
+                            participant.state.isInRoom = false;
+                        }
+                    });
+                });
+                callSessions.save()
+                    .then(() => {
+                        callSessions.forEach(call => {
+                            let toDelete = true;
+                            for (let i = 0; i < call.participants.length; i++) {
+                                if (call.participants[i].isInRoom) {
+                                    toDelete = false;
+                                    break;
+                                }
+                            }
+                            if (toDelete) {
+                                callSession.deleteOne({ _id: call._id })
+                                    .catch(error => {
+                                        console.log(error);
+                                        return ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+                                    });
+                            }
+                        });
+                    })
+                    .catch(error => {
+                        console.log(error);
+                        ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+                    });
+            })
+            .catch(error => {
+                console.log(error);
+                ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+            });
+
+        serverStore.removeConnectedUser(socket.id);
     },
 };

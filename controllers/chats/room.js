@@ -54,7 +54,8 @@ module.exports = {
 
         room.save()
           .then(() => {
-            room.members.forEach(member => updatesHandler.updateChatsHistories(member._id, true));
+            // room.members.forEach(member => updatesHandler.updateChatsHistories(member._id, true));
+            updatesHandler.updateChatHistory(room._id);
             //updatesHandler.newRoom(room._id);
             res.status(201).json({ message: 'Salon créé avec succès!' });
           })
