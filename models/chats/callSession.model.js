@@ -93,7 +93,7 @@ const callSessionSchema = new Schema({
     }
 }, { timestamps: true, _id: false });
 
-callSessionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 });
+callSessionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 1000 * 24 });
 
 const CallSession = mongoose.model('callSession', callSessionSchema);
 

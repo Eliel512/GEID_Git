@@ -21,7 +21,7 @@ const registerSocketServer = server => {
     wsEngine: eiows.Server
   });
 
-  const roomIo = io.of('/room');
+  // const roomIo = io.of('/room');
 
   // const store = MongoStore.create({
   //   client: mongoose.connection.getClient(), // Utiliser le client mongoose existant
@@ -47,6 +47,7 @@ const registerSocketServer = server => {
   // });
 
   serverStore.setSocketServerInstance(io);
+  roomStore.setSocketServerInstance(io);
 
   io.use(auth)
     .on('connection', (socket) => {
@@ -69,9 +70,9 @@ const registerSocketServer = server => {
         socketHandler.roomMessageHandler(socket, data);
       });
 
-      socket.on('ping', data => {
-        socketHandler.pingHandler(socket, data);
-      });
+      // socket.on('ping', data => {
+      //   socketHandler.pingHandler(socket, data);
+      // });
 
       socket.on('contacts', () => {
         updateContacts(socket.userId);
@@ -93,36 +94,23 @@ const registerSocketServer = server => {
         socketHandler.pickUpHandler(socket, data);
       });
 
-      socket.on('hang-up', data => {
-        socketHandler.hangUpHandler(socket, data);
-      });
+      // socket.on('hang-up', data => {
+      //   socketHandler.hangUpHandler(socket, data);
+      // });
 
-      socket.on('signal', data => {
-        socketHandler.signalHandler(socket, data);
-      });
+      // socket.on('signal', data => {
+      //   socketHandler.signalHandler(socket, data);
+      // });
 
       socket.on('status', data => {
         socketHandler.statusHandler(socket, data);
       });
 
-      socket.on('disconnect', () => {
-        socketHandler.disconnectHandler(socket);
-      });
+      // 
 
-
-    });
-
-  roomIo.use(auth)
-    //.use(sharedsession(sessionMiddleware))
-    .on('connection', socket => {
-      socketHandler.newConnectionHandler(socket, roomIo);
-
-      roomStore.setSocketServerInstance(roomIo);
-
-      roomStore.addNewConnectedUser({
-        socketId: socket.id,
-        userId: socket.userId,
-        socket: socket
+      socket.on('ping', (data, callback) => {
+        // socket.emit('ping', 'ping');
+        callback('C\'est bon');
       });
 
       socket.on('schedule', data => {
@@ -142,7 +130,7 @@ const registerSocketServer = server => {
       });
 
       socket.on('signal', data => {
-        roomHandler.leaveRoom(socket, data);
+        roomHandler.signal(socket, data);
       });
 
       socket.on('call', data => {
@@ -157,15 +145,76 @@ const registerSocketServer = server => {
         roomHandler.busyHandler(socket, data);
       });
 
-      socket.on('hang-up', data => {
+      socket.on('hang-up', (data, callback) => {
         roomHandler.hangUpHandler(socket, data);
+        // callback('C\'est bon');
       });
 
       socket.on('disconnect', () => {
-        roomHandler.disconnectHandler(socket);
+        socketHandler.disconnectHandler(socket);
       });
 
+
     });
+
+  // roomIo.use(auth)
+  //   //.use(sharedsession(sessionMiddleware))
+  //   .on('connection', socket => {
+  //     socketHandler.newConnectionHandler(socket, roomIo);
+
+  //     roomStore.addNewConnectedUser({
+  //       socketId: socket.id,
+  //       userId: socket.userId,
+  //       socket: socket
+  //     });
+
+  //     socket.on('ping', (data, callback) => {
+  //       socket.emit('ping', 'ping');
+  //       callback('C\'est bon');
+  //     });
+
+  //     socket.on('schedule', data => {
+  //       roomHandler.scheduleHandler(socket, data);
+  //     });
+
+  //     socket.on('create', data => {
+  //       roomHandler.createHandler(socket, data);
+  //     });
+
+  //     socket.on('join', data => {
+  //       roomHandler.joinRoom(socket, data);
+  //     });
+
+  //     socket.on('leave', data => {
+  //       roomHandler.leaveRoom(socket, data);
+  //     });
+
+  //     socket.on('signal', data => {
+  //       roomHandler.signal(socket, data);
+  //     });
+
+  //     socket.on('call', data => {
+  //       roomHandler.callHandler(socket, data);
+  //     });
+
+  //     socket.on('ringing', data => {
+  //       roomHandler.ringHandler(socket, data);
+  //     });
+
+  //     socket.on('busy', data => {
+  //       roomHandler.busyHandler(socket, data);
+  //     });
+
+  //     socket.on('hang-up', (data, callback) => {
+  //       roomHandler.hangUpHandler(socket, data);
+  //       callback('C\'est bon');
+  //     });
+
+  //     // socket.on('disconnect', () => {
+  //     //   roomHandler.disconnectHandler(socket);
+  //     // });
+
+  //   });
 }
 
 module.exports = { registerSocketServer };

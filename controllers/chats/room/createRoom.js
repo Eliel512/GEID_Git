@@ -2,7 +2,7 @@ const User = require('../../../models/users/user.model');
 const Chat = require('../../../models/chats/chat.model');
 const callSession = require('../../../models/chats/callSession.model');
 const socket = require('../../../handlers/socket');
-const roomStore = require('../../../roomStore');
+const roomStore = require('../../../serverStore');
 const Joi = require('joi');
 const crypto = require('crypto');
 const { RtcTokenBuilder, RtcRole } = require('agora-access-token');
@@ -138,7 +138,10 @@ module.exports = async (req, res, next) => {
     const userId = res.locals.userId;
     const data = req.body;
 
-    const userDetails = await User.findById(userId, '_id fname mname lname grade email imageUrl contacts');
+    let userDetails = await User.findById(userId, '_id fname mname lname grade email imageUrl contacts');
+    userDetails = {
+        ...userDetails._doc
+    };
     let roomId;
     let roomDetails;
     let query;
@@ -236,49 +239,14 @@ module.exports = async (req, res, next) => {
 
     callSessionObject.save()
         .then(async () => {
-            const io = roomStore.getSocketServerInstance();
-            const receiverList = [];
-            callSessionObject.participants.forEach(member => {
-                if(member.identity !== userId){
-                    receiverList.push(roomStore.getActiveConnections(member.identity));
-                }
-            });
-            if (receiverList.length == 0 && data.type == 'direct'){
-                const socketId = roomStore.getActiveConnections(userId);
-                const io = roomStore.getSocketServerInstance();
-                socketId.forEach(socketId => {
-                    io.to(socketId).emit('disconnect', {
-                        where: {
-                            _id: roomId,
-                            // chat: data.target,
-                            summary: callSessionObject.summary,
-                            description: callSessionObject.description,
-                            location: data.type === 'direct' ? data.target : callSessionObject.location
-                        }
-                    });
-                });
-            }
-            receiverList.forEach(socketId => {
-                io.to(socketId).emit('call', {
-                    who: userDetails,
-                    where: {
-                        _id: roomId,
-                        // chat: data.target,
-                        summary: callSessionObject.summary,
-                        description: callSessionObject.description,
-                        location: data.type === 'direct' ? data.target : callSessionObject.location,
-                        type: data.type
-                    }
-                });
-            });
 
             const result = {
                 ...callSessionObject._doc
             };
 
-            for(let i = 0; i < result.participants.length; i++){
+            for (let i = 0; i < result.participants.length; i++) {
                 // let participant = result.participants[i];
-                for (let j = 0; j < roomDetails.members.length; j++){
+                for (let j = 0; j < roomDetails.members.length; j++) {
                     let member = roomDetails.members[j]._id;
                     if (member._id == result.participants[i].identity) {
                         result.participants[i].identity = member;
@@ -287,16 +255,10 @@ module.exports = async (req, res, next) => {
                 }
             }
 
-            // result.participants.forEach(function(participant){
-            //     roomDetails.members.forEach(function(member){
-            //         if(member._id._id == participant.identity){
-            //             participant.identity = {
-            //                 ...member._id
-            //             };
-            //         }
-            //     });
-            // });
+
             const socket = roomStore.getUserSocketInstance(userId).socket;
+            const io = roomStore.getSocketServerInstance();
+            const receiverList = [];
 
             socket.join(roomId);
             io.to(roomId).emit('join', {
@@ -308,28 +270,48 @@ module.exports = async (req, res, next) => {
                     location: data.type === 'direct' ? data.target : callSessionObject.location
                 }
             });
+            console.log(roomId);
 
-            res.status(201).json({ result });
-            // socket.join(roomId);
-            // try {
-            //     const userDetails = await User.findById(userId, '_id fname mname lname grade email');
-            //     const io = serverStore.getSocketServerInstance();
-            //     io.to(roomId).emit('new-connexion', {
-            //         who: userDetails,
-            //         where: {
-            //             _id: roomId,
-            //             summary: callSessionObject.summary,
-            //             description: callSessionObject.description,
-            //             location: callSessionObject.location
-            //         }
-            //     });
-            // } catch (error) {
-            //     console.log(error);
-            //     ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
-            // }
+            callSessionObject.participants.forEach(member => {
+                if(member.identity._id != userId){
+                    receiverList.push(...roomStore.getActiveConnections(member.identity._id));
+                }
+            });
+
+            if (receiverList.length == 0 && data.type == 'direct'){
+                const socketId = roomStore.getActiveConnections(userId);
+                const io = roomStore.getSocketServerInstance();
+                socketId.forEach(socketId => {
+                    io.to(socketId).emit('disconnected', {
+                        where: {
+                            _id: roomId,
+                            // chat: data.target,
+                            summary: callSessionObject.summary,
+                            description: callSessionObject.description,
+                            location: data.type === 'direct' ? data.target : callSessionObject.location
+                        }
+                    });
+                });
+            }else {
+                receiverList.forEach(socketId => {
+                    io.to(socketId).emit('call', {
+                        who: userDetails,
+                        where: {
+                            _id: roomId,
+                            // chat: data.target,
+                            summary: callSessionObject.summary,
+                            description: callSessionObject.description,
+                            location: data.type === 'direct' ? data.target : callSessionObject.location,
+                            type: data.type
+                        }
+                    });
+                });
+            }
+
+            res.status(201).json(result);
         })
         .catch(err => {
             console.log(err);
-            return res.status(500).json({ message: 'Une erreur est survenue' });
+            res.status(500).json({ message: 'Une erreur est survenue' });
         });
 };

@@ -1,4 +1,4 @@
-const serverStore = require('../roomStore');
+const serverStore = require('../serverStore');
 const Chat = require('../models/chats/chat.model');
 const User = require('../models/users/user.model');
 const callSession = require('../models/chats/callSession.model');
@@ -418,12 +418,23 @@ module.exports = {
     },
     ringHandler: async (socket, data) => {
         const userDetails = await User.findById(socket.userId, '_id fname mname lname grade email imageUrl');
-        const callDetails = await callSession.findById(data.roomId, '_id summary description location');
+        const callDetails = await callSession.findById(data.id, '_id summary description location');
+        if(!callDetails){
+            const receiverList = serverStore.getActiveConnections(socket.userId);
+
+            const io = serverStore.getSocketServerInstance();
+
+            receiverList.forEach(socketId => {
+                io.to(socketId).emit('error', {
+                    message: 'Appel introuvable'
+                });
+            });
+        }
         const location = data.type == 'direct' ? data.target : callDetails.location;
         delete callDetails.location;
 
         const io = serverStore.getSocketServerInstance();
-        io.to(data.roomId).emit('ringing', {
+        io.to(data.id).emit('ringing', {
             who: userDetails,
             where: {
                 ...callDetails,
@@ -433,12 +444,23 @@ module.exports = {
     },
     busyHandler: async (socket, data) => {
         const userDetails = await User.findById(socket.userId, '_id fname mname lname grade email imageUrl');
-        const callDetails = await callSession.findById(data.roomId, '_id summary description location');
+        const callDetails = await callSession.findById(data.id, '_id summary description location');
+        if (!callDetails) {
+            const receiverList = serverStore.getActiveConnections(socket.userId);
+
+            const io = serverStore.getSocketServerInstance();
+
+            receiverList.forEach(socketId => {
+                io.to(socketId).emit('error', {
+                    message: 'Appel introuvable'
+                });
+            });
+        }
         const location = data.type == 'direct' ? data.target : callDetails.location;
         delete callDetails.location;
 
         const io = serverStore.getSocketServerInstance();
-        io.to(data.roomId).emit('busy', {
+        io.to(data.id).emit('busy', {
             who: userDetails,
             where: {
                 ...callDetails,
@@ -485,14 +507,22 @@ module.exports = {
                                 socket.userId, '_id fname mname lname grade email'
                             );
                             const io = serverStore.getSocketServerInstance();
-                            io.to(data.id).emit('hang-up', {
-                                who: userDetails,
-                                where: {
-                                    _id: callDetails._id,
-                                    summary: callDetails.summary,
-                                    description: callDetails.description,
-                                    location: data.type == 'direct' ? data.target : callDetails.location
-                                }
+                            const rooms = io.sockets.adapter.rooms;
+
+                            const receiverList = rooms.has(data.id) ? [data.id] : serverStore.getActiveConnections(
+                                data.target
+                                );
+
+                            receiverList.forEach(socket => {
+                                io.to(socket).emit('hang-up', {
+                                    who: userDetails,
+                                    where: {
+                                        _id: callDetails._id,
+                                        summary: callDetails.summary,
+                                        description: callDetails.description,
+                                        location: data.type == 'direct' ? data.target : callDetails.location
+                                    }
+                                });
                             });
                         } catch (error) {
                             console.log(error);
@@ -507,13 +537,13 @@ module.exports = {
                                 break;
                             }
                         }
-                        if(toDelete){
-                            callSession.deleteOne({ _id: data.id })
-                                .catch(error => {
-                                    console.log(error);
-                                    return ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
-                                });
-                        }
+                        // if(toDelete){
+                        //     callSession.deleteOne({ _id: data.id })
+                        //         .catch(error => {
+                        //             console.log(error);
+                        //             return ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+                        //         });
+                        // }
                     })
                     .catch(error => {
                         console.log(error);
@@ -548,15 +578,16 @@ module.exports = {
             })
         callSession.find({ 'participants.identity': userId })
             .then(callSessions => {
-                callSessions.forEach(callSession => {
+                callSessions.forEach(async callSession => {
                     callSession.participants.forEach(participant => {
                         if(participant.identity == userId && participant.state.isInRoom){
                             participant.state.isInRoom = false;
                         }
                     });
+                    // await callSession.save();
                 });
-                callSessions.save()
-                    .then(() => {
+                /*callSessions.save()
+                    .then(() => {*/
                         callSessions.forEach(call => {
                             let toDelete = true;
                             for (let i = 0; i < call.participants.length; i++) {
@@ -573,11 +604,11 @@ module.exports = {
                                     });
                             }
                         });
-                    })
+                    /*})
                     .catch(error => {
                         console.log(error);
                         ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
-                    });
+                    });*/
             })
             .catch(error => {
                 console.log(error);

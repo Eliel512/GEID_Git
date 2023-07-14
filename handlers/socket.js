@@ -24,7 +24,8 @@ module.exports = {
         const userDetails = socket.userId;
         serverStore.addNewConnectedUser({
             socketId: socket.id,
-            userId: userDetails
+            userId: userDetails,
+            socket: socket
         });
         socket.emit('connexion', {});
         updateContacts(/*socket.id,*/ userDetails);
