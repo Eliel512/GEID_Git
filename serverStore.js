@@ -9,11 +9,14 @@ module.exports = {
     getSocketServerInstance: () => {
         return io;
     },    
-    addNewConnectedUser: ({ socketId, userId }) => {
-        connectedUsers.set(socketId, { userId });
+    addNewConnectedUser: ({ socket, socketId, userId }) => {
+        connectedUsers.set(socketId, {
+            userId: userId,
+            socket: socket
+        });
     
-        //console.log('Connected users');
-        //console.log(connectedUsers);
+        // console.log(userId);
+        // console.log(connectedUsers);
     },
     removeConnectedUser: socketId => {
         if(connectedUsers.has(socketId)){
@@ -23,10 +26,24 @@ module.exports = {
     getActiveConnections: userId => {
         const activeConnections = [];
         connectedUsers.forEach((value, key) => {
-            if(value.userId === userId){
+            if(value.userId == userId){
                 activeConnections.push(key);
             }
         })
         return activeConnections;
+    },
+    getUserSocketInstance: userId => {
+        const result = {};
+        result.add = function (key, value) {
+            this[key] = value;
+        };
+        connectedUsers.forEach((value, key) => {
+            // console.log(value.userId, userId);
+            if (value.userId === userId) {
+                result.add('socket', value.socket);
+            }
+        });
+        delete result.add;
+        return result;
     }
 };
