@@ -264,7 +264,7 @@ module.exports = {
                     });
                 }
                 for(const participant of callDetails.participants){
-                    if ((participant.identity === socket.userId) && participant.state.isInRoom) {
+                    if ((participant.identity._id === socket.userId) && participant.state.isInRoom) {
                         const io = serverStore.getSocketServerInstance()
                         return io.to(socket.id).emit('error', {
                             message: 'L\'utilisateur figure deja dans l\'appel'
@@ -273,10 +273,13 @@ module.exports = {
                 }
                 socket.join(data.id);
                 callDetails.participants.forEach(participant => {
-                    if (participant.identity === socket.userId) {
+                    if (participant.identity._id === socket.userId) {
                         participant.state.isInRoom = true
                     }
                 });
+                if(!callDetails.room){
+                    callDetails.status = 1;
+                }
                 callDetails.save()
                     .then(async () => {
                         try {
@@ -330,6 +333,9 @@ module.exports = {
                         participant.state.isInRoom = false;
                     }
                 });
+                if(!callDetails.room){
+                    callDetails.status = 2;
+                }
                 callDetails.save()
                     .then(async () => {
                         try {
@@ -439,7 +445,8 @@ module.exports = {
             where: {
                 ...callDetails,
                 location: location
-            }
+            },
+            data: data.data
         });
     },
     busyHandler: async (socket, data) => {
@@ -500,6 +507,13 @@ module.exports = {
                         participant.state.isInRoom = false;
                     }
                 });
+                if(!callDetails.room){
+                    callDetails.status = 2;
+                }else{
+                    if(callDetails.participants.every(participant => participant.state.isInRoom == false)){
+                        callDetails.status = 2;
+                    }
+                }
                 callDetails.save()
                     .then(async () => {
                         try {

@@ -47,7 +47,7 @@ const registerSocketServer = server => {
   // });
 
   serverStore.setSocketServerInstance(io);
-  roomStore.setSocketServerInstance(io);
+  // roomStore.setSocketServerInstance(io);
 
   io.use(auth)
     .on('connection', (socket) => {
@@ -133,9 +133,9 @@ const registerSocketServer = server => {
         roomHandler.signal(socket, data);
       });
 
-      socket.on('call', data => {
-        roomHandler.callHandler(socket, data);
-      });
+      // socket.on('call', data => {
+      //   roomHandler.callHandler(socket, data);
+      // });
 
       socket.on('ringing', data => {
         roomHandler.ringHandler(socket, data);
