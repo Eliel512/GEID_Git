@@ -31,7 +31,7 @@ const callSessionSchema = Joi.object({
     participants: Joi.array().items(
         Joi.object({
             identity: Joi.string()
-                .required(),
+                    .required(),
             state: Joi.object({
                 isOrganizer: Joi.boolean()
                     .required(),
@@ -62,6 +62,25 @@ const generateId = (char) => {
     const uid = crypto.randomUUID();
     const hash = crypto.createHash('sha1').update(uid).digest('hex');
     return hash.slice(0, char);
+};
+
+const generateUid = participants => {
+
+    function getRandomNumber(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    const randomNumbers = [];
+    participants.forEach(() => {
+        let randomNumber;
+        do{
+            randomNumber = getRandomNumber(1, 10000);
+        }while(randomNumbers.includes(randomNumber));
+        randomNumbers.push(randomNumber);
+    });
+
+    return randomNumbers;
+
 };
 
 const getCallDetails = async (userId, data) => {
@@ -167,15 +186,41 @@ module.exports = async (req, res, next) => {
 
     try {
         roomDetails = await Chat.findOne(
-            query, { name: 1, description: 1, 'members._id': 1 }
+            query, { messages: 0, __v: 0 }
         ).populate({
             path: 'members._id',
             model: User,
             select: '_id fname lname mname email grade imageUrl'
         }).exec();
 
-        if (!roomDetails) {
+        if (!roomDetails && data.type == 'room') {
             return res.status(404).json({ message: 'Discussion introuvable.' });
+        }else if(!roomDetails){
+            try{
+                const newRoom = new Chat({
+                    type: 'direct',
+                    members: [{
+                        _id: userId,
+                        role: 'simple'
+                    }, {
+                        _id: data.target,
+                        role: 'simple'
+                    }]
+                });
+                await newRoom.save();
+                
+                roomDetails = await Chat.findOne(
+                    { _id: newRoom._id }, { name: 1, description: 1, 'members._id': 1 }
+                ).populate({
+                    path: 'members._id',
+                    model: User,
+                    select: '_id fname lname mname email grade imageUrl'
+                }).exec();
+
+            }catch(error){
+                console.log(error);
+                return res.status(500).json({ message: 'Une erreur est survenue.' })
+            }
         }
 
         do {
@@ -192,7 +237,7 @@ module.exports = async (req, res, next) => {
     }
 
     const state = data.state ? data.state : {};
-    const { error, value } = callSessionSchema.validate({
+    let { error, value } = callSessionSchema.validate({
         _id: roomId,
         start: Number(data.start) || Date.now(),
         duration: {
@@ -233,6 +278,21 @@ module.exports = async (req, res, next) => {
     //     return res.status(409).json({ message: 'Appel en cours' });
     // }
 
+    const randomNumbers = generateUid(value.participants);
+
+    for(let i = 0; i < value.participants.length; i++){
+        value.participants[i].uid = randomNumbers[i];
+    }
+
+    value.status = 0;
+
+    if(data.type == 'room'){
+        value.room = {
+            ...roomDetails
+        };
+        value.status = 1;
+    }
+
     const callSessionObject = new callSession({
         ...value
     });
@@ -254,6 +314,11 @@ module.exports = async (req, res, next) => {
                     }
                 }
             }
+            // if(data.type == 'room'){
+            //     result.location = {
+            //         ...roomDetails
+            //     }
+            // }
 
 
             const socket = roomStore.getUserSocketInstance(userId).socket;
@@ -270,7 +335,6 @@ module.exports = async (req, res, next) => {
                     location: data.type === 'direct' ? data.target : callSessionObject.location
                 }
             });
-            console.log(roomId);
 
             callSessionObject.participants.forEach(member => {
                 if(member.identity._id != userId){

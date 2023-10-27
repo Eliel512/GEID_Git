@@ -238,33 +238,33 @@ module.exports = {
     },
     callHandler: async (socket, data) => {
       const userId = socket.userId;
-      const { target, type, details, clientId } = data;
-      const date = details.date;
+      const { who, type, clientId } = data;
+      const date = data.details?.date;
       const receiverList = [];
       let message;
       let targetSocketList;
       let roomDetails;
       let status;
 
-      delete details.date;
-      details.mark = target;
+      delete data.details?.date;
+      let details = data.details ? data.details : { };
+      details.mark = who;
 
-      if(target === userId){
+      if(who.includes(userId)){
         return ErrorHandlers.msg(socket.id, 'Operation impossible');
       }
 
       switch (type) {
         case 'direct':
           const userDetails = await User.findOne({ _id: userId }, { contacts: 1 });
-
-          if(!userDetails.contacts.includes(target)){
+          if(!userDetails.contacts.includes(who[0])){
               return ErrorHandlers.msg(
                   socket.id,
                   'Cet utilisateur ne fait pas partie de vos contacts.'
                   )
           }
 
-          targetSocketList = serverStore.getActiveConnections(target);
+          targetSocketList = serverStore.getActiveConnections(who[0]);
           if (targetSocketList.length !== 0) {
             receiverList.push(...targetSocketList);
           }
@@ -272,7 +272,7 @@ module.exports = {
           break;
 
         case 'room':
-          roomDetails = await Chat.findOne({ _id: target, 'members._id': userId, type: 'room' },
+          roomDetails = await Chat.findOne({ _id: who, 'members._id': userId, type: 'room' },
           { name: 1, 'members._id': 1 });
 
           if(!roomDetails){
@@ -308,15 +308,15 @@ module.exports = {
       }
 
       const userDetails = await User.findById(userId, '_id fname mname lname email imageUrl');
-      message = new Message({
-        content: `${userDetails.fname} ${userDetails.lname} a démarré un appel`,
-        sender: userId,
-        type: 'call',
-        createdAt: date || new Date(),
-        status: status,
-        clientId: clientId,
-        details: details
-      });
+      // message = new Message({
+      //   content: `${userDetails.fname} ${userDetails.lname} a démarré un appel`,
+      //   sender: userId,
+      //   type: 'call',
+      //   createdAt: date || new Date(),
+      //   status: status,
+      //   clientId: clientId,
+      //   details: details
+      // });
 
       const io = serverStore.getSocketServerInstance();
 
@@ -330,9 +330,9 @@ module.exports = {
               room: roomDetails ? roomDetails : undefined 
             });
           });
-          updateIncomingCalls(userId, target, type, message._id, 'call');
+          updateIncomingCalls(userId, who, type, message._id, 'call');
           
-          Chat.findOne({ type: type }).or([{ _id: target } , { "members._id": { $all: [userId, target] }}])
+          Chat.findOne({ type: type }).or([{ _id: who } , { "members._id": { $all: [userId, who[0]] }}])
             .then(chat => {
               if(chat){
                   chat.messages.push(message._id);
@@ -350,7 +350,7 @@ module.exports = {
                     _id: userId,
                     role: 'simple'
                   }, {
-                    _id: target,
+                    _id: who[0],
                     role: 'simple'
                   }],
                   messages: [message._id],

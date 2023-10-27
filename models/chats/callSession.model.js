@@ -41,6 +41,14 @@ const callSessionSchema = new Schema({
         },
         required: true
     },
+    room: {
+        type: Schema.Types.Mixed,
+        required: false
+    },
+    status: {
+        type: Number,
+        required: true
+    },
     participants: {
         type: [{
             identity: {
@@ -48,8 +56,12 @@ const callSessionSchema = new Schema({
                 ref: 'users',
                 validator: {
                     validate: value => isValidObjectId(value),
-                    message: 'La cle \'location\' doit correspondre a un _id de user valide'
+                    message: 'La cle \'participants.identity\' doit correspondre a un _id de user valide'
                 },
+                required: true
+            },
+            uid: {
+                type: Number,
                 required: true
             },
             state: {

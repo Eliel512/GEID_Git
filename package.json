@@ -31,6 +31,7 @@
     "joi": "^17.8.3",
     "jsonwebtoken": "^9.0.0",
     "lodash": "^4.17.21",
+    "megajs": "^1.1.4",
     "moment": "^2.29.3",
     "mongoose": "^5.11.8",
     "mongoose-plugin-autoinc": "^1.1.9",
