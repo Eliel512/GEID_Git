@@ -258,7 +258,7 @@ module.exports = async (req, res, next) => {
                     isInRoom: participant._id._id == userId ? true : false
                 },
                 auth: {
-                    shareScreen: participant._id._id == userId ? true : false
+                    shareScreen: true // participant._id._id == userId || data.type == 'direct' ? true : false
                 }
             }
         }),
@@ -356,6 +356,20 @@ module.exports = async (req, res, next) => {
                         }
                     });
                 });
+                callSessionObject.status = 2;
+                callSessionObject.save()
+                    .then(() => {
+                        socketId.forEach(socketId => {
+                            io.to(socketId).emit('call-status', {
+                                _id: callSessionObject._id,
+                                status: 2
+                            });
+                        });
+                    })
+                    .catch(error => {
+                        console.log(error);
+                        return res.status(500).json({ message: 'Une erreur est survenue' });
+                    });
             }else {
                 receiverList.forEach(socketId => {
                     io.to(socketId).emit('call', {

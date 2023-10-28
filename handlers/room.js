@@ -295,6 +295,15 @@ module.exports = {
                                     description: callDetails.description
                                 }
                             });
+                            callDetails.participants.forEach(participant => {
+                                const receiverList = serverStore.getActiveConnections(participant.identity);
+                                receiverList.forEach(socketId => {
+                                    io.to(socketId).emit('call-status', {
+                                        _id: callDetails._id,
+                                        status: callDetails.status
+                                    });
+                                });
+                            });
                         } catch (error) {
                             console.log(error);
                             ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
@@ -508,10 +517,10 @@ module.exports = {
                     }
                 });
                 if(!callDetails.room){
-                    callDetails.status = 2;
+                    callDetails.status = callDetails.status == 0 ? 2 : 3;
                 }else{
                     if(callDetails.participants.every(participant => participant.state.isInRoom == false)){
-                        callDetails.status = 2;
+                        callDetails.status = 3;
                     }
                 }
                 callDetails.save()
@@ -536,6 +545,16 @@ module.exports = {
                                         description: callDetails.description,
                                         location: data.type == 'direct' ? data.target : callDetails.location
                                     }
+                                });
+                            });
+
+                            callDetails.participants.forEach(participant => {
+                                const receiverList = serverStore.getActiveConnections(participant.identity);
+                                receiverList.forEach(socketId => {
+                                    io.to(socketId).emit('call-status', {
+                                        _id: callDetails._id,
+                                        status: callDetails.status
+                                    });
                                 });
                             });
                         } catch (error) {
