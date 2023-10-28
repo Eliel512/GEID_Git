@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/apps/lisolonabudget/static/css/main.2713c8dc.css",
-    "main.js": "/apps/lisolonabudget/static/js/main.fd56ab46.js",
+    "main.js": "/apps/lisolonabudget/static/js/main.7e646d0e.js",
     "static/js/787.7f8ff8b3.chunk.js": "/apps/lisolonabudget/static/js/787.7f8ff8b3.chunk.js",
     "static/media/ring-ton-outgoing-call.wav": "/apps/lisolonabudget/static/media/ring-ton-outgoing-call.46460192d08ba4fae99b.wav",
     "static/media/mixkit-on-hold-ringtone.wav": "/apps/lisolonabudget/static/media/mixkit-on-hold-ringtone.3422ee21f809708b1fb1.wav",
@@ -31,11 +31,11 @@
     "static/media/icons8-microsoft-excel-2019.svg": "/apps/lisolonabudget/static/media/icons8-microsoft-excel-2019.0b08e5ebb8ce76823e207fe7bcd7187b.svg",
     "index.html": "/apps/lisolonabudget/index.html",
     "main.2713c8dc.css.map": "/apps/lisolonabudget/static/css/main.2713c8dc.css.map",
-    "main.fd56ab46.js.map": "/apps/lisolonabudget/static/js/main.fd56ab46.js.map",
+    "main.7e646d0e.js.map": "/apps/lisolonabudget/static/js/main.7e646d0e.js.map",
     "787.7f8ff8b3.chunk.js.map": "/apps/lisolonabudget/static/js/787.7f8ff8b3.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.2713c8dc.css",
-    "static/js/main.fd56ab46.js"
+    "static/js/main.7e646d0e.js"
   ]
 }

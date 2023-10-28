@@ -13,17 +13,23 @@ module.exports = {
   },
   addOne: async (req, res, next) => {
     let { name, docTypes } = req.body;
-    docTypes = JSON.parse(docTypes).map(doc => doc.toUpperCase());
+    docTypes = JSON.parse(docTypes).map(doc => doc?.toUpperCase());
     const types = await Type.find({  }, { name:1, subtypes:1, _id:0 });
     const doctypes = types.map(doc => [doc.name, ...doc.subtypes]).flat();
-    console.log(doctypes);
     const cover = new Cover({
       name: name.toUpperCase(),
       docTypes: docTypes.filter(doc => doctypes.includes(doc)),
       contentUrl: `/ressources/covers/${req.file.filename}`
     });
     cover.save()
-      .then(() => res.status(201).json({ message: 'Couverture ajoutée avec succès!' }))
+      .then(() => {
+        Cover.find({ })
+          .then(covers => res.status(201).json(covers))
+          .catch(error => {
+            console.log(error);
+            res.status(500).json({ message: 'Une erreur est survenue' });
+          });
+      })
       .catch(err => {
         console.log(err);
         res.status(400).json({ message: 'Impossible d\'enregistrer la couverture, veuillez vérifier vos entrées' });
