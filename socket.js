@@ -129,6 +129,10 @@ const registerSocketServer = server => {
         roomHandler.leaveRoom(socket, data);
       });
 
+      socket.on('edit-room', data => {
+        roomHandler.edit(socket, data);
+      });
+
       socket.on('signal', data => {
         roomHandler.signal(socket, data);
       });

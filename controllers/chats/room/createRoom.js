@@ -24,6 +24,8 @@ const callSessionSchema = Joi.object({
             .required()
     })
         .required(),
+    open: Joi.boolean()
+        .required(),
     summary: Joi.string(),
     description: Joi.string(),
     location: Joi.string()
@@ -243,6 +245,7 @@ module.exports = async (req, res, next) => {
         duration: {
             seconds: 0
         },
+        open: data.open ? true : false,
         summary: data.summary,
         description: data.description,
         location: data.type === 'room' ? roomDetails._id.toString() : data.target,
