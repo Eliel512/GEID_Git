@@ -1,37 +1,49 @@
-const path = require('path');
-//const { default: installExtension, REACT_DEVELOPER_TOOLS } = require('electron-devtools-installer');
-const { app, BrowserWindow } = require('electron');
+const path = require('node:path');
+const os = require('node:os');
+const { app, BrowserWindow, session } = require('electron');
+const { default: installExtension, REACT_DEVELOPER_TOOLS } = require('electron-devtools-installer');
 const isDev = require('electron-is-dev');
 
+const reactDevToolsPath = path.join(
+  os.homedir(),
+  '.config/google-chrome/Default/Extensions/fmkadmapgofadopljbjfkapdkoienihi/4.28.5_1'
+)
+console.log(reactDevToolsPath);
+let win;
+app.disableHardwareAcceleration();
 function createWindow() {
   // Create the browser window.
-  const win = new BrowserWindow({
-    // width: 800,
-    // height: 600,
+  win = new BrowserWindow({
+    width: 800,
+    height: 600,
     center: true,
+    icon: path.join(__dirname, 'windows/icon70.png'),
     webPreferences: {
       nodeIntegration: true,
+      devTools: isDev,
     },
   });
   win.maximize();
-  // and load the index.html of the app.
-  //win.loadFile("/index.html");
   win.loadURL(
     isDev
       ? 'http://localhost:3000'
       : `file://${path.join(__dirname, '../build/index.html')}`
   );
   // Open the DevTools.
-  if (isDev) {
-    win.webContents.openDevTools({ mode: 'detach' });
-  }
+  return win;
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  createWindow();
+  if (isDev) {
+    session.defaultSession.loadExtension(reactDevToolsPath).then((data) => {
+      installExtension()
+      createWindow();
+      win.webContents.openDevTools({ mode: 'right'});
+    })
+  }
   //installExtension(REACT_DEVELOPER_TOOLS);
 });
 
@@ -49,3 +61,5 @@ app.on('activate', () => {
     createWindow();
   }
 });
+
+//app.commandLine.appendSwitch('js-flags', '--expose_gc --max-old-space-size=128')

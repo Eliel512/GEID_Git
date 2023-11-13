@@ -64,44 +64,106 @@ module.exports = {
             res.status(400).json({ message: 'Certaines données semblent incorrectes.' });
           });
     },
-    addMembers: async (req, res) => {
-        const { members, roomId } = req.body;
+    editRoom: async (req, res) => {
         const userId = res.locals.userId;
+        const { roomId } = req.body;
 
-        if(!(members && roomId)){
-            return res.status(400).json({ message: 'Les membres et l\'id du salon sont requis.' });
+        if(!roomId){
+            return res.status(400).json({ message: 'L\'id du Lisanga est requis.' });
         }
 
-        if(!Array.isArray(members)){
-            return res.status(400).json({
-                message: 'Une liste de membres à ajouter est requise.'
-            });
+        switch (req.body.verb) {
+            case 'push':
+                const { members } = req.body;
+
+                if (!(members && Array.isArray(members))) {
+                    return res.status(400).json({
+                        message: 'La liste des membres est requise.'
+                    });
+                }
+
+                // if (!Array.isArray(members)) {
+                //     return res.status(400).json({
+                //         message: 'Une liste de membres à ajouter est requise.'
+                //     });
+                // }
+
+                let userContacts = await User.findOne({ _id: userId }, { contacts: 1 });
+                userContacts = userContacts.contacts;
+                members = members.filter(member => userContacts.includes(member));
+
+                if (!members.length) {
+                    return res.status(400).json({
+                        message: 'Vous ne pouvez ajouter que des membres de vos contacts.'
+                    });
+                }
+
+                const roomExists = await Chat.exists({
+                    _id: roomId, members: { $elemMatch: { _id: userId, role: 'admin' } }
+                });
+
+                if (!roomExists) {
+                    return res.status(401).json({ message: 'Opération impossible.' });
+                }
+
+                Chat.updateOne({ _id: roomId }, { $push: { members: { $each: members } } })
+                    .then(() => {
+                        updatesHandler.updateChatHistory(roomId);
+                        res.status(200).json({ message: 'Membres ajoutés avec succès!' });
+                    })
+                    .catch(err => res.status(500).json({ message: 'Une erreur est survenue, veuillez réessayer.' }));
+            case 'rename':
+                Chat.findOneAndUpdate({
+                    _id: roomId,
+                    members: { $elemMatch:{ _id: userId, role: 'admin' } } },
+                    { name: req.body.name }, { new: true })
+                    .then(chat => {
+                        if (!chat) {
+                            return res.status(400).json({ message: 'Operation impossible' });
+                        }
+                        chat.members.forEach(member => {
+                            const receiverList = serverStore.getActiveConnections(member._id);
+                            receiverList.forEach(socketId => {
+                                io.to(socketId).emit('edit-room', {
+                                    _id: chat._id,
+                                    verb: req.body.verb,
+                                    name: chat.name
+                                });
+                            });
+                        });
+                    })
+                    .catch(error => {
+                        console.log(error);
+                        return res.status(500).json({ message: 'Une erreur est survenue' });
+                    });
+                break;
+            
+            case 'admin':
+                Chat.findOneAndUpdate({
+                    _id: roomId, members: { $elemMatch: { _id: userId, role: 'admin' } } },
+                    { $set: { 'members.$[elem].role': 'admin' } },
+                    { arrayFilters: [{ 'elem._id': req.body.target }], new: true })
+                        .then(chat => {
+                            if(!chat){
+                                return res.status(400).json({ message: 'Une erreur est survenue' });
+                            }
+                            chat.members.forEach(member => {
+                                const receiverList = serverStore.getActiveConnections(member._id);
+                                receiverList.forEach(socketId => {
+                                    io.to(socketId).emit('edit-room', {
+                                        _id: chat._id,
+                                        verb: req.body.verb,
+                                        target: req.body.target
+                                    });
+                                });
+                            });
+                        })
+                        .catch(error => {
+                            console.log(error);
+                            return res.status(500).json({ message: 'Une erreur est survenue' });
+                        });
+                break;
         }
-
-        let userContacts = await User.findOne({ _id: userId }, { contacts: 1 });
-        userContacts = userContacts.contacts;
-        members = members.filter(member => userContacts.includes(member));
-
-        if(!members.length){
-            return res.status(400).json({
-                message: 'Vous ne pouvez ajouter que des membres de vos contacts.'
-            });
-        }
-
-        const roomExists = await Chat.exists({
-            _id: roomId, members: { $elemMatch: { _id: userId, role: 'admin' } }
-        });
-
-        if(!roomExists){
-            return res.status(401).json({ message: 'Opération impossible.' });
-        }
-
-        Chat.updateOne({ _id: roomId }, { $push: { members: { $each: members } } })
-          .then(() => {
-              updatesHandler.updateChatHistory(roomId);
-              res.status(200).json({ message: 'Membres ajoutés avec succès!' });
-          })
-          .catch(err => res.status(500).json({ message: 'Une erreur est survenue, veuillez réessayer.' }));
 
     },
     /*,

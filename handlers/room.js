@@ -588,6 +588,35 @@ module.exports = {
                 return ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
             });
     },
+    edit: async (socket, data) => {
+        const userId = socket.userId;
+        switch(data.verb){
+            case 'name':
+                Chat.findOneAndUpdate({  }, {  }, { new: true })
+                    .then(chat => {
+                        if(!chat){
+                            return socket.emit('error', {
+                                message: 'Operation impossible'
+                            });
+                        }
+                        chat.members.forEach(member => {
+                            const receiverList = serverStore.getActiveConnections(member._id);
+                            receiverList.forEach(socketId => {
+                                io.to(socketId).emit('edit-room', {
+                                    _id: chat._id,
+                                    verb: data.verb,
+                                    name: chat.name
+                                });
+                            });
+                        });
+                    })
+                    .catch(error => {
+                        console.log(error);
+                        return ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+                    });
+                break;
+        }
+    },
     disconnectHandler: async (socket, data) => {
         const userId = socket.userId;
         User.updateOne({ _id: userId }, { $set: { connected_at: Date.now() } })

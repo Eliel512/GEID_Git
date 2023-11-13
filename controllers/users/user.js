@@ -185,7 +185,7 @@ exports.checkUser = async (req, res) => {
     case 'email':
       const userExists = await User.exists({ email: req.body.email });
       if(!userExists){
-        return res.status(404).json({ found: false });        
+        return res.status(404).json({ found: false });
       }
       break;
     default:
