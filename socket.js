@@ -125,6 +125,10 @@ const registerSocketServer = server => {
         roomHandler.joinRoom(socket, data);
       });
 
+      socket.on('accept', data => {
+        roomHandler.accept(socket, data);
+      });
+
       socket.on('leave', data => {
         roomHandler.leaveRoom(socket, data);
       });

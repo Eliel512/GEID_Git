@@ -9,6 +9,7 @@ const getCallDetails = require('../controllers/chats/room/getCallDetails');
 const getAllCallDetails = require('../controllers/chats/room/getAllCallDetails');
 const getUserSocketInstance = require('../controllers/chats/room/getUserSocketInstance');
 const createRoom = require('../controllers/chats/room/createRoom');
+const register = require('../controllers/chats/room/register');
 const auth = require('../middleware/users/auth');
 
 const multer = require('../middleware/multer-chat');
@@ -27,7 +28,7 @@ router.get('/invites', auth, invitationCtrl.getInvite);
 
 router.post('/room/call/', auth, createRoom);
 router.get('/room/call/', auth, getAllCallDetails);
-router.get('/room/call/join', joinRoom);
+router.get('/room/call/register', register);
 // router.get('/room/call/instance', auth, getUserSocketInstance);
 router.get('/room/call/:id', getCallDetails);
 router.post('/room/new', auth, roomCtrl.createRoom);
