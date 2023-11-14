@@ -53,11 +53,16 @@ const callSessionSchema = new Schema({
         type: [{
             identity: {
                 type: String,
-                ref: 'users',
+                refPath: 'model',
                 validator: {
                     validate: value => isValidObjectId(value),
                     message: 'La cle \'participants.identity\' doit correspondre a un _id de user valide'
                 },
+                required: true
+            },
+            model: {
+                type: String,
+                enum: ['users', 'guests'],
                 required: true
             },
             uid: {
@@ -98,6 +103,25 @@ const callSessionSchema = new Schema({
             }
         }],
         required: true
+    },
+    guests: {
+        type: {
+            identity: {
+                type: String,
+                refPath: 'model',
+                validator: {
+                    validate: value => isValidObjectId(value),
+                    message: 'La cle \'guests.identity\' doit correspondre a un _id de user valide'
+                },
+                required: true
+            },
+            model: {
+                type: String,
+                enum: ['users', 'guests'],
+                required: true
+            }
+        },
+        default: []
     },
     callDetails: {
         type: Schema.Types.Mixed,
