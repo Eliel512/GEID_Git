@@ -32,6 +32,15 @@ const callSessionSchema = new Schema({
         type: String,
         required: false
     },
+    createdBy: {
+        type: String,
+        ref: 'users',
+        validator: {
+            validate: value => isValidObjectId(value),
+            message: 'La cle \'createdBy\' doit correspondre a un _id de user valide'
+        },
+        required: true
+    },
     location: {
         type: String,
         ref: 'chats',
@@ -53,14 +62,14 @@ const callSessionSchema = new Schema({
         type: [{
             identity: {
                 type: String,
-                refPath: 'model',
-                validator: {
-                    validate: value => isValidObjectId(value),
-                    message: 'La cle \'participants.identity\' doit correspondre a un _id de user valide'
-                },
+                refPath: 'participants.itemModel',
+                // validator: {
+                //     validate: value => isValidObjectId(value),
+                //     message: 'La cle \'participants.identity\' doit correspondre a un _id de user valide'
+                // },
                 required: true
             },
-            model: {
+            itemModel: {
                 type: String,
                 enum: ['users', 'guests'],
                 required: true
@@ -108,14 +117,14 @@ const callSessionSchema = new Schema({
         type: {
             identity: {
                 type: String,
-                refPath: 'model',
-                validator: {
-                    validate: value => isValidObjectId(value),
-                    message: 'La cle \'guests.identity\' doit correspondre a un _id de user valide'
-                },
+                refPath: 'guests.itemModel',
+                // validator: {
+                //     validate: value => isValidObjectId(value),
+                //     message: 'La cle \'guests.identity\' doit correspondre a un _id de user valide'
+                // },
                 required: true
             },
-            model: {
+            itemModel: {
                 type: String,
                 enum: ['users', 'guests'],
                 required: true
@@ -123,6 +132,28 @@ const callSessionSchema = new Schema({
         },
         default: []
     },
+    messages: [{
+        content: {
+            type: String,
+            required: true
+        },
+        sender: {
+            type: Schema.Types.Mixed,
+            required: true
+        },
+        createdAt: {
+            type: Date,
+            required: true
+        },
+        clientId: {
+            type: String,
+            required: false
+        },
+        ref: {
+            type: String,
+            required: false
+        }
+    }],
     callDetails: {
         type: Schema.Types.Mixed,
         required: true

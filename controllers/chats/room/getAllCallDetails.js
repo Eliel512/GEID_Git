@@ -11,8 +11,7 @@ module.exports = async (req, res) => {
         })
         .populate({
             path: 'participants.identity',
-            model: User,
-            select: '_id fname lname mname email imageUrl grade'
+            select: '_id name fname lname mname email imageUrl grade'
         })
         .exec((error, callDetails) => {
             if (error) {

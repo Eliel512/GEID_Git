@@ -70,6 +70,10 @@ const registerSocketServer = server => {
         socketHandler.roomMessageHandler(socket, data);
       });
 
+      socket.on('call-message', data => {
+        roomHandler.callMessageHandler(socket, data);
+      });
+
       // socket.on('ping', data => {
       //   socketHandler.pingHandler(socket, data);
       // });

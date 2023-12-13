@@ -28,11 +28,15 @@ const callSessionSchema = Joi.object({
         .required(),
     summary: Joi.string(),
     description: Joi.string(),
+    createdBy: Joi.string()
+        .required(),
     location: Joi.string()
         .required(),
     participants: Joi.array().items(
         Joi.object({
             identity: Joi.string()
+                    .required(),
+            itemModel: Joi.string()
                     .required(),
             state: Joi.object({
                 isOrganizer: Joi.boolean()
@@ -179,7 +183,7 @@ module.exports = async (req, res, next) => {
             break;
 
         case 'room':
-            query = { _id: data.target };
+            query = { _id: data.target, type: 'room' };
             break;
 
         default:
@@ -248,10 +252,12 @@ module.exports = async (req, res, next) => {
         open: data.open ? true : false,
         summary: data.summary,
         description: data.description,
+        createdBy: userId,
         location: data.type === 'room' ? roomDetails._id.toString() : data.target,
         participants: roomDetails.members.map(participant => {
             return {
                 identity: participant._id._id.toString(),
+                itemModel: 'users',
                 state: {
                     isOrganizer: participant._id._id == userId ? true : false,
                     handRaised: false,
@@ -291,7 +297,8 @@ module.exports = async (req, res, next) => {
 
     if(data.type == 'room'){
         value.room = {
-            ...roomDetails
+            name: roomDetails.name,
+            description: roomDetails.description
         };
         value.status = 1;
     }

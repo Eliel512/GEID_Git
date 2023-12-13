@@ -10,7 +10,7 @@ const guestsSchema = new Schema({
         type: String,
         required: true
     }
-}, { timestamps: true });
+}, { timestamps: true, _id: false });
 
 // guestsSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 1000 * 24 });
 

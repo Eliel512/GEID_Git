@@ -102,6 +102,8 @@ const generateId = (char) => {
     return hash.slice(0, char);
 };
 
+const getRandomNumber = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
 module.exports = {
     scheduleHandler: async (socket, data) => {
         const userId = socket.userId;
@@ -256,107 +258,140 @@ module.exports = {
 
     },
     joinRoom: (socket, data) => {
-    callSession.findOne({ _id: data.id/*, 'participants.identity': socket.userId*/ })
-            .then(async callDetails => {
-                if (!callDetails) {
-                    const io = serverStore.getSocketServerInstance();
-                    return io.to(socket.id).emit('error', {
-                        message: 'Appel introuvable'
-                    });
-                }
-                for(const participant of callDetails.participants){
-                    if ((participant.identity._id === socket.userId) && participant.state.isInRoom) {
-                        const io = serverStore.getSocketServerInstance()
+        callSession.findOne({ _id: data.id/*, 'participants.identity': socket.userId*/ })
+                .then(async callDetails => {
+                    if (!callDetails) {
+                        const io = serverStore.getSocketServerInstance();
                         return io.to(socket.id).emit('error', {
-                            message: 'L\'utilisateur figure deja dans l\'appel'
+                            message: 'Appel introuvable'
                         });
                     }
-                }
-                if(callDetails.participants.some(participant => participant.identity == socket.userId)){
-                    socket.join(data.id);
-                    callDetails.participants.forEach(participant => {
-                        if (participant.identity._id == socket.userId) {
-                            participant.state.isInRoom = true
-                        }
-                    });
-                    if (!callDetails.room) {
-                        callDetails.status = 1;
-                    }
-                }else if(callDetails.open){
-                    callDetails.participants.push({
-                        identity: socket.userId,
-                        model: socket.userId.length > 8 ? 'users' : 'guests',
-                        state: {
-                            isInRoom: true,
-                            isMicActive: false,
-                            isCamActive: false,
-                            handRaised: false,
-                            screenShared: false,
-                            isOrganizer: false
-                        },
-                        auth: {
-                            shareScreen: callDetails.room ? false : true
-                        }
-                    });
-                    if (!callDetails.room) {
-                        callDetails.status = 1;
-                    }
-                }else{
-                    callDetails.guests.push({
-                        identity: socket.userId,
-                        model: socket.userId.length > 8 ? 'users' : 'guests'
-                    });
-                }
-                callDetails.save()
-                    .then(async () => {
-                        try {
-                            let userDetails = await User.findById(
-                                socket.userId, '_id fname mname lname grade email'
-                            );
-                            if(!userDetails){
-                                userDetails = await Guest.findById(
-                                    socket.userId, '_id name'
-                                );
-                            }
-                            const io = serverStore.getSocketServerInstance();
-                            const event = callDetails.guests.some(
-                                guest => guest.identity == socket.userId
-                                ) ? 'guest' : 'join';
-                            io.to(data.id).emit(event, {
-                                who: userDetails,
-                                where: {
-                                    _id: callDetails.id,
-                                    summary: callDetails.summary,
-                                    description: callDetails.description
-                                }
+                    for(const participant of callDetails.participants){
+                        if ((participant.identity._id === socket.userId) && participant.state.isInRoom) {
+                            const io = serverStore.getSocketServerInstance()
+                            return io.to(socket.id).emit('error', {
+                                message: 'L\'utilisateur figure deja dans l\'appel'
                             });
-                            if(event === 'join'){
-                                callDetails.participants.forEach(participant => {
-                                    const receiverList = serverStore.getActiveConnections(
-                                        participant.identity
+                        }
+                    }
+                    if(callDetails.participants.some(participant => participant.identity == socket.userId)){
+                        socket.join(data.id);
+                        callDetails.participants.forEach(participant => {
+                            if (participant.identity._id == socket.userId) {
+                                participant.state.isInRoom = true
+                            }
+                        });
+                        if (!callDetails.room) {
+                            callDetails.status = 1;
+                        }
+                    }else if(callDetails.open){
+                        let randomNumber;
+                        do {
+                            randomNumber = getRandomNumber(1, 10000);
+                        } while (callDetails.participants.some(participant => {
+                            return participant.uid == randomNumber;
+                            })
+                        );
+                        randomNumbers.push(randomNumber);
+                        callDetails.participants = [...callDetails.participants, {
+                            identity: socket.userId,
+                            uid: randomNumber,
+                            itemModel: socket.userId.length > 8 ? 'users' : 'guests',
+                            state: {
+                                isInRoom: true,
+                                isMicActive: false,
+                                isCamActive: false,
+                                handRaised: false,
+                                screenShared: false,
+                                isOrganizer: false
+                            },
+                            auth: {
+                                shareScreen: callDetails.room ? false : true
+                            }
+                        }];
+                        if (!callDetails.room) {
+                            callDetails.status = 1;
+                        }
+                    }else{
+                        callDetails.guests = [...callDetails.guests, {
+                            identity: socket.userId,
+                            itemModel: socket.userId.length > 8 ? 'users' : 'guests'
+                        }];
+                    }
+                    callDetails.save()
+                        .then(async () => {
+                            try {
+                                let userDetails;
+                                if(socket.userId.length > 8){
+                                    userDetails = await User.findById(socket.userId,
+                                        '_id fname mname lname email grade imageUrl');
+                                }else{
+                                    userDetails = await Guest.findOne({
+                                        _id: socket.userId
+                                    }, {
+                                        name: 1
+                                    });
+                                }
+                                const io = serverStore.getSocketServerInstance();
+                                const event = callDetails.guests.some(
+                                    guest => guest.identity == socket.userId
+                                    ) ? 'guest' : 'join';
+                                if(event == 'guest'){
+                                    const receiverList = serverStore.getActiveConnections(socket.userId);
+                                    const organizers = callDetails.participants.filter(
+                                        part => part.state.isOrganizer && part.state.isInRoom
                                         );
+                                    organizers.forEach(organizer => {
+                                        receiverList.push(
+                                            ...serverStore.getActiveConnections(organizer.identity)
+                                            );
+                                    });
                                     receiverList.forEach(socketId => {
-                                        io.to(socketId).emit('call-status', {
-                                            _id: callDetails._id,
-                                            status: callDetails.status
+                                        io.to(socketId).emit(event, {
+                                            who: userDetails,
+                                            where: {
+                                                _id: callDetails.id,
+                                                summary: callDetails.summary,
+                                                description: callDetails.description
+                                            }
                                         });
                                     });
-                                });
+                                }else{
+                                    socket.join(data.id);
+                                    io.to(data.id).emit(event, {
+                                        who: userDetails,
+                                        where: {
+                                            _id: callDetails.id,
+                                            summary: callDetails.summary,
+                                            description: callDetails.description
+                                        }
+                                    });
+                                    callDetails.participants.forEach(participant => {
+                                        const receiverList = serverStore.getActiveConnections(
+                                            participant.identity
+                                        );
+                                        receiverList.forEach(socketId => {
+                                            io.to(socketId).emit('call-status', {
+                                                _id: callDetails._id,
+                                                status: callDetails.status
+                                            });
+                                        });
+                                    });
+                                }
+                            } catch (error) {
+                                console.log(error);
+                                ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
                             }
-                        } catch (error) {
+                        })
+                        .catch(error => {
                             console.log(error);
-                            ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
-                        }
-                    })
-                    .catch(error => {
-                        console.log(error);
-                        return ErrorHandlers.msg(socket.id, 'Une erreur est survenue')
-                    });
-            })
-            .catch(error => {
-                console.log(error);
-                return ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
-            });
+                            return ErrorHandlers.msg(socket.id, 'Une erreur est survenue')
+                        });
+                })
+                .catch(error => {
+                    console.log(error);
+                    return ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+                });
     },
     accept: (socket, data) => {
         callSession.findOne({ _id: data.where,
@@ -366,13 +401,24 @@ module.exports = {
                 if(!callDetails){
                     return ErrorHandlers.msg(socket.id, 'Operation impossible');
                 }
-                if(!callDetails.guests.some(guest => guest.identity == data.who)){
+                if(callDetails.guests.every(guest => guest.identity != data.who)){
                     return ErrorHandlers.msg(socket.id, 'Invite introuvable');
                 }
-                callDetails.guests = callDetaills.guests.filter(guest => guest.identity !== data.who);
-                callDetails.participants.push({
+                const guestSocket = serverStore.getUserSocketInstance(data.who).socket;
+                if(!guestSocket){
+                    return ErrorHandlers.msg(socket.id, 'Invite introuvable');
+                }
+                callDetails.guests = callDetails.guests.filter(guest => guest.identity !== data.who);
+                let randomNumber;
+                do {
+                    randomNumber = getRandomNumber(1, 10000);
+                } while (callDetails.participants.some(participant => {
+                    return participant.uid == randomNumber;
+                }));
+                callDetails.participants = [...callDetails.participants, {
                     identity: data.who,
-                    model: data.who.length > 8 ? 'users' : 'guests',
+                    uid: randomNumber,
+                    itemModel: data.who.length > 8 ? 'users' : 'guests',
                     state: {
                         isOrganizer: false,
                         isCamActive: false,
@@ -384,26 +430,51 @@ module.exports = {
                     auth: {
                         shareScreen: callDetails.room ? false : true
                     }
-                });
+                }];
                 if(!callDetails.room && callDetails.status == 0){
                     callDetails.status = 1;
                 }
                 callDetails.save()
-                    .then( async () => {
+                    .then(async () => {
+                        let userDetails;
                         try{
-                            let userDetails = await User.findById(
-                                data.who, '_id fname mname lname grade email imageUrl'
-                                );
-                            if(!userDetails){
-                                userDetails = await Guest.findById(data.who, '_id name');
+                            if (data.who.length > 8) {
+                                userDetails = await User.findById(data.who,
+                                    '_id fname mname lname email grade imageUrl');
+                            } else {
+                                userDetails = await Guest.findOne({
+                                    _id: data.who
+                                }, {
+                                    name: 1
+                                });
                             }
                         }catch(error){
                             console.log(error);
                             return ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
                         }
+                        guestSocket.join(data.where);
                         const io = serverStore.getSocketServerInstance();
-                        io.to(data.target).emit('join', {
-                            who: userDetails,
+                        io.to(data.where).emit('join', {
+                            who: {
+                                ...userDetails._doc,
+                                isGuest: true
+                            },
+                            details: {
+                                identity: userDetails,
+                                uid: randomNumber,
+                                itemModel: data.who.length > 8 ? 'users' : 'guests',
+                                state: {
+                                    isOrganizer: false,
+                                    isCamActive: false,
+                                    isMicActive: false,
+                                    screenShared: false,
+                                    handRaised: false,
+                                    isInRoom: true
+                                },
+                                auth: {
+                                    shareScreen: callDetails.room ? false : true
+                                }
+                            },
                             where: {
                                 _id: callDetails.id,
                                 summary: callDetails.summary,
@@ -497,10 +568,17 @@ module.exports = {
                         message: 'Appel introuvable'
                     });
                 }
+                if (data.who.length != 1 || !data.who.includes(socket.userId)){
+                    if(!callDetails.participants.some(
+                        part => part.identity == socket.userId && part.state.isOrganizer
+                    )) {
+                        return ErrorHandlers.msg(socket.id, 'Operation impossible');
+                    }
+                }
                 switch(data.type){
                     case 'state':
                         callDetails.participants.forEach(member => {
-                            if(member.identity === socket.userId){
+                            if (data.who.includes(member.identity)) {
                                 member.state = {
                                     ...member.state,
                                     ...data.obj
@@ -510,7 +588,7 @@ module.exports = {
                         break;
                     case 'auth':
                         callDetails.participants.forEach(member => {
-                            if (member.identity === socket.userId) {
+                            if (data.who.includes(member.identity)) {
                                 member.auth = {
                                     ...member.auth,
                                     ...data.obj
@@ -523,10 +601,24 @@ module.exports = {
                             message: '\'type\' incorrect'
                         });
                 }
-                const userDetails = await User.findById(socket.userId, '_id fname mname lname grade email');
-                
+                // let userDetails;
+                // try {
+                //     if (socket.userId.length > 8) {
+                //         userDetails = await User.findById(socket.userId,
+                //             '_id fname mname lname email grade imageUrl');
+                //     } else {
+                //         userDetails = await Guest.findOne({
+                //             _id: socket.userId
+                //         }, {
+                //             name: 1
+                //         });
+                //     }
+                // } catch (error) {
+                //     console.log(error);
+                //     return ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+                // }
                 io.to(data.id).emit('signal', {
-                    who: userDetails,
+                    who: data.who,
                     where: {
                         _id: callDetails.id,
                         summary: callDetails.summary,
@@ -606,9 +698,22 @@ module.exports = {
                         message: 'Appel introuvable'
                     });
                 }
-                const userDetails = await User.findById(
-                        socket.userId, '_id fname mname lname grade email'
-                    );
+                let userDetails;
+                try {
+                    if (socket.userId.length > 8) {
+                        userDetails = await User.findById(socket.userId,
+                            '_id fname mname lname email grade imageUrl');
+                    } else {
+                        userDetails = await Guest.findOne({
+                            _id: socket.userId
+                        }, {
+                            name: 1
+                        });
+                    }
+                } catch (error) {
+                    console.log(error);
+                    return ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+                }
                 for (const participant of callDetails.participants) {
                     if ((participant.identity == socket.userId) && !participant.state.isInRoom) {
                         const io = serverStore.getSocketServerInstance();
@@ -639,9 +744,17 @@ module.exports = {
                 callDetails.save()
                     .then(async () => {
                         try {
-                            const userDetails = await User.findById(
-                                socket.userId, '_id fname mname lname grade email'
-                            );
+                            let userDetails;
+                            if (socket.userId.length > 8) {
+                                userDetails = await User.findById(socket.userId,
+                                    '_id fname mname lname email grade imageUrl');
+                            } else {
+                                userDetails = await Guest.findOne({
+                                    _id: socket.userId
+                                }, {
+                                    name: 1
+                                });
+                            }
                             const io = serverStore.getSocketServerInstance();
                             const rooms = io.sockets.adapter.rooms;
 
@@ -730,27 +843,83 @@ module.exports = {
                 break;
         }
     },
-    disconnectHandler: async (socket, data) => {
+    callMessageHandler: async (socket, data) => {
+        const { to, content, date, ref, clientId } = data;
         const userId = socket.userId;
-        User.updateOne({ _id: userId }, { $set: { connected_at: Date.now() } })
-            .then(async () => {
-                const receiverList = [];
-                const userDetails = await User.findOne({ _id: userId }, { connected_at: 1, contacts: 1 });
-                userDetails.contacts.forEach(contact => {
-                    receiverList.push(...serverStore.getActiveConnections(contact));
+
+        if (!content) {
+            return ErrorHandlers.msg(
+                socket.id,
+                'Impossible d\'envoyer un message vide.'
+            );
+        }
+        let userDetails;
+        try{
+            if (userId.length > 8) {
+                userDetails = await User.findById(userId,
+                    '_id fname mname lname email grade imageUrl');
+            } else {
+                userDetails = await Guest.findOne({
+                    _id: userId
+                }, {
+                    name: 1
                 });
+            }
+        }catch(error){
+            console.log(error);
+            return ErrorHandlers.msg(
+                socket.id,
+                'Une erreur est survenue.'
+            );
+        }
+
+        const message = {
+            content: content,
+            sender: userDetails,
+            createdAt: date || Date.now(),
+            clientId: clientId,
+            ref: ref
+        };
+
+        callSession.updateOne({ _id: to, 'participants.identity': userId },
+        { $push: { messages: message } })
+            .then(() => {
                 const io = serverStore.getSocketServerInstance();
-                receiverList.forEach(socketId => {
-                    io.to(socketId).emit('status', {
-                        who: userId,
-                        status: userDetails.connected_at
-                    });
+                io.to(data.to).emit('call-message', {
+                    message: message,
+                    where: {
+                        _id: to
+                    }
                 });
             })
             .catch(error => {
                 console.log(error);
-                ErrorHandlers.msg(socket.id, 'Une erreur est survenue.');
-            })
+                ErrorHandlers.msg(socket.id, 'Une erreur est survenue');
+            });
+    },
+    disconnectHandler: async (socket, data) => {
+        const userId = socket.userId;
+        if(socket.userId.length > 8){
+            User.updateOne({ _id: userId }, { $set: { connected_at: Date.now() } })
+                .then(async () => {
+                    const receiverList = [];
+                    const userDetails = await User.findOne({ _id: userId }, { connected_at: 1, contacts: 1 });
+                    userDetails.contacts.forEach(contact => {
+                        receiverList.push(...serverStore.getActiveConnections(contact));
+                    });
+                    const io = serverStore.getSocketServerInstance();
+                    receiverList.forEach(socketId => {
+                        io.to(socketId).emit('status', {
+                            who: userId,
+                            status: userDetails.connected_at
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.log(error);
+                    ErrorHandlers.msg(socket.id, 'Une erreur est survenue.');
+                })
+        }
         callSession.find({ 'participants.identity': userId })
             .then(callSessions => {
                 callSessions.forEach(async callSession => {

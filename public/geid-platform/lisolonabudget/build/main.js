@@ -8,7 +8,7 @@ const reactDevToolsPath = path.join(
   os.homedir(),
   '.config/google-chrome/Default/Extensions/fmkadmapgofadopljbjfkapdkoienihi/4.28.5_1'
 )
-console.log(reactDevToolsPath);
+
 let win;
 app.disableHardwareAcceleration();
 function createWindow() {

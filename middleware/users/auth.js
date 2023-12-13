@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const serverStore = require('../../serverStore');
 
 module.exports = (req, res, next) => {
     try {
@@ -8,12 +9,16 @@ module.exports = (req, res, next) => {
 
         /*if(req.body.userId && req.body.userId !== userId){
             throw 'Invalid user id';
-        }else{*/        
+        }else{*/
         res.locals.userId = userId;
         req.userId = userId;
         next();
         //}
     } catch {
-        res.status(401).json({ error: new Error('Invalid request') });
+        if (/^\/room\/call\/[a-zA-Z0-9]{9}$/.test(req.path)) {
+            next();
+        }else{
+            res.status(401).json({ error: new Error('Invalid request') });
+        }
     }
 };
