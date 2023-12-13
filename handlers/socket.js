@@ -2,6 +2,7 @@ const serverStore = require('../serverStore');
 const Message = require('../models/chats/message.model');
 const Chat = require('../models/chats/chat.model');
 const User = require('../models/users/user.model');
+const callSession = require('../models/chats/callSession.model');
 const {
   updatePendingInvitations,
   updateContacts,
@@ -28,32 +29,48 @@ module.exports = {
             socket: socket
         });
         socket.emit('connexion', {});
-        updateContacts(/*socket.id,*/ userDetails);
-        updatePendingInvitations(/*socket.id,*/ userDetails);
-        updateStatus(socket.userId);
-        updateCallHistory(userDetails);
+        if(socket.userId.length > 8){
+          updateContacts(/*socket.id,*/ userDetails);
+          updatePendingInvitations(/*socket.id,*/ userDetails);
+          updateStatus(socket.userId);
+          updateCallHistory(userDetails);
+        }
     },
     disconnectHandler: socket => {
         const userId = socket.userId;
-        User.updateOne({ _id: userId }, { $set: { connected_at: Date.now() } })
-          .then(async () => {
-            const receiverList = [];
-            const userDetails = await User.findOne({ _id: userId }, { connected_at: 1, contacts: 1 });
-            userDetails.contacts.forEach(contact => {
-              receiverList.push(...serverStore.getActiveConnections(contact));
-            });
-            const io = serverStore.getSocketServerInstance();
-            receiverList.forEach(socketId => {
-              io.to(socketId).emit('status', {
-                who: userId,
-                status: userDetails.connected_at
+        if(userId.length > 8){
+          User.updateOne({ _id: userId }, { $set: { connected_at: Date.now() } })
+            .then(async () => {
+              const receiverList = [];
+              const userDetails = await User.findOne({ _id: userId }, { connected_at: 1, contacts: 1 });
+              userDetails.contacts.forEach(contact => {
+                receiverList.push(...serverStore.getActiveConnections(contact));
               });
-            });
+              const io = serverStore.getSocketServerInstance();
+              receiverList.forEach(socketId => {
+                io.to(socketId).emit('status', {
+                  who: userId,
+                  status: userDetails.connected_at
+                });
+              });
+            })
+            .catch(error => {
+              console.log(error);
+              ErrorHandlers.msg(socket.id, 'Une erreur est survenue.');
+            })
+        }
+
+        callSession.updateMany({ participants: {
+          $elemMatch: { identity: socket.userId, identity: /^[a-zA-Z0-9]{8}$/ }
+        }
+        }, { $pull: { participants: { identity: { $in: [socket.userId] } } } })
+          .then(() => {
           })
           .catch(error => {
             console.log(error);
             ErrorHandlers.msg(socket.id, 'Une erreur est survenue.');
-          })
+          });
+
         serverStore.removeConnectedUser(socket.id);
     },
     directMessageHandler: async (socket, data) => {

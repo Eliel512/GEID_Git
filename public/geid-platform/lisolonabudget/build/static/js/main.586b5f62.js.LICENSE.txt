@@ -4,8 +4,6 @@ object-assign
 @license MIT
 */
 
-/*! formdata-polyfill. MIT License. Jimmy W?rting <https://jimmy.warting.se/opensource> */
-
 /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */
 
 /**
@@ -110,7 +108,7 @@ object-assign
  */
 
 /**
- * @mui/styled-engine v5.14.15
+ * @mui/styled-engine v5.14.8
  *
  * @license MIT
  * This source code is licensed under the MIT license found in the
@@ -118,7 +116,7 @@ object-assign
  */
 
 /**
- * @remix-run/router v1.10.0
+ * @remix-run/router v1.8.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -138,7 +136,7 @@ object-assign
  */
 
 /**
- * React Router DOM v6.17.0
+ * React Router DOM v6.15.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -149,7 +147,7 @@ object-assign
  */
 
 /**
- * React Router v6.17.0
+ * React Router v6.15.0
  *
  * Copyright (c) Remix Software Inc.
  *

@@ -11,6 +11,7 @@ const getUserSocketInstance = require('../controllers/chats/room/getUserSocketIn
 const createRoom = require('../controllers/chats/room/createRoom');
 const register = require('../controllers/chats/room/register');
 const auth = require('../middleware/users/auth');
+const callDetailsAuth = require('../middleware/users/callDetails');
 
 const multer = require('../middleware/multer-chat');
 const nocache = require('../middleware/chats/nocache');
@@ -28,9 +29,9 @@ router.get('/invites', auth, invitationCtrl.getInvite);
 
 router.post('/room/call/', auth, createRoom);
 router.get('/room/call/', auth, getAllCallDetails);
-router.get('/room/call/register', register);
+router.post('/room/call/register', register);
 // router.get('/room/call/instance', auth, getUserSocketInstance);
-router.get('/room/call/:id', getCallDetails);
+router.get('/room/call/:id', auth, nocache, getCallDetails);
 router.post('/room/new', auth, roomCtrl.createRoom);
 router.put('/room/edit', auth, roomCtrl.editRoom);
 
