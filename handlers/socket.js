@@ -236,7 +236,7 @@ module.exports = {
           .populate({
             path: 'members._id',
             model: User,
-              select: '_id fname lname mname email grade imageUrl'
+            select: '_id fname lname mname email grade imageUrl'
           })
           .exec((err, chats) => {
             if(err){

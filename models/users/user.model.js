@@ -62,18 +62,12 @@ const userSchema = new Schema({
     }    
   },
   auth: {
-    readOnly: {
-      type: [String],
-      enum: ['archives'],
-      required: false,
-      set: value => [ ...new Set(value)]      
-    },
-    readNWrite: {
-      type: [String],
-      enum: ['archives', 'books', 'images', 'films', 'work', 'admin'],
-      required: true,      
-      default: ['work'],
-      set: value => [ ...new Set(value)]
+    type: String,
+    required: true,
+    ref: 'auth',
+    validate: {
+      validator: value => isValidObjectId(value),
+      message: () => 'Le champ \'auth\' doit correspondre à un id d\'auth valide.'
     }
   },
   contacts: {
