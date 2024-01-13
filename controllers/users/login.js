@@ -5,7 +5,20 @@ const jwt = require('jsonwebtoken');
 
 module.exports = (req, res, next) => {
     User.findOne({ email: req.body.email }, { joinedAt: 0, __v: 0 })
-        .then(user => {
+        .populate({
+            path: 'auth',
+            select: '_id name privileges',
+            populate: {
+                path: 'permissions.struct',
+                select: '_id name'
+            }
+        })
+        .exec((err, user) => {
+            if(err){
+                return res.status(400).json({
+                    message: 'Vérifiez la validité des données.'
+                })
+            }
             if (!user) {
                 return res.status(404).json({ error: 'Utilisateur non trouvé !' });
             }
@@ -49,8 +62,5 @@ module.exports = (req, res, next) => {
                 .catch(error => res.status(400).json({
                     message: 'Vérifiez la validité des données.'
                 }));
-        })
-        .catch(error => res.status(400).json({
-            message: 'Vérifiez la validité des données.'
-        }));
+        });
 };
