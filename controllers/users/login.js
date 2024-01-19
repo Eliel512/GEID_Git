@@ -1,5 +1,6 @@
 const User = require('../../models/users/user.model');
 const Role = require('../../models/users/role.model');
+const Auth = require('../../models/users/auth.model');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
@@ -7,14 +8,17 @@ module.exports = (req, res, next) => {
     User.findOne({ email: req.body.email }, { joinedAt: 0, __v: 0 })
         .populate({
             path: 'auth',
+            model: Auth,
             select: '_id name privileges',
             populate: {
+                match: { 'permissions.struct': { $ne: 'all' } },
                 path: 'permissions.struct',
                 select: '_id name'
             }
         })
         .exec((err, user) => {
             if(err){
+                console.log(err);
                 return res.status(400).json({
                     message: 'Vérifiez la validité des données.'
                 })

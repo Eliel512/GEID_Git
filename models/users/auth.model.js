@@ -1,6 +1,6 @@
 const mongoose = require('mongoose'), { Schema } = require('mongoose');
 const uniqueValidator = require('mongoose-unique-validator');
-const isValidObjectId = require('../../tools/isValidObjectId');
+// const isValidObjectId = require('../../tools/isValidObjectId');
 
 const authSchema = new Schema({
     name: {
@@ -19,11 +19,6 @@ const authSchema = new Schema({
             struct: {
                 type: String,
                 required: true,
-                ref: 'roles',
-                validate: {
-                    validator: value => isValidObjectId(value),
-                    message: () => 'Le champ \'permissions.struct\' doit correspondre à un id de role valide.'
-                }
             },
             // Définir le type d'accès (lecture ou écriture)
             access: {
@@ -31,7 +26,12 @@ const authSchema = new Schema({
                 enum: ['read', 'write']
             }
         }]
-    }]
+    }],
+    upper: {
+        type: [String],
+        required: false,
+        default: ['admin']
+    }
 }, { timestamps: true });
 
 authSchema.plugin(uniqueValidator);

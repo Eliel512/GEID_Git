@@ -1,3 +1,4 @@
+const Doc = require('../models/archives/doc.model');
 const getHost = require('./getHost').getHost();
 const fs = require('fs');
 const mime = require('mime-types');
@@ -13,29 +14,44 @@ exports.create = (req, res, next) => {
       console.log(err);
       res.status(500).json({ message: 'Erreur interne du serveur' });
     }else{
-      const result = [];
-      fs.readdir(`./workspace/${userId}/${path}`, (err, files) => {
-        if (err) {
-          console.log(err);
-          return res.status(500).json({ message: 'Une erreur est survenue' });
-        } else {
-          for (let file of files) {
-            let mtime;
-            try {
-              mtime = fs.statSync(`./workspace/${userId}/${path}/${file}`).mtime;
-            } catch (error) {
-              console.log(error);
-              return res.status(500).json({ message: 'Une erreur est survenue' });
-            }
-            result.push({
-              'name': file,
-              'url': `https://${getHost}/workspace/${userId}/${path}/${file}`,
-              'createdAt': mtime
-            });
-          }
-          res.status(201).json(result);
-        }
+      const doc = new Doc({
+        ...req.body.doc,
+        format: extension,
+        contentUrl: `https://${getHost}/workspace/${userId}/${path}/${filename}`
       });
+      doc.save()
+        .then(() => {
+          const result = [];
+          fs.readdir(`./workspace/${userId}/${path}`, (err, files) => {
+            if (err) {
+              console.log(err);
+              return res.status(500).json({ message: 'Une erreur est survenue' });
+            } else {
+              for (let file of files) {
+                let mtime;
+                try {
+                  mtime = fs.statSync(`./workspace/${userId}/${path}/${file}`).mtime;
+                } catch (error) {
+                  console.log(error);
+                  return res.status(500).json({ message: 'Une erreur est survenue' });
+                }
+                result.push({
+                  'name': file,
+                  'url': `https://${getHost}/workspace/${userId}/${path}/${file}`,
+                  'createdAt': mtime,
+                  'doc': {
+                    ...doc
+                  }
+                });
+              }
+              res.status(201).json(result);
+            }
+          });
+        })
+        .catch(error => {
+          console.log(error);
+          res.status(500).json({ message: 'Une erreur est survenue' });
+        })
     }
   })
 };

@@ -24,20 +24,20 @@ const profilSchema = new Schema({
         max: [3, "Au champ 'privacy', le maximum est de '3'"],
         required: [true, "Le champ 'privacy' est requis"]
     },
-    retentionSchedule: {
+    retention: {
         type: String,
         ref: 'retention',
         validate: {
             validator: value => isValidObjectId(value),
-            message: () => "Au champ 'retentionSchedule' doit correspondre des _id de calendrier de conservation valides"
+            message: () => "Au champ 'retention' doit correspondre un _id de retention valide"
         },
-        required: [true, "Le champ 'retentionSchedule' est requis"]
+        required: [true, "Le champ 'retention' est requis"]
     }
-}, { discriminatorKey: 'kind' });
+}, { timestamps: true });
 
 profilSchema.plugin(uniqueValidator);
 
-const Profil = mongoose.model('profils', profilSchema);
+const Profil = mongoose.model('profil', profilSchema);
 //const ArchiveProfil = Profil.discriminator('archiveProfil', archiveSchemaProfil);
 
 module.exports = Profil;
