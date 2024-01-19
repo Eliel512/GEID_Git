@@ -1,8 +1,8 @@
 {
   "files": {
-    "main.css": "/static/css/main.f769ce00.css",
-    "main.js": "/static/js/main.a2a68c36.js",
-    "static/js/787.1b1a798c.chunk.js": "/static/js/787.1b1a798c.chunk.js",
+    "main.css": "/static/css/main.6ee83e18.css",
+    "main.js": "/static/js/main.f3afe6e5.js",
+    "static/js/479.31522a74.chunk.js": "/static/js/479.31522a74.chunk.js",
     "static/media/lf_2022_depenses.pdf": "/static/media/lf_2022_depenses.333aa784c083058e522e.pdf",
     "static/media/lf_2022_recettes.pdf": "/static/media/lf_2022_recettes.ea77eb2273117ffc4616.pdf",
     "static/media/loi_de_finances_2021.pdf": "/static/media/loi_de_finances_2021.723953bedffa75aebdeb.pdf",
@@ -48,12 +48,12 @@
     "static/media/kisspng-hand-stop-sign-symbol-cl.webp": "/static/media/kisspng-hand-stop-sign-symbol-cl.1031335eb05a63c0451f.webp",
     "static/media/vac.webp": "/static/media/vac.a55634034c000eb5161f.webp",
     "index.html": "/index.html",
-    "main.f769ce00.css.map": "/static/css/main.f769ce00.css.map",
-    "main.a2a68c36.js.map": "/static/js/main.a2a68c36.js.map",
-    "787.1b1a798c.chunk.js.map": "/static/js/787.1b1a798c.chunk.js.map"
+    "main.6ee83e18.css.map": "/static/css/main.6ee83e18.css.map",
+    "main.f3afe6e5.js.map": "/static/js/main.f3afe6e5.js.map",
+    "479.31522a74.chunk.js.map": "/static/js/479.31522a74.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.f769ce00.css",
-    "static/js/main.a2a68c36.js"
+    "static/css/main.6ee83e18.css",
+    "static/js/main.f3afe6e5.js"
   ]
 }

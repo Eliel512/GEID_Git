@@ -7,21 +7,51 @@ const { bookSchemaFrozen } = require('./book');
 const { imageSchemaFrozen } = require('./image');
 const { filmSchemaFrozen } = require('./film');*/
 
-const retentionSchema = new Schema({
-    arrangement: {
-        type: String,
-        enum: ['Conservation', 'Destruction'],
-	    required: [true, "Le champ 'arrangement' est requis"]
-    }
-}, { discriminatorKey: 'kind' });
+/*
+ * Creation du modele mongoose des calendriers
+ *  de conservation
+*/
 
-retentionSchema.plugin(autoIncrement, {
-    model: 'retention',
-    field: 'number',
-    startAt: 1
-    });
+const retentionSchema = new Schema({
+
+    // Nom du calendrier
+    name: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    // Description du calendrier
+    description: {
+        type: String,
+        required: false
+    },
+    // Delai de conservation en annees
+    delai: {
+        type: Number,
+        required: true
+    },
+    // Disposition apres delai de conservation
+    arrangement: {
+        arrangement: {
+            type: String,
+            enum: ['Conservation', 'Destruction'],
+            required: [true, "Le champ 'arrangement' est requis"]
+        },
+        // Motif de l'arrangement
+        motif: {
+            type: String,
+            required: true
+        }
+    }
+}, { timestamps: true });
+
+// retentionSchema.plugin(autoIncrement, {
+//     model: 'retention',
+//     field: 'number',
+//     startAt: 1
+//     });
 retentionSchema.plugin(uniqueValidator);
 
-const Retention = mongoose.model('retentions', retentionSchema);
+const Retention = mongoose.model('retention', retentionSchema);
 
 module.exports = Retention;
