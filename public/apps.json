@@ -1,0 +1,45 @@
+[
+    {
+        "filesPath": "public/geid-platform/archives/build",
+        "uri": "/apps/archives",
+        "name": "archives",
+        "label": "Archives",
+        "permissions": ["archives"]
+    },
+    {
+    	"filesPath": "public/geid-platform/workspaces/build",
+    	"uri": "/apps/workspaces",
+        "isRoot": true,
+        "name": "workspaces",
+        "label": "Espace personnel",
+        "permissions": ["workspace"]
+    },
+    {
+    	"filesPath": "public/geid-platform/medialibrary/build",
+    	"uri": "/apps/medialibrary",
+        "name": "mediaLibrary",
+        "label": "Mediathèque",
+        "permissions": ["library", "image_library", "film_library"]
+    },
+    {
+    	"filesPath": "public/geid-platform/lisolonabudget/build",
+    	"uri": "/apps/lisolonabudget",
+    	"isRoot": true,
+        "name": "lisolonabudget",
+        "label": "Lisolo Na Budget",
+        "permissions": []
+    },
+    {
+    	"filesPath": "public/geid-platform/censorship-service/build",
+    	"uri": "/apps/censorshipservice",
+        "name": "censorshipService",
+        "label": "Service de censure",
+        "permissions": [],
+        "hide": true
+    },
+    {
+        "filesPath": "public/geid-platform/platform/build",
+        "uri": "/",
+        "isRoot": true
+    }
+]

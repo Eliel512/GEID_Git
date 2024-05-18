@@ -1,7 +1,7 @@
 const mongoose = require('mongoose'),
     { Schema } = require('mongoose');
-const uniqueValidator = require('mongoose-unique-validator');
-const { isValidObjectId } = require('../../tools/isValidObjectId');
+// const uniqueValidator = require('mongoose-unique-validator');
+// const { isValidObjectId } = require('../../tools/isValidObjectId');
 
 const docSchema = new Schema({
     designation: {
@@ -14,6 +14,10 @@ const docSchema = new Schema({
 		required: false
 	},
     format: {
+        type: String,
+        required: true
+    },
+    owner: {
         type: String,
         required: true
     },

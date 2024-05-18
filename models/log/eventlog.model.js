@@ -13,7 +13,7 @@ const eventlogSchema = new Schema({
         },
         required: true
     },
-    createdBy: {
+    author: {
         type: String,
         required: true
     },
@@ -21,7 +21,7 @@ const eventlogSchema = new Schema({
         type: String,
         required: true
     },
-    result: {
+    completed: {
         type: String,
         required: true
     }

@@ -1,7 +1,7 @@
 const Auth = require('../../models/users/auth.model');
 const User = require('../../models/users/user.model');
 
-module.exports = (res, res, next) => {
+module.exports = (req, res, next) => {
     User.findOne({ _id: res.locals.userId }, { auth: 1 })
         .then(user => {
             Auth.findOne({ _id: user.auth }, { privileges: 1 })

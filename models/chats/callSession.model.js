@@ -6,9 +6,17 @@ const callSessionSchema = new Schema({
         type: String,
         required: true
     },
-    start: {
-        type: Date,
+    title: {
+        type: String,
         required: true
+    },
+    startedAt: {
+        type: String,
+        required: true
+    },
+    endedAt: {
+        type: String,
+        required: false
     },
     duration: {
         hours: {

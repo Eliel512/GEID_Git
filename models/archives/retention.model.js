@@ -1,7 +1,7 @@
 const mongoose = require('mongoose'), { Schema } = require('mongoose');
-const { isValidObjectId } = require('../../tools/isValidObjectId');
+// const { isValidObjectId } = require('../../tools/isValidObjectId');
 const uniqueValidator= require('mongoose-unique-validator');
-const { autoIncrement } = require('mongoose-plugin-autoinc');
+// const { autoIncrement } = require('mongoose-plugin-autoinc');
 /*const { ressourceSchemaFrozen } = require('./ressource');
 const { bookSchemaFrozen } = require('./book');
 const { imageSchemaFrozen } = require('./image');

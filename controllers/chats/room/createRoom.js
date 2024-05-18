@@ -245,9 +245,13 @@ module.exports = async (req, res, next) => {
     const state = data.state ? data.state : {};
     let { error, value } = callSessionSchema.validate({
         _id: roomId,
-        start: Number(data.start) || Date.now(),
+        title: data.title,
+        startedAt: data.startedAt || Date.now(),
+        endedAt: data.endedAt,
         duration: {
-            seconds: 0
+            hours : data.duration.hours,
+            minutes: data.duration.minutes,
+            seconds: data.duration.seconds || 0,
         },
         open: data.open ? true : false,
         summary: data.summary,
@@ -281,7 +285,7 @@ module.exports = async (req, res, next) => {
         return res.status(400).json({ message: error.details });
     }
 
-    const isCallExists = await callSession.exists({ location: value.location, 'participants.identity': userId });
+    // const isCallExists = await callSession.exists({ location: value.location, 'participants.identity': userId });
 
     // if(isCallExists){
     //     return res.status(409).json({ message: 'Appel en cours' });
@@ -300,7 +304,7 @@ module.exports = async (req, res, next) => {
             name: roomDetails.name,
             description: roomDetails.description
         };
-        value.status = 1;
+        value.status = data.scheduled ? 7 : 1;
     }
 
     const callSessionObject = new callSession({
@@ -335,19 +339,21 @@ module.exports = async (req, res, next) => {
             const io = roomStore.getSocketServerInstance();
             const receiverList = [];
 
-            socket.join(roomId);
-            io.to(roomId).emit('join', {
-                who: userDetails,
-                where: {
-                    _id: roomId,
-                    summary: callSessionObject.summary,
-                    description: callSessionObject.description,
-                    location: data.type === 'direct' ? data.target : callSessionObject.location
-                }
-            });
+            if((data.type == 'room' && !data.scheduled) || data.type == 'direct'){
+                socket.join(roomId);
+                io.to(roomId).emit('join', {
+                    who: userDetails,
+                    where: {
+                        _id: roomId,
+                        summary: callSessionObject.summary,
+                        description: callSessionObject.description,
+                        location: data.type === 'direct' ? data.target : callSessionObject.location
+                    }
+                });
+            }
 
             callSessionObject.participants.forEach(member => {
-                if(member.identity._id != userId){
+                if(member.identity._id != userId || data.scheduled && data.type == 'room'){
                     receiverList.push(...roomStore.getActiveConnections(member.identity._id));
                 }
             });
@@ -381,8 +387,9 @@ module.exports = async (req, res, next) => {
                         return res.status(500).json({ message: 'Une erreur est survenue' });
                     });
             }else {
+                const eventToEmit = data.type == 'room' && data.scheduled ? 'scheduled' : 'call';
                 receiverList.forEach(socketId => {
-                    io.to(socketId).emit('call', {
+                    io.to(socketId).emit(eventToEmit, {
                         who: userDetails,
                         where: {
                             _id: roomId,

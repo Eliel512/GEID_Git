@@ -1,22 +1,22 @@
 const mongoose = require('mongoose'),
 	{ Schema } = require('mongoose');
 const uniqueValidator= require('mongoose-unique-validator');
-const { isValidObjectId } = require('../../tools/isValidObjectId');
+const isValidObjectId = require('../../tools/isValidObjectId');
 
 const archiveSchema = new Schema({
 	version: {
 		type: String,
-		required: [true, "Le champ 'version' est requis"]
+		required: [false, "Le champ 'version' est requis"]
 	},
 	classNumber: {
 		type: String,
-		required: [true, "Le champ 'classNumber' est requis"],
-		unique: true
+		required: [false, "Le champ 'classNumber' est requis"],
+		unique: false
 	},
 	refNumber: {
 		type: String,
-		required: [true, "Le champ 'refNumber' est requis"],
-		unique: true
+		required: [false, "Le champ 'refNumber' est requis"],
+		unique: false
 	},
 	type: {
 		type: {
@@ -46,6 +46,19 @@ const archiveSchema = new Schema({
 		type: String,
 		required: [true, "Le champ 'description' est requis"],
 	},
+	language: {
+		type: String,
+		required: [true, "Le champ 'language' est requis"],
+		default: 'FR'
+	},
+	tags: {
+		type: [String],
+		required: false
+	},
+	ref: {
+		type: [String],
+		required: false
+	},
 	administrativeUnit: {
 		type: String, 
 		ref: 'role',
@@ -55,24 +68,37 @@ const archiveSchema = new Schema({
         },
 		required: [true, "Le champ 'administrativeUnit' est requis"]
 	},
-	event: {
+	folder: {
 		type: String,
-		ref: 'event',
-		validate: {
-            validator: event => isValidObjectId(event),
-            message: () => "Au champ 'event' doit correspondre un _id de event valide"
-        },
-		required: false
+		required: true
 	},
-	form: {
+	validated: {
+		type: Boolean,
+		required: true,
+		default: false
+	},
+	fileUrl: {
 		type: String,
-		ref: 'form',
-		validate: {
-			validator: form => isValidObjectId(form),
-			message: () => "Au champ 'form' doit correspondre un _id de form valide"
-		},
-		required: false
+		required: true
 	}
+	// event: {
+	// 	type: String,
+	// 	ref: 'event',
+	// 	validate: {
+    //         validator: event => isValidObjectId(event),
+    //         message: () => "Au champ 'event' doit correspondre un _id de event valide"
+    //     },
+	// 	required: false
+	// },
+	// form: {
+	// 	type: String,
+	// 	ref: 'form',
+	// 	validate: {
+	// 		validator: form => isValidObjectId(form),
+	// 		message: () => "Au champ 'form' doit correspondre un _id de form valide"
+	// 	},
+	// 	required: false
+	// }
 }, { discriminatorKey: 'kind', timestamps: true });
 
 

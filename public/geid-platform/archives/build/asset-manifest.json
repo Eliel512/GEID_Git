@@ -1,16 +1,19 @@
 {
   "files": {
-    "main.css": "/apps/archives/static/css/main.1879a3d7.css",
-    "main.js": "/apps/archives/static/js/main.e9f5e786.js",
-    "static/js/787.acbb0889.chunk.js": "/apps/archives/static/js/787.acbb0889.chunk.js",
-    "static/media/archives_workbooks.webp": "/apps/archives/static/media/archives_workbooks.4653a8204083b34a4595.webp",
+    "main.css": "/apps/archives/static/css/main.f9020baf.css",
+    "main.js": "/apps/archives/static/js/main.52e15802.js",
+    "static/js/668.d5dad94d.chunk.js": "/apps/archives/static/js/668.d5dad94d.chunk.js",
+    "static/media/5a229b479641b7.webp": "/apps/archives/static/media/5a229b479641b7.26338722151221741.775aa75fb177e2cd8e12.webp",
+    "static/media/crdoy0js-removebg-preview.webp": "/apps/archives/static/media/crdoy0js-removebg-preview.a6af61198b87e5632286.webp",
+    "static/media/group_speak.webp": "/apps/archives/static/media/group_speak.9b483ada3f57d68934b9.webp",
+    "static/media/geid_logo_blue_without_title.webp": "/apps/archives/static/media/geid_logo_blue_without_title.f54279024e98be825868.webp",
     "index.html": "/apps/archives/index.html",
-    "main.1879a3d7.css.map": "/apps/archives/static/css/main.1879a3d7.css.map",
-    "main.e9f5e786.js.map": "/apps/archives/static/js/main.e9f5e786.js.map",
-    "787.acbb0889.chunk.js.map": "/apps/archives/static/js/787.acbb0889.chunk.js.map"
+    "main.f9020baf.css.map": "/apps/archives/static/css/main.f9020baf.css.map",
+    "main.52e15802.js.map": "/apps/archives/static/js/main.52e15802.js.map",
+    "668.d5dad94d.chunk.js.map": "/apps/archives/static/js/668.d5dad94d.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.1879a3d7.css",
-    "static/js/main.e9f5e786.js"
+    "static/css/main.f9020baf.css",
+    "static/js/main.52e15802.js"
   ]
 }

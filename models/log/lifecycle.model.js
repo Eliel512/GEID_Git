@@ -1,7 +1,7 @@
 const mongoose = require('mongoose'),
     { Schema } = require('mongoose');
-const uniqueValidator = require('mongoose-unique-validator');
-const { isValidObjectId } = require('../../tools/isValidObjectId');
+// const uniqueValidator = require('mongoose-unique-validator');
+const isValidObjectId = require('../../tools/isValidObjectId');
 
 const lifecycleSchema = new Schema({
     doc: {
@@ -23,11 +23,17 @@ const lifecycleSchema = new Schema({
     },
     profil: {
         type: String,
-        required: true
+        ref: 'profil',
+        validate: {
+            validator: value => isValidObjectId(value),
+            message: () => "Au champ 'profil' doit correspondre un _id de profil valide"
+        },
+        required: [true, "Le champ 'profil' est requis"]
     },
     status: {
         type: Number,
-        required: true
+        required: true,
+        default: 'active'
     }
 }, { timestamps: true });
 

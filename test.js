@@ -20,6 +20,9 @@
 const mongoose = require('mongoose');
 const Auth = require('./models/users/auth.model');
 const User = require('./models/users/user.model');
+const Retention = require('./models/archives/retention.model');
+const Profil = require('./models/archives/profil.model');
+const Role = require('./models/users/role.model');
 
 mongoose.set('useCreateIndex', true);
 
@@ -30,19 +33,23 @@ mongoose.connect('mongodb://127.0.0.1:27017/',
   })
   .then(() => {
     console.log('Connexion à MongoDB réussie !');
-    Auth.findOne({ name: 'default' })
-      .then(auth => {
-        auth.privileges = [
-          ...auth.privileges,
-          {
-            app: 'workspace',
-            permissions: [{
-              struct: 'all',
-              access: 'write'
-            }]
-          }
-        ];
-        auth.save()
+    
+    Retention.findOne({ name: 'default' }, { _id: 1 })
+      .then(async retention => {
+        let roles = [];
+        try{
+          const a = await Role.find({  }, { _id: 1 });
+          a.forEach(role => roles.push(role._id));
+        }catch(error){
+          console.log(error);
+        }
+        const profil = new Profil({
+          name: 'default',
+          roles: roles,
+          privacy: 0,
+          retention: retention._id
+        });
+        profil.save()
           .then(() => console.log('correa'))
           .catch(error => console.log(error));
       })
