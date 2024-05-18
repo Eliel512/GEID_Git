@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/static/css/main.6ee83e18.css",
-    "main.js": "/static/js/main.f3afe6e5.js",
+    "main.js": "/static/js/main.a503dfb2.js",
     "static/js/479.31522a74.chunk.js": "/static/js/479.31522a74.chunk.js",
     "static/media/lf_2022_depenses.pdf": "/static/media/lf_2022_depenses.333aa784c083058e522e.pdf",
     "static/media/lf_2022_recettes.pdf": "/static/media/lf_2022_recettes.ea77eb2273117ffc4616.pdf",
@@ -22,9 +22,9 @@
     "static/media/carousel_image_archive_small.webp": "/static/media/carousel_image_archive_small.9d6eb72a74317da8050e.webp",
     "static/media/lomp.webp": "/static/media/lomp.13b00b4199aa028fb1f1.webp",
     "static/media/carousel_image_books_small.webp": "/static/media/carousel_image_books_small.d8ce4cdd4da967d69d3c.webp",
-    "static/media/pub_image_manager.webp": "/static/media/pub_image_manager.b756d64f4199262238ab.webp",
     "static/media/carousel_image_pub_small.webp": "/static/media/carousel_image_pub_small.81113f69c3f1461c6156.webp",
     "static/media/cir2.webp": "/static/media/cir2.c716d0743d6045cdb296.webp",
+    "static/media/pub_image_video.webp": "/static/media/pub_image_video.6fbfad6a9c8b36bce346.webp",
     "static/media/lofip.webp": "/static/media/lofip.b626c10625b852e8f640.webp",
     "static/media/pub_image_film.webp": "/static/media/pub_image_film.4bf0aa7bae5b2f2d0cd8.webp",
     "static/media/logo_ministere_budget.webp": "/static/media/logo_ministere_budget.e5a9df4604b25421c3aa.webp",
@@ -34,26 +34,25 @@
     "static/media/carousel_image_watch.webp": "/static/media/carousel_image_watch.35300c4e893bdb2874cf.webp",
     "static/media/pub_image_product.webp": "/static/media/pub_image_product.577ec7951aa154ab2dd2.webp",
     "static/media/pub_image_library.webp": "/static/media/pub_image_library.20071e4041fddaaddc11.webp",
+    "static/media/5a229b479641b7.webp": "/static/media/5a229b479641b7.26338722151221741.775aa75fb177e2cd8e12.webp",
     "static/media/kisspng-identity-document-busine.webp": "/static/media/kisspng-identity-document-busine.2c3fef0ad44b4a300191.webp",
-    "static/media/5a229b479641b7.webp": "/static/media/5a229b479641b7.26338722151221741.7d043765507f83a412b4.webp",
     "static/media/geid_logo_white.webp": "/static/media/geid_logo_white.216160fe6e3742d18304.webp",
     "static/media/pub_image_archives.webp": "/static/media/pub_image_archives.ed4fd1775f7a5fd51f90.webp",
+    "static/media/crdoy0js-removebg-preview.webp": "/static/media/crdoy0js-removebg-preview.a6af61198b87e5632286.webp",
     "static/media/geid_logo_white_middle.webp": "/static/media/geid_logo_white_middle.0ebf7feeb7beafb0dbe0.webp",
     "static/media/kisspng-computer-icons-encapsula.webp": "/static/media/kisspng-computer-icons-encapsula.0cfd13989501817470ed.webp",
     "static/media/group_speak.webp": "/static/media/group_speak.9b483ada3f57d68934b9.webp",
     "static/media/loiv2.webp": "/static/media/loiv2.cf73597cdbbacd8388ff.webp",
-    "static/media/archives_workbooks.webp": "/static/media/archives_workbooks.4653a8204083b34a4595.webp",
     "static/media/cir.webp": "/static/media/cir.38a5897d7c91b07bddff.webp",
     "static/media/5a3636b951df37.webp": "/static/media/5a3636b951df37.87798883151350239.2c69c66db1d49b179571.webp",
-    "static/media/kisspng-hand-stop-sign-symbol-cl.webp": "/static/media/kisspng-hand-stop-sign-symbol-cl.1031335eb05a63c0451f.webp",
     "static/media/vac.webp": "/static/media/vac.a55634034c000eb5161f.webp",
     "index.html": "/index.html",
     "main.6ee83e18.css.map": "/static/css/main.6ee83e18.css.map",
-    "main.f3afe6e5.js.map": "/static/js/main.f3afe6e5.js.map",
+    "main.a503dfb2.js.map": "/static/js/main.a503dfb2.js.map",
     "479.31522a74.chunk.js.map": "/static/js/479.31522a74.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.6ee83e18.css",
-    "static/js/main.f3afe6e5.js"
+    "static/js/main.a503dfb2.js"
   ]
 }

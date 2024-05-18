@@ -5,6 +5,7 @@ const workAuth = require('../middleware/users/workAuth');
 
 const workspaceRoutes = require('./workspace');
 const archiveRoutes = require('./archive.routes');
+const validateRoutes = require('./validate.route');
 const bookRoutes = require('./book.routes');
 const filmRoutes = require('./film.routes');
 const imageRoutes = require('./image.routes');
@@ -18,5 +19,6 @@ router.use('/filmotheque', filmRoutes);
 router.use('/phototheque', imageRoutes);
 router.use('/frozen', auth, frozenRoutes);
 router.use('/cover', auth, coverRoutes);
+router.use('/validate', auth, validateRoutes);
 
 module.exports = router;

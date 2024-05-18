@@ -8,7 +8,7 @@ const auth = require('./middleware/socketAuth');
 const socketHandler = require('./handlers/socket');
 const roomHandler = require('./handlers/room');
 const serverStore = require('./serverStore');
-const roomStore = require('./roomStore');
+// const roomStore = require('./roomStore');
 const { updateContacts, updateCallHistory } = require('./handlers/updates');
 
 const registerSocketServer = server => {

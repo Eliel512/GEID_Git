@@ -4,6 +4,7 @@ const router = express.Router();
 const invalidRoutes = require('./invalid.routes');
 const eventRoutes = require('./event.routes');
 const invalidAuth = require('../middleware/archives/auth');
+const postOneMiddleware = require('../middleware/archives/postOne');
 
 //const archiveCtrl = require('../controllers/archives/archive');
 const getAll = require('../controllers/archives/getAll');
@@ -13,7 +14,7 @@ router.use('/invalid', invalidAuth, invalidRoutes);
 router.use('/event', eventRoutes);
 
 router.get('/:role', getAll);
-router.post('/', postOne);
+router.post('/', postOneMiddleware, postOne);
 //router.post('/cover', multerCover, archiveCtrl.addCover);
 //router.get('/:id', archiveCtrl.getOne);
 //router.get('/types/:subtype', archiveCtrl.getByType);

@@ -2,12 +2,13 @@ const Doc = require('../models/archives/doc.model');
 const getHost = require('./getHost').getHost();
 const fs = require('fs');
 const mime = require('mime-types');
-const path = require('path');
+const paths = require('path');
+const docEvent = require('../events/doc');
 
 exports.create = (req, res, next) => {
   const userId = res.locals.userId;
   const extension = mime.extension(req.file.mimetype);
-  const filename = req.body.filename.split(' ').join('_') + '.' + extension;
+  const filename = req.body.filename + '.' + extension/*.split(' ').join('_') + '.' */;
   const { path } = req.body;
   fs.access(`./workspace/${userId}/${path}/${filename}`, err => {
     if(err){
@@ -15,12 +16,19 @@ exports.create = (req, res, next) => {
       res.status(500).json({ message: 'Erreur interne du serveur' });
     }else{
       const doc = new Doc({
-        ...req.body.doc,
+        ...req.body,
         format: extension,
-        contentUrl: `https://${getHost}/workspace/${userId}/${path}/${filename}`
+        owner: userId,
+        contentUrl: paths.join('workspace', userId, path, filename)
       });
       doc.save()
         .then(() => {
+          docEvent.emit('create', {
+            _id: doc._id,
+            format: doc.format,
+            contentUrl: doc.contentUrl,
+            author: userId
+          });
           const result = [];
           fs.readdir(`./workspace/${userId}/${path}`, (err, files) => {
             if (err) {
@@ -40,7 +48,7 @@ exports.create = (req, res, next) => {
                   'url': `https://${getHost}/workspace/${userId}/${path}/${file}`,
                   'createdAt': mtime,
                   'doc': {
-                    ...doc
+                    ...doc._doc
                   }
                 });
               }
@@ -148,7 +156,7 @@ exports.getAll = (req, res, next) => {
       return res.status(500).json({ message: 'Une erreur est survenue' });
     }
   }
-  fs.readdir(`./workspace/${userId}/${path}`, (err, files) => {
+  fs.readdir(`./workspace/${userId}/${path}`, async (err, files) => {
     if(err){
       console.log(err);
       return res.status(500).json({ message: 'Une erreur est survenue' });
@@ -160,11 +168,15 @@ exports.getAll = (req, res, next) => {
         } catch (error) {
           console.log(error);
           return res.status(500).json({ message: 'Une erreur est survenue' });      
-        } 
+        }
+        const url = `https://${getHost}/workspace/${userId}/${path}/${file}`;
+        const urlFilter = url.split('workspace')[1];
+        const doc = await Doc.findOne({ owner: userId, contentUrl: { $regex:  urlFilter } });
         result.push({
           'name': file,
-          'url': `https://${getHost}/workspace/${userId}/${path}/${file}`,
-          'createdAt': mtime
+          'url': url,
+          'createdAt': mtime,
+          'doc': doc
         });
       }
       res.status(200).json(result);

@@ -17,8 +17,8 @@ function getIp(req) {
     let ip = req.connection.remoteAddress;
     ip = ip.replace('::ffff:', '');
   
-    if (ip == '137.184.96.252') {
-      ip = req.headers['x-real-ip'];
+    if (ip == '143.198.110.104' || ip == '127.0.0.1') {
+      ip = req.headers['X-Real-IP'];
     }
   
     return ip;

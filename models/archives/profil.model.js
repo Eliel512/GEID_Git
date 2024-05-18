@@ -1,7 +1,7 @@
 const mongoose = require('mongoose'), { Schema } = require('mongoose');
-const { isValidObjectId } = require('../../tools/isValidObjectId');
+const isValidObjectId = require('../../tools/isValidObjectId');
 const uniqueValidator = require('mongoose-unique-validator');
-const { archiveSchemaProfil } = require('./archive.model');
+// const { archiveSchemaProfil } = require('./archive.model');
 
 const profilSchema = new Schema({
     name: {
