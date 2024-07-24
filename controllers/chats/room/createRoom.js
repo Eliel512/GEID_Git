@@ -15,8 +15,10 @@ const callSessionSchema = Joi.object({
         .min(9)
         .max(9)
         .required(),
-    start: Joi.number()
+    title: Joi.string(),
+    startedAt: Joi.string()
         .required(),
+    endedAt: Joi.string(),
     duration: Joi.object({
         hours: Joi.number(),
         minutes: Joi.number(),
@@ -77,15 +79,21 @@ const generateUid = participants => {
     }
 
     const randomNumbers = [];
+    const screenNumbers = [];
     participants.forEach(() => {
-        let randomNumber;
+        let randomNumber, screenNumber;
         do{
             randomNumber = getRandomNumber(1, 10000);
-        }while(randomNumbers.includes(randomNumber));
+            screenNumber = getRandomNumber(1, 10000);
+        }while(
+            (randomNumbers.includes(randomNumber) | screenNumbers.includes(randomNumber)) &&
+            (randomNumbers.includes(screenNumber) | screenNumbers.includes(screenNumber))
+        );
         randomNumbers.push(randomNumber);
+        screenNumbers.push(screenNumber);
     });
 
-    return randomNumbers;
+    return { randomNumbers, screenNumbers };
 
 };
 
@@ -246,12 +254,12 @@ module.exports = async (req, res, next) => {
     let { error, value } = callSessionSchema.validate({
         _id: roomId,
         title: data.title,
-        startedAt: data.startedAt || Date.now(),
+        startedAt: data.startedAt || Date.now().toLocaleString(),
         endedAt: data.endedAt,
         duration: {
-            hours : data.duration.hours,
-            minutes: data.duration.minutes,
-            seconds: data.duration.seconds || 0,
+            hours : data.duration?.hours || 0,
+            minutes: data.duration?.minutes || 0,
+            seconds: data.duration?.seconds || 0,
         },
         open: data.open ? true : false,
         summary: data.summary,
@@ -291,10 +299,13 @@ module.exports = async (req, res, next) => {
     //     return res.status(409).json({ message: 'Appel en cours' });
     // }
 
-    const randomNumbers = generateUid(value.participants);
+    let randomNumbers = generateUid(value.participants);
+    randomNumbers = randomNumbers.randomNumbers;
+    screenNumbers = randomNumbers.screenNumbers;
 
     for(let i = 0; i < value.participants.length; i++){
         value.participants[i].uid = randomNumbers[i];
+        value.participants[i].screenId = screenNumbers[i];
     }
 
     value.status = 0;

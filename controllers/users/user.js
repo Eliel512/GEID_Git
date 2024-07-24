@@ -20,6 +20,23 @@ const transporter = nodemailer.createTransport({
   }*/
 });
 
+// Fonction pour afficher les informations de connexion du transporteur
+function displayTransporterInfo(transporter) {
+  const info = {
+    host: transporter.options.host,
+    port: transporter.options.port,
+    secure: transporter.options.secure,
+    user: transporter.options.auth.user,
+    // servername: transporter.options.tls.servername,
+  };
+
+  console.log('Informations de connexion du transporteur SMTP:');
+  console.log(info);
+}
+
+// Afficher les informations de connexion du transporteur
+// displayTransporterInfo(transporter);
+
 transporter.verify((error, success) => {
   if(error){
     console.log(error);
