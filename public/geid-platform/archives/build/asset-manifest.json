@@ -1,19 +1,19 @@
 {
   "files": {
     "main.css": "/apps/archives/static/css/main.f9020baf.css",
-    "main.js": "/apps/archives/static/js/main.52e15802.js",
-    "static/js/668.d5dad94d.chunk.js": "/apps/archives/static/js/668.d5dad94d.chunk.js",
+    "main.js": "/apps/archives/static/js/main.c7540574.js",
+    "static/js/882.6fd062f8.chunk.js": "/apps/archives/static/js/882.6fd062f8.chunk.js",
     "static/media/5a229b479641b7.webp": "/apps/archives/static/media/5a229b479641b7.26338722151221741.775aa75fb177e2cd8e12.webp",
     "static/media/crdoy0js-removebg-preview.webp": "/apps/archives/static/media/crdoy0js-removebg-preview.a6af61198b87e5632286.webp",
     "static/media/group_speak.webp": "/apps/archives/static/media/group_speak.9b483ada3f57d68934b9.webp",
     "static/media/geid_logo_blue_without_title.webp": "/apps/archives/static/media/geid_logo_blue_without_title.f54279024e98be825868.webp",
     "index.html": "/apps/archives/index.html",
     "main.f9020baf.css.map": "/apps/archives/static/css/main.f9020baf.css.map",
-    "main.52e15802.js.map": "/apps/archives/static/js/main.52e15802.js.map",
-    "668.d5dad94d.chunk.js.map": "/apps/archives/static/js/668.d5dad94d.chunk.js.map"
+    "main.c7540574.js.map": "/apps/archives/static/js/main.c7540574.js.map",
+    "882.6fd062f8.chunk.js.map": "/apps/archives/static/js/882.6fd062f8.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.f9020baf.css",
-    "static/js/main.52e15802.js"
+    "static/js/main.c7540574.js"
   ]
 }
