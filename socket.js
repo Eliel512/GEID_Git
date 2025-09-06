@@ -3,22 +3,24 @@
 // const mongoose = require('mongoose');
 // const MongoStore = require('connect-mongo');
 // const CallSession = require('./models/chats/callSession.model');
-const eiows = require('eiows');
-const auth = require('./middleware/socketAuth');
-const socketHandler = require('./handlers/socket');
-const roomHandler = require('./handlers/room');
-const serverStore = require('./serverStore');
+const eiows = require("eiows");
+const auth = require("./middleware/socketAuth");
+const socketHandler = require("./handlers/socket");
+const roomHandler = require("./handlers/room");
+const serverStore = require("./serverStore");
+const socketStore = require("./socketStore");
+const RoomHandler = require("./handlers/room/room");
 // const roomStore = require('./roomStore');
-const { updateContacts, updateCallHistory } = require('./handlers/updates');
+const { updateContacts, updateCallHistory } = require("./handlers/updates");
 
-const registerSocketServer = server => {
-  const { Server } = require('socket.io');
+const registerSocketServer = (server) => {
+  const { Server } = require("socket.io");
   const io = new Server(server, {
     cors: {
-      origin: '*',
-      methods: ["GET", "POST"]
+      origin: "*",
+      methods: ["GET", "POST"],
     },
-    wsEngine: eiows.Server
+    wsEngine: eiows.Server,
   });
 
   // const roomIo = io.of('/room');
@@ -47,127 +49,134 @@ const registerSocketServer = server => {
   // });
 
   serverStore.setSocketServerInstance(io);
+  socketStore.setInstance(io);
   // roomStore.setSocketServerInstance(io);
 
-  io.use(auth)
-    .on('connection', (socket) => {
+  io.use(auth).on("connection", (socket) => {
+    socketHandler.newConnectionHandler(socket, io);
+    socketStore.addClient(socket.id, socket.userId, socket);
 
-      socketHandler.newConnectionHandler(socket, io);
-
-      socket.on('direct-message', data => {
-        socketHandler.directMessageHandler(socket, data);
-      });
-
-      socket.on('direct-file', data => {
-        socketHandler.directFileHandler(socket, data);
-      });
-
-      socket.on('direct-chat', data => {
-        socketHandler.directChatHandler(socket, data);
-      });
-
-      socket.on('room-message', data => {
-        socketHandler.roomMessageHandler(socket, data);
-      });
-
-      socket.on('call-message', data => {
-        roomHandler.callMessageHandler(socket, data);
-      });
-
-      // socket.on('ping', data => {
-      //   socketHandler.pingHandler(socket, data);
-      // });
-
-      socket.on('contacts', () => {
-        updateContacts(socket.userId);
-      });
-
-      socket.on('last', () => {
-        socketHandler.lastHandler(socket.userId);
-      });
-
-      socket.on('call', data => {
-        socketHandler.callHandler(socket, data);
-      });
-
-      socket.on('call-history', () => {
-        updateCallHistory(socket);
-      });
-
-      socket.on('pick-up', data => {
-        socketHandler.pickUpHandler(socket, data);
-      });
-
-      // socket.on('hang-up', data => {
-      //   socketHandler.hangUpHandler(socket, data);
-      // });
-
-      // socket.on('signal', data => {
-      //   socketHandler.signalHandler(socket, data);
-      // });
-
-      socket.on('status', data => {
-        socketHandler.statusHandler(socket, data);
-      });
-
-      // 
-
-      socket.on('ping', (data, callback) => {
-        // socket.emit('ping', 'ping');
-        callback('C\'est bon');
-      });
-
-      socket.on('schedule', data => {
-        roomHandler.scheduleHandler(socket, data);
-      });
-
-      socket.on('create', data => {
-        roomHandler.createHandler(socket, data);
-      });
-
-      socket.on('join', data => {
-        roomHandler.joinRoom(socket, data);
-      });
-
-      socket.on('accept', data => {
-        roomHandler.accept(socket, data);
-      });
-
-      socket.on('leave', data => {
-        roomHandler.leaveRoom(socket, data);
-      });
-
-      socket.on('edit-room', data => {
-        roomHandler.edit(socket, data);
-      });
-
-      socket.on('signal', data => {
-        roomHandler.signal(socket, data);
-      });
-
-      // socket.on('call', data => {
-      //   roomHandler.callHandler(socket, data);
-      // });
-
-      socket.on('ringing', data => {
-        roomHandler.ringHandler(socket, data);
-      });
-
-      socket.on('busy', data => {
-        roomHandler.busyHandler(socket, data);
-      });
-
-      socket.on('hang-up', (data, callback) => {
-        roomHandler.hangUpHandler(socket, data);
-        // callback('C\'est bon');
-      });
-
-      socket.on('disconnect', () => {
-        socketHandler.disconnectHandler(socket);
-      });
-
-
+    socket.on("direct-message", (data) => {
+      socketHandler.directMessageHandler(socket, data);
     });
+
+    socket.on("direct-file", (data) => {
+      socketHandler.directFileHandler(socket, data);
+    });
+
+    socket.on("direct-chat", (data) => {
+      socketHandler.directChatHandler(socket, data);
+    });
+
+    socket.on("room-message", (data) => {
+      socketHandler.roomMessageHandler(socket, data);
+    });
+
+    socket.on("call-message", (data) => {
+      roomHandler.callMessageHandler(socket, data);
+    });
+
+    socket.on("rtt-ping", (data) => {
+      socketHandler.networkRttStat(socket, data);
+    });
+
+    // socket.on('ping', data => {
+    //   socketHandler.pingHandler(socket, data);
+    // });
+
+    socket.on("contacts", () => {
+      updateContacts(socket.userId);
+    });
+
+    socket.on("last", () => {
+      socketHandler.lastHandler(socket.userId);
+    });
+
+    socket.on("call", (data) => {
+      socketHandler.callHandler(socket, data);
+    });
+
+    socket.on("call-history", () => {
+      updateCallHistory(socket);
+    });
+
+    socket.on("pick-up", (data) => {
+      socketHandler.pickUpHandler(socket, data);
+    });
+
+    // socket.on('hang-up', data => {
+    //   socketHandler.hangUpHandler(socket, data);
+    // });
+
+    // socket.on('signal', data => {
+    //   socketHandler.signalHandler(socket, data);
+    // });
+
+    socket.on("status", (data) => {
+      socketHandler.statusHandler(socket, data);
+    });
+
+    //
+
+    socket.on("ping", (data, callback) => {
+      // socket.emit('ping', 'ping');
+      callback("C'est bon");
+    });
+
+    socket.on("schedule", (data) => {
+      roomHandler.scheduleHandler(socket, data);
+    });
+
+    socket.on("create", (data) => {
+      roomHandler.createHandler(socket, data);
+    });
+
+    socket.on("join", (data) => {
+      roomHandler.joinRoom(socket, data);
+    });
+
+    socket.on("accept", (data) => {
+      roomHandler.accept(socket, data);
+    });
+
+    socket.on("leave", (data) => {
+      roomHandler.leaveRoom(socket, data);
+    });
+
+    socket.on("edit-room", (data) => {
+      roomHandler.edit(socket, data);
+    });
+
+    socket.on("signal", (data) => {
+      roomHandler.signal(socket, data);
+    });
+
+    // socket.on('call', data => {
+    //   roomHandler.callHandler(socket, data);
+    // });
+
+    socket.on("ringing", (data) => {
+      roomHandler.ringHandler(socket, data);
+    });
+
+    socket.on("busy", (data) => {
+      roomHandler.busyHandler(socket, data);
+    });
+
+    socket.on("hang-up", (data, callback) => {
+      roomHandler.hangUpHandler(socket, data);
+      // callback('C\'est bon');
+    });
+
+    socket.on("disconnect", () => {
+      socketHandler.disconnectHandler(socket);
+      roomHandler.disconnectHandler(socket);
+      socketStore.deleteClient(socket.id);
+    });
+
+    // new implement call room event
+    socket.on("join-room", (data) => new RoomHandler(socket, data));
+  });
 
   // roomIo.use(auth)
   //   //.use(sharedsession(sessionMiddleware))
@@ -227,6 +236,6 @@ const registerSocketServer = server => {
   //     // });
 
   //   });
-}
+};
 
 module.exports = { registerSocketServer };
