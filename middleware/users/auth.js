@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const serverStore = require('../../serverStore');
+// const serverStore = require('../../serverStore');
 
 module.exports = (req, res, next) => {
     try {

@@ -11,7 +11,7 @@ const adminRoutes = require('./routes/admin');
 const auth = require('./middleware/users/auth');
 const adminAuth = require('./middleware/adminAuth');
 const RequestLog = require('./models/request_log');
-const gfcpf = require('./public/geid-front-config-platform');
+const GEID_FRONT_CONFIG_PLATFORM = require('./public/geid-front-config-platform');
 
 function getIp(req) {
     let ip = req.connection.remoteAddress;
@@ -90,7 +90,7 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use('/archives', express.static(path.join(__dirname, 'archives')));
+app.use('/ARCHIVES', express.static(path.join(__dirname, 'ARCHIVES')));
 app.use('/profils', express.static(path.join(__dirname, 'profils')));
 app.use('/workspace', express.static(path.join(__dirname, 'workspace')));
 app.use('/salon', express.static(path.join(__dirname, 'salon')));
@@ -108,6 +108,6 @@ app.get('/analytics', (req, res, next) => {
 });
 
 // Geid config frontend apps
-gfcpf(app);
+GEID_FRONT_CONFIG_PLATFORM(app);
 
 module.exports = app;

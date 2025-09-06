@@ -1,6 +1,22 @@
 [
+	 {
+        "filesPath": "public/emogi",
+        "uri": "/assets/emogi",
+        "isRoot": false,
+        "name": "emogiIcon",
+        "label": "Emogi",
+        "permissions": []
+    },
     {
-        "filesPath": "public/geid-platform/archives/build",
+    	"filesPath": "public/geid-platform/test/dist",
+   		 "uri": "/apps/test",
+   		 "isRoot": true,
+    	 "name": "test",
+    	 "label": "Test",
+    	 "permissions": []
+    },
+    {
+        "filesPath": "public/geid-platform/archives/dist",
         "uri": "/apps/archives",
         "name": "archives",
         "label": "Archives",
@@ -30,12 +46,28 @@
         "permissions": []
     },
     {
+        "filesPath": "public/geid-platform/lisolo/dist",
+        "uri": "/apps/lisolo/dev/v2",
+        "isRoot": true,
+        "name": "geidLisolo",
+        "label": "Geid Lisolo",
+        "permissions": []
+    },
+    {
     	"filesPath": "public/geid-platform/censorship-service/build",
     	"uri": "/apps/censorshipservice",
         "name": "censorshipService",
         "label": "Service de censure",
         "permissions": [],
         "hide": true
+    },
+    {
+        "filesPath": "public/geid-platform/login/dist",
+        "uri": "/account/login",
+        "isRoot": true,
+        "name": "GEIDLogin",
+        "label": "GEID - Connexion",
+        "permissions": []
     },
     {
         "filesPath": "public/geid-platform/platform/build",

@@ -6,7 +6,7 @@ const Retention = require('../../models/archives/retention.model');
 module.exports = (req, res) => {
     const query = res.locals.structs.includes('all') ? {} : {
         administrativeUnit: { $in: res.locals.structs } };
-    query.validated = false;
+    query.validated = true;
 
     Archive.find(query, { __v: 0 })
         .populate({
