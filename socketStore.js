@@ -1,11 +1,25 @@
+const parseClientInfo = require("./tools/parseClientInfo");
+
 /**
- * @class
+ * @typedef {Object} ClientInfo
+ * @property {string} socketId
+ * @property {string} clientId
+ * @property {import('socket.io').Socket} socketClientInstance
+ * @property {{
+ *   userAgent: string,
+ *   device: string,
+ *   browser: string,
+ *   os: string,
+ *   connectionDate: string
+ * }} infos
  */
+
+/** @class */
 class SocketStore {
   /** @type {import('socket.io').Server|null} */
   #io = null;
 
-  /** @type {Object.<string, {socketId: string, clientId: string, socketClientInstance: import('socket.io').Socket}>} */
+  /** @type {ClientInfo} */
   #clients = {};
 
   /**
@@ -21,7 +35,12 @@ class SocketStore {
    * @param {import('socket.io').Socket} socketClientInstance
    */
   addClient = (socketId, clientId, socketClientInstance) => {
-    this.#clients[socketId] = { socketId, clientId, socketClientInstance };
+    this.#clients[socketId] = {
+      socketId,
+      clientId,
+      socketClientInstance,
+      infos: parseClientInfo(socketClientInstance),
+    };
   };
 
   /**
@@ -72,15 +91,16 @@ class SocketStore {
       .filter((c) => c?.clientId === clientId)
       .map(({ socketClientInstance }) => socketClientInstance);
   }
+
   /**
    * @param {string} roomId
    * @param {string} clientId
-   * @returns {Promise<Array<Object.<string, {socketId: string, clientId: string, socketClientInstance: import('socket.io').Socket>>}
+   * @returns {Promise<Array<Object<string, ClientInfo>>>}
    */
   async getClientRoomConnections(roomId, clientId) {
     const sockets = await this.getInstancesByRoomId(roomId);
     return sockets
-      .map((c) => this.#clients[c.id])
+      .map(({ id }) => this.#clients[id])
       .filter((c) => c.clientId === clientId);
   }
 

@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference path="./callSession.type.js" />
+
 const mongoose = require("mongoose"),
   { Schema } = require("mongoose");
 const isValidObjectId = require("../../tools/isValidObjectId");
@@ -97,32 +100,39 @@ const callSessionSchema = new Schema(
             isOrganizer: {
               type: Boolean,
               required: false,
+              default: false,
             },
             handRaised: {
               type: Boolean,
               required: true,
+              default: false,
             },
             screenShared: {
               type: Boolean,
               required: true,
+              default: false,
             },
             isCamActive: {
               type: Boolean,
               required: false,
+              default: false,
             },
             isMicActive: {
               type: Boolean,
               required: false,
+              default: false,
             },
             isInRoom: {
               type: Boolean,
               required: true,
+              default: false,
             },
           },
           auth: {
             shareScreen: {
               type: Boolean,
               required: true,
+              default: true,
             },
             writeMessage: {
               type: Boolean,
@@ -193,80 +203,7 @@ callSessionSchema.index(
   { expireAfterSeconds: 60 * 60 * 1000 * 24 }
 );
 
-/**
- * @typedef {Object} Duration
- * @property {number} [hours]
- * @property {number} [minutes]
- * @property {number} seconds
- */
-
-/**
- * @typedef {Object} ParticipantState
- * @property {boolean} [isOrganizer]
- * @property {boolean} handRaised
- * @property {boolean} screenShared
- * @property {boolean} [isCamActive]
- * @property {boolean} [isMicActive]
- * @property {boolean} isInRoom
- */
-
-/**
- * @typedef {Object} ParticipantAuth
- * @property {boolean} shareScreen
- * @property {boolean} [writeMessage=true]
- * @property {boolean} [react=true]
- */
-
-/**
- * @typedef {Object} Participant
- * @property {string} identity
- * @property {"users"|"guests"} itemModel
- * @property {number} uid
- * @property {number} [screenId]
- * @property {ParticipantState} state
- * @property {ParticipantAuth} auth
- */
-
-/**
- * @typedef {Object} Guest
- * @property {string} identity
- * @property {"users"|"guests"} itemModel
- */
-
-/**
- * @typedef {Object} Message
- * @property {string} content
- * @property {*} sender
- * @property {Date} createdAt
- * @property {string} [clientId]
- * @property {string} [ref]
- */
-
-/**
- * @typedef {Object} CallSessionType
- * @property {string} _id
- * @property {string} [title]
- * @property {string} startedAt
- * @property {string} [endedAt]
- * @property {Duration} duration
- * @property {string} [summary]
- * @property {string} [description]
- * @property {string} createdBy
- * @property {string} location
- * @property {*} [room]
- * @property {number} status
- * @property {Participant[]} participants
- * @property {Guest} guests
- * @property {Message[]} messages
- * @property {*} callDetails
- * @property {Date} createdAt
- * @property {Date} updatedAt
- */
-
-/**
- * @type {import('mongoose').Model<CallSessionType>}
- */
-
+/** @type {import('mongoose').Model<CallSessionType>} */
 const CallSession = mongoose.model("callSession", callSessionSchema);
 
 module.exports = CallSession;
