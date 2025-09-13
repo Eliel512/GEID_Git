@@ -1,3 +1,3 @@
 exports.getHost = () => {
-    return `${process.env.host}`;
+  return `${process.env.host}`;
 };

@@ -1,38 +1,43 @@
-const mongoose = require('mongoose'), { Schema } = require('mongoose');
-const uniqueValidator= require('mongoose-unique-validator');
-const isValidObjectId = require('../../tools/isValidObjectId');
+// @ts-check
+/// <reference path="../../types/user.type.js" />
+const mongoose = require("mongoose"),
+  { Schema } = require("mongoose");
+const uniqueValidator = require("mongoose-unique-validator");
+const isValidObjectId = require("../../tools/isValidObjectId");
 
 const roleSchema = new Schema({
   name: {
     type: String,
-    required: [true, 'Le champ \'name\' est requis.'],
-    unique: true
+    required: [true, "Le champ 'name' est requis."],
+    unique: true,
   },
   children: {
     type: [String],
-    required: false
+    required: false,
   },
   parent: {
-      type: String,
-      required: false,
-  },  
+    type: String,
+    required: false,
+  },
   docTypes: {
     type: Array,
-    required: false
+    required: false,
   },
   management: {
     type: [String],
-    ref: 'users',
+    ref: "users",
     validate: {
-      validator: user => isValidObjectId(user),
-      message: () => "Au champ 'management' doivent correspondre des _id de user valides"
+      validator: (user) => isValidObjectId(user),
+      message: () =>
+        "Au champ 'management' doivent correspondre des _id de user valides",
     },
-    required: false
-  }  
+    required: false,
+  },
 });
 
 roleSchema.plugin(uniqueValidator);
 
-const Role = mongoose.model('roles', roleSchema);
+/** @type {import("mongoose").Model<Role>} */
+const Role = mongoose.model("roles", roleSchema);
 
 module.exports = Role;
