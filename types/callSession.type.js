@@ -50,7 +50,7 @@
  */
 
 /**
- * @typedef {Object} CallSessionType
+ * @typedef {Object} CallSession
  * @property {string} _id
  * @property {string} [title]
  * @property {string} startedAt
@@ -68,4 +68,8 @@
  * @property {*} callDetails
  * @property {Date} createdAt
  * @property {Date} updatedAt
+ */
+
+/**
+ * @typedef {import("mongoose").Document & CallSession} CallSessionDocument
  */

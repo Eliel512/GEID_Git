@@ -5,7 +5,6 @@ const cluster = require("cluster");
 const numCPU = require("os").cpus().length;
 const app = require("./app");
 const socketServer = require("./socket");
-const socketStore = require("./socketStore");
 
 const isDev = process.env.NODE_ENV !== "production";
 

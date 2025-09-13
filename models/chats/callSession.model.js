@@ -1,8 +1,7 @@
 // @ts-check
-/// <reference path="./callSession.type.js" />
-
-const mongoose = require("mongoose"),
-  { Schema } = require("mongoose");
+/// <reference path="../../types/callSession.type.js" />
+const mongoose = require("mongoose");
+const { Schema } = mongoose;
 const isValidObjectId = require("../../tools/isValidObjectId");
 
 const callSessionSchema = new Schema(
@@ -27,14 +26,17 @@ const callSessionSchema = new Schema(
       hours: {
         type: Number,
         required: false,
+        default: 0,
       },
       minutes: {
         type: Number,
         required: false,
+        default: 0,
       },
       seconds: {
         type: Number,
         required: true,
+        default: 0,
       },
     },
     summary: {
@@ -70,6 +72,7 @@ const callSessionSchema = new Schema(
     status: {
       type: Number,
       required: true,
+      default: 0,
     },
     participants: {
       type: [
@@ -91,10 +94,12 @@ const callSessionSchema = new Schema(
           uid: {
             type: Number,
             required: true,
+            unique: true,
           },
           screenId: {
             type: Number,
             required: false,
+            unique: true,
           },
           state: {
             isOrganizer: {
@@ -198,12 +203,9 @@ const callSessionSchema = new Schema(
   { timestamps: true, _id: false }
 );
 
-callSessionSchema.index(
-  { createdAt: 1 },
-  { expireAfterSeconds: 60 * 60 * 1000 * 24 }
-);
+callSessionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 });
 
-/** @type {import('mongoose').Model<CallSessionType>} */
+/** @type {import("mongoose").Model<CallSession>} */
 const CallSession = mongoose.model("callSession", callSessionSchema);
 
 module.exports = CallSession;

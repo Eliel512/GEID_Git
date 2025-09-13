@@ -41,14 +41,13 @@ class SocketStore {
       socketClientInstance,
       infos: parseClientInfo(socketClientInstance),
     };
+    console.log("clients", Object.keys(this.#clients).length);
   };
 
   /**
    * @param {string} socketId
    */
   deleteClient = (socketId) => {
-    const disconnect = this.#clients[socketId]?.disconnect;
-    if (typeof disconnect === "function") disconnect();
     delete this.#clients[socketId];
   };
 
@@ -93,15 +92,17 @@ class SocketStore {
   }
 
   /**
+   * @async
    * @param {string} roomId
    * @param {string} clientId
-   * @returns {Promise<Array<Object<string, ClientInfo>>>}
+   * @returns {Promise<Array<ClientInfo>>}
    */
   async getClientRoomConnections(roomId, clientId) {
+    if (!roomId || !clientId) return [];
     const sockets = await this.getInstancesByRoomId(roomId);
     return sockets
       .map(({ id }) => this.#clients[id])
-      .filter((c) => c.clientId === clientId);
+      .filter((c) => c && c?.clientId === clientId);
   }
 
   /**
@@ -113,8 +114,9 @@ class SocketStore {
   }
 
   /**
+   * @async
    * @param {string} roomId
-   * @returns {Promise<import('socket.io').Socket[]>}
+   * @returns {Promise<Array<import('socket.io').Socket>>}
    */
   getInstancesByRoomId = async (roomId) => {
     return (await this.#io?.in(roomId)?.fetchSockets()) || [];

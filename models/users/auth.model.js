@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="../../types/user.type.js" />
 const mongoose = require('mongoose'), { Schema } = require('mongoose');
 const uniqueValidator = require('mongoose-unique-validator');
 // const isValidObjectId = require('../../tools/isValidObjectId');
@@ -36,6 +38,7 @@ const authSchema = new Schema({
 
 authSchema.plugin(uniqueValidator);
 
+/** @type {import("mongoose").Model<Auth>} */
 const Auth = mongoose.model('auth', authSchema);
 
 module.exports = Auth;
