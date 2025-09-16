@@ -55,8 +55,10 @@ const callDetailsSchema = Joi.object({
 const callSessionSchema = Joi.object({
   _id: Joi.string().required(),
   title: Joi.string(),
-  startedAt: Joi.date().iso().required(),
-  endedAt: Joi.date().iso(),
+  startedAt: Joi.alternatives()
+    .try(Joi.string(), Joi.date(), Joi.number())
+    .required(),
+  endedAt: Joi.alternatives().try(Joi.string(), Joi.date(), Joi.number()),
   duration: durationSchema,
   summary: Joi.string(),
   description: Joi.string(),
@@ -65,11 +67,12 @@ const callSessionSchema = Joi.object({
   room: Joi.any(),
   status: Joi.number().required(),
   participants: Joi.array().items(participantSchema).required(),
-  guests: Joi.array().items(guestSchema).required(),
+  guests: Joi.array().items(guestSchema),
   messages: Joi.array().items(messageSchema),
   callDetails: callDetailsSchema,
-  createdAt: Joi.date().required(),
-  updatedAt: Joi.date().required(),
+  createdAt: Joi.alternatives().try(Joi.string(), Joi.date(), Joi.number()),
+  updatedAt: Joi.alternatives().try(Joi.string(), Joi.date(), Joi.number()),
+  open: Joi.boolean(),
 });
 
 module.exports = callSessionSchema;

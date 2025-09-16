@@ -1039,71 +1039,71 @@ module.exports = {
         });
     }
 
-    CallSession.find({
-      participants: {
-        $elemMatch: {
-          identity: userId,
-          "state.isInRoom": true,
-        },
-      },
-    })
-      .then(async (sessions) => {
-        if (sessions.length === 0) {
-          return;
-        }
-        let userDetails = null;
+    // CallSession.find({
+    //   participants: {
+    //     $elemMatch: {
+    //       identity: userId,
+    //       "state.isInRoom": true,
+    //     },
+    //   },
+    // })
+    //   .then(async (sessions) => {
+    //     if (sessions.length === 0) {
+    //       return;
+    //     }
+    //     let userDetails = null;
 
-        for (const session of sessions) {
-          let updated = false;
+    //     for (const session of sessions) {
+    //       let updated = false;
 
-          // Mettre isInRoom à false pour le user concerné
-          session.participants = session.participants.map((participant) => {
-            if (
-              participant.identity === userId &&
-              participant.state.isInRoom === true
-            ) {
-              participant.state.isInRoom = false;
-              updated = true;
-            }
-            return participant;
-          });
+    //       // Mettre isInRoom à false pour le user concerné
+    //       session.participants = session.participants.map((participant) => {
+    //         if (
+    //           participant.identity === userId &&
+    //           participant.state.isInRoom === true
+    //         ) {
+    //           participant.state.isInRoom = false;
+    //           updated = true;
+    //         }
+    //         return participant;
+    //       });
 
-          // Vérifier si tous les participants sont hors de la room
-          const stillInRoom = session.participants.some(
-            (p) => p.state.isInRoom
-          );
-          if (!stillInRoom) {
-            session.status = 2;
-            updated = true;
-          }
+    //       // Vérifier si tous les participants sont hors de la room
+    //       const stillInRoom = session.participants.some(
+    //         (p) => p.state.isInRoom
+    //       );
+    //       if (!stillInRoom) {
+    //         session.status = 2;
+    //         updated = true;
+    //       }
 
-          if (updated) {
-            await session.save();
-            try {
-              userDetails ??= await User.findById(
-                socket.userId,
-                "_id fname mname lname grade email"
-              );
-              const io = serverStore.getSocketServerInstance();
-              // console.log("LOG:", socket.userId, " à quitté", session?.id);
-              io.to(session?.id).emit("leave", {
-                who: userDetails,
-                where: {
-                  _id: sessions.id,
-                  summary: sessions.summary,
-                  description: sessions.description,
-                },
-              });
-            } catch (error) {
-              console.log(error);
-              ErrorHandlers.msg(socket.id, "Une erreur est survenue");
-            }
-          }
-        }
-      })
-      .catch(() => {
-        return ErrorHandlers.msg(socket.id, "Une erreur est survenue");
-      });
+    //       if (updated) {
+    //         await session.save();
+    //         try {
+    //           userDetails ??= await User.findById(
+    //             socket.userId,
+    //             "_id fname mname lname grade email"
+    //           );
+    //           const io = serverStore.getSocketServerInstance();
+    //           // console.log("LOG:", socket.userId, " à quitté", session?.id);
+    //           io.to(session?.id).emit("leave", {
+    //             who: userDetails,
+    //             where: {
+    //               _id: sessions.id,
+    //               summary: sessions.summary,
+    //               description: sessions.description,
+    //             },
+    //           });
+    //         } catch (error) {
+    //           console.log(error);
+    //           ErrorHandlers.msg(socket.id, "Une erreur est survenue");
+    //         }
+    //       }
+    //     }
+    //   })
+    //   .catch(() => {
+    //     return ErrorHandlers.msg(socket.id, "Une erreur est survenue");
+    //   });
 
     // CallSession
     //   .find({ "participants.identity": userId })

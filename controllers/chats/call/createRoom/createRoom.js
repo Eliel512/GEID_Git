@@ -5,15 +5,17 @@
 
 const User = require("../../../../models/users/user.model");
 const Chat = require("../../../../models/chats/chat.model");
-const callSession = require("../../../../models/chats/callSession.model");
+const CallSession = require("../../../../models/chats/callSession.model");
 const generateId = require("../../../../tools/generateId");
 const getCallDetails = require("./getCallSessionDetails");
 const callSessionSchema = require("./callSessionSchema");
+const generateUId = require("./generateUId");
 const socket = require("../../../../handlers/socket");
 const roomStore = require("../../../../serverStore");
+const { identity } = require("lodash");
 
 /**
- * @typedef {{open?: boolean, title?: string, state?: ParticipantState, type: ChatType, target: string, tokenType?: string, role?: string, startedAt?: string|Date|number, endedAt?: string|Date|number, duration?: Duration , summary?: string, description?: string}} DataRequest
+ * @typedef {{open?: boolean, title?: string, state?: ParticipantState, auth?: ParticipantAuth, type: ChatType, target: string, tokenType?: string, role?: string, startedAt?: string|Date|number, endedAt?: string|Date|number, duration?: Duration , summary?: string, description?: string}} DataRequest
  */
 
 /**
@@ -71,14 +73,30 @@ module.exports = async (req, res) => {
 
   do {
     roomId = generateId(9);
-  } while (await callSession.exists({ _id: roomId }));
+  } while (await CallSession.exists({ _id: roomId }));
 
-  const participants = room?.members.map(({ _id: user }) => ({
-    identity: user._id.toString(),
-    itemModel: "users",
-    state: { ...data.state, isOrganizer: true },
-    auth: { shareScreen: true },
-  }));
+  const nbr = room?.members?.length || 0;
+  const agoraIds = generateUId(nbr);
+
+  const participants = [];
+  /** @type {Object<string, any>} */
+  const members = {};
+  for (let i = 0; i < nbr; i++) {
+    const { _id: user } = room?.members[i] || {};
+    const identity = user?._id?.toString() || "";
+    members[identity] = user;
+    const isOrganizer = identity === userId;
+    const uid = agoraIds.randomNumbers[i];
+    const screenId = agoraIds.screenNumbers[i];
+    participants.push({
+      identity,
+      itemModel: "users",
+      uid,
+      screenId,
+      state: { isOrganizer, ...(isOrganizer && { ...data?.state }) },
+      auth: { shareScreen: true, ...(isOrganizer && { ...data?.auth }) },
+    });
+  }
 
   const callDetails = await getCallDetails(userId, data);
   if (callDetails.error)
@@ -98,18 +116,41 @@ module.exports = async (req, res) => {
     summary: data.summary,
     description: data.description,
     createdBy: userId,
+    status: 0,
     location,
     participants,
     callDetails,
+    ...(data.type === "room" && {
+      room: {
+        id: room?._id,
+        name: room?.name,
+        description: room?.description,
+      },
+    }),
   });
+
   if (error) return res.status(400).json({ message: error.message });
-  let call, callError;
+  /** @type {CallSessionDocument} */
+  let call;
   try {
-    call = await callSession.create(value);
-    return res.status(200).json(call);
+    call = new CallSession(value);
+
+    await call.save();
+    const result = JSON.parse(JSON.stringify(call));
+
+    result.participants = result?.participants?.map(
+      (/** @type {Object&{identity: string}} */ participant) => {
+        return {
+          ...participant,
+          identity: members[participant.identity],
+        };
+      }
+    );
+    return res.status(200).json(result);
   } catch (error) {
     console.error("error => ", error);
-    callError = "An error occurred during this action, please try again later";
+    return res
+      .status(500)
+      .json("An error occurred during this action, please try again later");
   }
-  return res.status(callError ? 500 : 200).json(call || { message: callError });
 };
