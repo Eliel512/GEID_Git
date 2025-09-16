@@ -1,12 +1,14 @@
 /**
  *
  * @param {number} length
+ * @param {number[]} [data]
  * @returns {{ randomNumbers: number[], screenNumbers: number[] }}
  */
 
-const generateUId = (length) => {
+const generateUId = (length, data = []) => {
   const randomSet = new Set();
   const screenSet = new Set();
+  const dataSet = new Set(data);
   const randomNumbers = [];
   const screenNumbers = [];
 
@@ -20,8 +22,8 @@ const generateUId = (length) => {
   };
 
   for (let i = 0; i < length; i++) {
-    const randomNumber = getUniqueNumber([randomSet, screenSet]);
-    const screenNumber = getUniqueNumber([screenSet, randomSet]);
+    const randomNumber = getUniqueNumber([randomSet, screenSet, dataSet]);
+    const screenNumber = getUniqueNumber([screenSet, randomSet, dataSet]);
     randomNumbers.push(randomNumber);
     screenNumbers.push(screenNumber);
   }
