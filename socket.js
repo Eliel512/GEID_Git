@@ -3,6 +3,7 @@
 // const mongoose = require('mongoose');
 // const MongoStore = require('connect-mongo');
 // const CallSession = require('./models/chats/callSession.model');
+// const roomStore = require('./roomStore');
 const eiows = require("eiows");
 const auth = require("./middleware/socketAuth");
 const socketHandler = require("./handlers/socket");
@@ -10,7 +11,7 @@ const roomHandler = require("./handlers/room");
 const serverStore = require("./serverStore");
 const socketStore = require("./socketStore");
 const RoomHandler = require("./handlers/room/room");
-// const roomStore = require('./roomStore');
+const queryToJoin = require("./handlers/room/queryToJoin");
 const { updateContacts, updateCallHistory } = require("./handlers/updates");
 
 const registerSocketServer = (server) => {
@@ -176,6 +177,9 @@ const registerSocketServer = (server) => {
 
     // new implement call room event
     socket.on("join-room", (data) => new RoomHandler(socket, data));
+
+    //  ask join room event
+    socket.on("ask-join-room", (socket, data) => queryToJoin(socket, data));
   });
 
   // roomIo.use(auth)
