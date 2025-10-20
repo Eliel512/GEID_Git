@@ -1,11 +1,12 @@
 // @ts-check
 /// <reference path="../../types/callSession.type.js" />
-const callSessionSchema = require("./callSessionSchema");
+// const callSessionSchema = require("./callSessionSchema");
 const socketStore = require("../../socketStore");
 const CallSession = require("../../models/chats/callSession.model");
 const Chat = require("../../models/chats/chat.model");
 const User = require("../../models/users/user.model");
 const auth = require("../../middleware/users/auth");
+const { isBoolean } = require("lodash");
 
 /**
  * @typedef {import('socket.io').Socket} BaseSocket
@@ -33,6 +34,7 @@ class JoinRoom {
     serverError: "An error occurred during this action",
     conflit: "Client has already joined",
     unauthorized: "No permission for this action",
+    unknownQuery: "Unknown query type",
   };
   /**
    * @constructor
@@ -204,7 +206,6 @@ class JoinRoom {
     const { call, updated, clients } = (await this.#updateCallRoom(data)) || {};
     const isAuth =
       !clients?.includes(this.#userId) && (await this.#getIsOrganizer());
-    if (isAuth) console.log("admin action => ", this.#userId);
 
     if (updated) await call?.save();
     socketStore.getRoom(this.#roomId)?.emit("signal-room", {
@@ -294,9 +295,125 @@ class JoinRoom {
       this.#socket?.emit("error-room", this.#getError().serverError);
     }
   };
+  /**
+   * @async
+   * @param {{controlAuthorization: boolean} & ParticipantAuth} data
+   */
+  #updateOrganizerAuth = async (data) => {
+    const dataCall = await this.#getCallSession();
+    const isOrganizer = dataCall?.participants?.some(
+      ({ identity, state }) => identity === this.#userId && state.isOrganizer
+    );
+
+    if (!isOrganizer || !this.#roomId) {
+      this.#socket?.emit("error-room", this.#getError().unauthorized);
+      return;
+    }
+    if (Object.keys(data).length === 0) return;
+
+    let { controlAuthorization, writeMessage, ...rest } = data;
+    /** @typedef {"shareScreen" | "activateCam" | "activateMic"  | "react" | "allowPrivateMessage"} AuthKey  */
+    const organizerAuth = dataCall?.organizerAuth;
+
+    const updatedAuth =
+      controlAuthorization !== organizerAuth.controlAuthorization ||
+      writeMessage !== organizerAuth.writeMessage;
+
+    controlAuthorization = isBoolean(controlAuthorization)
+      ? controlAuthorization
+      : organizerAuth?.controlAuthorization;
+    writeMessage = isBoolean(writeMessage)
+      ? writeMessage
+      : organizerAuth?.writeMessage;
+    /**@type {AuthKey[]} */
+    const controlProps = ["shareScreen", "activateCam", "activateMic", "react"];
+    /**@type {AuthKey[]} */
+    const messagingProps = ["allowPrivateMessage"];
+
+    /** @type {Object.<string, boolean|undefined>}*/
+    const auth = { controlAuthorization, writeMessage };
+    /** @type {Object.<string, boolean|undefined>}*/
+    const queryAuth = {
+      "participants.$[noOrg].auth.controlAuthorization": controlAuthorization,
+      "participants.$[noOrg].auth.writeMessage": writeMessage,
+    };
+
+    /** @type {Object.<string, boolean|undefined>}*/
+    const state = {};
+    /** @type {Object.<string, boolean|undefined>}*/
+    const queryState = {};
+
+    /** @type {Object.<string, string|undefined>}*/
+    const stateKey = {
+      shareScreen: "screenShared",
+      activateCam: "isCamActive",
+      activateMic: "isMicActive",
+    };
+    /** @type AuthKey - controlProp*/
+    let cp;
+
+    if (controlAuthorization)
+      for (cp of controlProps) {
+        const v = rest[cp]; // value
+        const sk = stateKey[cp]; // state key
+        if (isBoolean(v) && sk && !v) {
+          queryState[`participants.$[noOrg].state.${sk}`] = v;
+          state[sk] = v;
+        }
+        queryAuth[`participants.$[noOrg].auth.${cp}`] = v;
+        auth[cp] = v;
+      }
+    /** @type  AuthKey - messagingProp */
+    let mp;
+    if (writeMessage)
+      for (mp of messagingProps) {
+        const v = rest[mp]; // value
+        queryAuth[`participants.$[noOrg].auth.${mp}`] = v;
+      }
+    if (!(updatedAuth || Object.keys(state).length >= 3)) return;
+    /** @type {CallSessionDocument} */
+    const call = await CallSession.findOneAndUpdate(
+      { _id: this.#roomId },
+      {
+        $set: {
+          organizerAuth: {
+            controlAuthorization,
+            writeMessage,
+            ...rest,
+          },
+          ...queryAuth,
+          ...queryState,
+        },
+      },
+      { new: true, arrayFilters: [{ "noOrg.state.isOrganizer": false }] }
+    );
+
+    if (!call) return;
+    const organizers = [];
+    const participants = [];
+
+    for (const p of call.participants)
+      if (p.state.isOrganizer) organizers.push(p.identity);
+      else participants.push(p.identity);
+
+    socketStore.getRoom(this.#roomId)?.emit("signal-room", {
+      participants,
+      state,
+      auth,
+      author: this.#userId,
+    });
+    for (const id of organizers) {
+      (await socketStore.getClientRoomConnections(this.#roomId, id)).forEach(
+        ({ socketClientInstance }) =>
+          socketClientInstance?.emit("update-auth-room", data)
+      );
+    }
+  };
+
   /**@async */
   #leave = async () => {
     if (!this.#roomId) return;
+    console.log("leave => ", this.#userId);
     const call = await this.#getCallSession();
     const closable =
       (await socketStore.getInstancesByRoomId(this.#roomId))?.length === 0;
@@ -314,6 +431,7 @@ class JoinRoom {
       }
       return p;
     });
+
     call.markModified("participants");
     if (closable || isLastUser) {
       call.status = 2;
@@ -322,6 +440,7 @@ class JoinRoom {
     await call.save();
     this.#socket?.emit("leave-room", { userId: this.#userId });
     this.#socket?.leave(this.#roomId);
+    this.#removeEventsInClient();
     if (!closable)
       socketStore.getRoom(this.#roomId)?.emit("leave-room", {
         userId: this.#userId,
@@ -383,24 +502,51 @@ class JoinRoom {
       }
     );
   };
+
+  /**async
+   * @async
+   * @param {{type:  "shareScreen" | "activateMic" | "activateCam" | "pin" | "writeMessage"}} data
+   */
+  #queryToAuth = async (data) => {
+    if (await this.#getIsOrganizer()) return;
+    switch (data.type) {
+      case "shareScreen": {
+      }
+      default: {
+        this.#socket?.emit("error-room", this.#getError().unknownQuery);
+      }
+    }
+  };
+
   /** @type {Object.<any, Function>} */
   #events = {
     join: this.#join,
+    signal: this.#signal,
     leave: this.#leave,
     banish: this.#banish,
     close: this.#close,
+    updateAuth: this.#updateOrganizerAuth,
+    queryToAuth: this.#queryToAuth,
   };
   #applyEventsInClient = () => {
     for (let e in this.#events) {
-      this.#socket?.on(`${e}-room`, this.#events[e]);
+      this.#socket?.on(`${this.#camelToKebab(e)}-room`, this.#events[e]);
     }
     this.#socket?.on("disconnect", this.#leave);
   };
   #removeEventsInClient = () => {
     for (let e in this.#events) {
-      this.#socket?.off(`${e}-room`, this.#events[e]);
+      this.#socket?.off(`${this.#camelToKebab(e)}-room`, this.#events[e]);
     }
     this.#socket?.off("disconnect", this.#leave);
+  };
+  /**
+   *
+   * @param {string} str
+   * @returns str
+   */
+  #camelToKebab = (str) => {
+    return str.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
   };
 }
 /**
@@ -409,4 +555,5 @@ class JoinRoom {
  * @returns {boolean}
  */
 const hasProp = (obj, key) => typeof obj === "object" && key in obj; // Object.prototype.hasOwnProperty.call(obj, key);
+
 module.exports = JoinRoom;

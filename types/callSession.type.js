@@ -19,13 +19,17 @@
 
 /**
  * @typedef {Object} ParticipantAuth
- * @property {boolean} shareScreen
+ * @property {boolean} [shareScreen]
  * @property {boolean} [writeMessage=true]
  * @property {boolean} [react=true]
+ * @property {boolean} [allowPrivateMessage=true]
+ * @property {boolean} [activateCam=true]
+ * @property {boolean} [activateMic=true]
  */
 
 /**
  * @typedef {Object} Participant
+ * @property {{controlAuthorization: boolean} & ParticipantAuth} organizerAuth
  * @property {string} identity
  * @property {"users"|"guests"} itemModel
  * @property {number} uid
@@ -52,6 +56,7 @@
 /**
  * @typedef {Object} CallSession
  * @property {string} _id
+ * @property {{controlAuthorization: boolean} & ParticipantAuth} organizerAuth
  * @property {string} [title]
  * @property {string} startedAt
  * @property {string} [endedAt]

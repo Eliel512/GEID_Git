@@ -258,7 +258,7 @@ module.exports = async (req, res, next) => {
   }
 
   const state = data.state ? data.state : {};
-  let { error, value } = callSessionSchema.validate({
+  let { error, value } = callSessionSchema.validate({  
     _id: roomId,
     title: data.title,
     startedAt: data.startedAt || Date.now().toLocaleString(),
@@ -292,7 +292,7 @@ module.exports = async (req, res, next) => {
           isInRoom: participant._id._id == userId ? true : false,
         },
         auth: {
-          shareScreen: true, // participant._id._id == userId || data.type == 'direct' ? true : false
+          shareScreen: true, // participant._id._id == userId || data.type == 'direct' ? true : false   
         },
       };
     }),

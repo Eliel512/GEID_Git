@@ -4,6 +4,33 @@ const mongoose = require("mongoose");
 const { Schema } = mongoose;
 const isValidObjectId = require("../../tools/isValidObjectId");
 
+const authorizations = {
+  shareScreen: {
+    type: Boolean,
+    default: true,
+  },
+  writeMessage: {
+    type: Boolean,
+    default: true,
+  },
+  allowPrivateMessage: {
+    type: Boolean,
+    default: true,
+  },
+  react: {
+    type: Boolean,
+    default: true,
+  },
+  activateCam: {
+    type: Boolean,
+    default: true,
+  },
+  activateMic: {
+    type: Boolean,
+    default: true,
+  },
+};
+
 const callSessionSchema = new Schema(
   {
     _id: {
@@ -13,6 +40,13 @@ const callSessionSchema = new Schema(
     title: {
       type: String,
       required: false,
+    },
+    organizerAuth: {
+      controlAuthorization: {
+        type: Boolean,
+        default: false,
+      },
+      ...authorizations,
     },
     startedAt: {
       type: String,
@@ -133,21 +167,7 @@ const callSessionSchema = new Schema(
               default: false,
             },
           },
-          auth: {
-            shareScreen: {
-              type: Boolean,
-              required: true,
-              default: true,
-            },
-            writeMessage: {
-              type: Boolean,
-              default: true,
-            },
-            react: {
-              type: Boolean,
-              default: true,
-            },
-          },
+          auth: authorizations,
         },
       ],
       required: true,
