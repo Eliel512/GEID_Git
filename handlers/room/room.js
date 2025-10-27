@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference path="../../types/callSession.type.js" />
+/// <reference path="../../types/chat.type.js" />
 // const callSessionSchema = require("./callSessionSchema");
 const socketStore = require("../../socketStore");
 const CallSession = require("../../models/chats/callSession.model");
@@ -7,6 +8,7 @@ const Chat = require("../../models/chats/chat.model");
 const User = require("../../models/users/user.model");
 const auth = require("../../middleware/users/auth");
 const { isBoolean } = require("lodash");
+const Guest = require("../../models/chats/guests.model");
 
 /**
  * @typedef {import('socket.io').Socket} BaseSocket
@@ -58,32 +60,49 @@ class JoinRoom {
     errors = this.#errors;
     return errors;
   };
-
   /**
    * @async
+   * @param {string} roomId
+   * @returns {Promise<({state: ParticipantState, auth: ParticipantAuth, identity: User | GuestUser, itemModel: "guests" | "users"; uid: number; screenId: number} )[]|undefined>}
    */
-  #update = async () => {
-    const call = await this.#getCallSession();
-    const roomId = this.#roomId;
-    if (!call || !roomId) return;
+
+  static getUpdateData = async (roomId) => {
+    if (!roomId) return;
+    /** @type {CallSessionDocument} */
+    const call = await CallSession.findOne({ _id: roomId });
     const participants = call.toJSON().participants;
-    const chat = await Chat.findOne(
-      { _id: call.location },
-      { messages: 0, __v: 0 }
-    )
-      .populate({
-        path: "members._id",
-        model: User,
-        select: "_id fname lname mname email grade imageUrl",
-      })
-      .exec();
-    const members = chat
-      .toJSON()
-      .members.map(
-        /** @type {(m: Object & { _id: { _id: string } }) => Object} */ ({
-          _id,
-        }) => _id
+    /** @type {(GuestUser | User)[]} */
+    const guests = [];
+    const members = await JoinRoom.getChatMembers(call.location);
+    let numUnknowns = participants.length - members.length;
+
+    if (numUnknowns > 0) {
+      const unknowns = participants.filter(
+        (p) => !members.find((m) => m._id.toString() === p.identity.toString())
       );
+      /** @type {GuestUserDocument[]} */
+      const externUnknowns = await Guest.find({
+        _id: { $in: unknowns.map((u) => u.identity) },
+      });
+      guests.push(...externUnknowns.map((u) => u.toJSON()));
+      if (externUnknowns.length !== numUnknowns) {
+        /**  @type {UserDocument[]} */
+        const internUnknowns = await User.find({
+          _id: {
+            $in: unknowns
+              .filter(
+                (u) =>
+                  !externUnknowns.find(
+                    (e) => e._id.toString() === u.identity.toString()
+                  )
+              )
+              .map((u) => u.identity),
+          },
+        }).select("_id name fname lname mname email imageUrl grade");
+        guests.push(...internUnknowns.map((u) => u.toJSON()));
+      }
+    }
+    /** @type {({state: ParticipantState, auth: ParticipantAuth, identity: User | GuestUser, itemModel: "guests" | "users"; uid: number; screenId: number})[]} */
     const data = [];
     const activeUsers = await socketStore.getInstancesByRoomId(roomId);
 
@@ -91,21 +110,100 @@ class JoinRoom {
       const id = p.identity.toString();
       /** @type {(m: Object & { _id: string } ) => boolean} */
       const getUser = (m) => m?._id.toString() === id;
-      const identity = members?.find(getUser);
-      const isInRoom = activeUsers.some(
-        (s) => socketStore.getClientInstance(s.id)?.clientId === id
-      );
-      if (identity) data.push({ ...p, identity, isInRoom });
+      const isGuest = p.itemModel === "guests";
+      const identity = isGuest ? guests?.find(getUser) : members?.find(getUser);
+      p.state.isInRoom = await socketStore.isClientInRoom(id, roomId);
+      if (identity) data.push({ ...p, identity });
     }
+    return data;
+  };
+
+  /**
+   * @async
+   */
+  #update = async () => {
+    const roomId = this.#roomId;
+    if (!roomId) return;
+    // const call = await this.#getCallSession(this.#roomId);
+    // const participants = call.toJSON().participants;
+    // /** @type {(GuestUser | User)[]} */
+    // const guests = [];
+    // const members = await this.#getChatMembers(call.location);
+    // let numUnknowns = participants.length - members.length;
+
+    // if (numUnknowns > 0) {
+    //   const unknowns = participants.filter(
+    //     (p) => !members.find((m) => m._id.toString() === p.identity.toString())
+    //   );
+    //   /** @type {GuestUserDocument[]} */
+    //   const externUnknowns = await Guest.find({
+    //     _id: { $in: unknowns.map((u) => u.identity) },
+    //   });
+    //   guests.push(...externUnknowns.map((u) => u.toJSON()));
+    //   if (externUnknowns.length !== numUnknowns) {
+    //     /**  @type {UserDocument[]} */
+    //     const internUnknowns = await User.find({
+    //       _id: {
+    //         $in: unknowns
+    //           .filter(
+    //             (u) =>
+    //               !externUnknowns.find(
+    //                 (e) => e._id.toString() === u.identity.toString()
+    //               )
+    //           )
+    //           .map((u) => u.identity),
+    //       },
+    //     });
+    //     guests.push(...internUnknowns.map((u) => u.toJSON()));
+    //   }
+    // }
+
+    // const data = [];
+    // const activeUsers = await socketStore.getInstancesByRoomId(roomId);
+
+    // for (let p of participants) {
+    //   const id = p.identity.toString();
+    //   /** @type {(m: Object & { _id: string } ) => boolean} */
+    //   const getUser = (m) => m?._id.toString() === id;
+    //   const isGuest = p.itemModel === "guests";
+    //   const identity = isGuest ? guests?.find(getUser) : members?.find(getUser);
+    //   const isInRoom = activeUsers.some(
+    //     (s) => socketStore.getClientInstance(s.id)?.clientId === id
+    //   );
+    //   if (identity) data.push({ ...p, identity, isInRoom });
+    // }
+    const data = await JoinRoom.getUpdateData(roomId);
     this.#socket?.emit("update-room", data);
   };
 
   /**
    * @async
+   * @param {string} [roomId]
    * @returns {Promise<CallSessionDocument>}
    * */
-  #getCallSession = async () =>
-    await CallSession.findOne({ _id: this.#roomId });
+  #getCallSession = async (roomId) =>
+    await CallSession.findOne({ _id: roomId || this.#roomId });
+  /**
+   * @async
+   * @param {string} _id
+   * @returns {Promise<ChatPopulatedMember[]>}
+   */
+  static getChatMembers = async (_id) => {
+    const chat = await Chat.findOne({ _id }, { messages: 0, __v: 0 })
+      .populate({
+        path: "members._id",
+        model: User,
+        select: "_id fname lname mname email grade imageUrl",
+      })
+      .exec();
+    return chat
+      .toJSON()
+      .members.map(
+        /** @type {(m: Object & { _id: { _id: string } }) => Object} */ ({
+          _id,
+        }) => _id
+      );
+  };
   /**
    * @async
    * @returns {Promise<boolean>}
@@ -142,12 +240,11 @@ class JoinRoom {
       return;
     }
 
-    const clientSockets = await socketStore.getClientRoomConnections(
-      this.#roomId,
-      this.#userId
-    );
-    const client = clientSockets.find((c) => c?.clientId === this.#userId);
-    if (client) {
+    const isRoom = await socketStore.isClientInRoom(this.#userId, this.#roomId);
+    if (isRoom) {
+      const data = await socketStore.getClientInfo(this.#userId);
+      const client = data?.find((c) => c.socketId === socket.id);
+
       socket.emit("ask-room", {
         socketId: client?.socketId,
         infos: client?.infos,
@@ -156,7 +253,8 @@ class JoinRoom {
       });
       return;
     }
-    socket.join(this.#roomId);
+    // socket.join(this.#roomId);
+    await socketStore.joinRoom(socket.id, this.#roomId);
     const roomId = this.#roomId;
     this.#applyEventsInClient();
     const isCamActive = data?.state?.isCamActive || false;
@@ -181,15 +279,18 @@ class JoinRoom {
         socket.leave(this.#roomId);
         return;
       }
-      socketStore.getRoom(this.#roomId)?.emit("join-room", {
-        userId: this.#userId,
-        state: {
-          isInRoom: true,
-          isCamActive: isCamActive,
-          isMicActive: isMicActive,
-          raisedHand: false,
-        },
-      });
+      socketStore
+        .getInstance()
+        ?.to(this.#roomId)
+        ?.emit("join-room", {
+          userId: this.#userId,
+          state: {
+            isInRoom: true,
+            isCamActive: isCamActive,
+            isMicActive: isMicActive,
+            raisedHand: false,
+          },
+        });
       await this.#update();
     } catch (e) {
       console.error(e);
@@ -208,12 +309,15 @@ class JoinRoom {
       !clients?.includes(this.#userId) && (await this.#getIsOrganizer());
 
     if (updated) await call?.save();
-    socketStore.getRoom(this.#roomId)?.emit("signal-room", {
-      participants: clients,
-      state: data?.state,
-      auth: data?.auth,
-      author: isAuth ? this.#userId : undefined,
-    });
+    socketStore
+      .getInstance()
+      ?.to(this.#roomId)
+      ?.emit("signal-room", {
+        participants: clients,
+        state: data?.state,
+        auth: data?.auth,
+        author: isAuth ? this.#userId : undefined,
+      });
   };
 
   /**
@@ -396,18 +500,20 @@ class JoinRoom {
       if (p.state.isOrganizer) organizers.push(p.identity);
       else participants.push(p.identity);
 
-    socketStore.getRoom(this.#roomId)?.emit("signal-room", {
+    socketStore.getInstance()?.to(this.#roomId)?.emit("signal-room", {
       participants,
       state,
       auth,
       author: this.#userId,
     });
-    for (const id of organizers) {
-      (await socketStore.getClientRoomConnections(this.#roomId, id)).forEach(
-        ({ socketClientInstance }) =>
-          socketClientInstance?.emit("update-auth-room", data)
-      );
-    }
+
+    const socketBroadcasts = await socketStore.getClientsSocketsInRoom(
+      organizers,
+      this.#roomId
+    );
+    socketBroadcasts.forEach((broadcast) =>
+      broadcast?.emit("update-auth-room", data)
+    );
   };
 
   /**@async */
@@ -416,7 +522,7 @@ class JoinRoom {
     console.log("leave => ", this.#userId);
     const call = await this.#getCallSession();
     const closable =
-      (await socketStore.getInstancesByRoomId(this.#roomId))?.length === 0;
+      (await socketStore.getInstancesByRoomId(this.#roomId))?.length === 0; // problème
     const usersInRoom = call.participants.filter(({ state }) => state.isInRoom);
     const [lastUser] = usersInRoom;
     const isOne = usersInRoom.length === 1;
@@ -439,10 +545,12 @@ class JoinRoom {
     }
     await call.save();
     this.#socket?.emit("leave-room", { userId: this.#userId });
-    this.#socket?.leave(this.#roomId);
+    if (this.#socket?.id)
+      await socketStore.leaveRoom(this.#socket.id, this.#roomId);
+    // this.#socket?.leave(this.#roomId);
     this.#removeEventsInClient();
     if (!closable)
-      socketStore.getRoom(this.#roomId)?.emit("leave-room", {
+      socketStore.getInstance()?.to(this.#roomId)?.emit("leave-room", {
         userId: this.#userId,
       });
   };
@@ -464,33 +572,35 @@ class JoinRoom {
     const participant = participants?.find(({ identity: id }) => id === author);
 
     if (participant && participant.state.isInRoom) {
-      const sockets = await socketStore.getClientRoomConnections(
-        roomId,
-        userId
+      const socketBroadcasts = await socketStore.getClientSocketsInRoom(
+        userId,
+        roomId
       );
       participant.state.isInRoom = false;
       call.markModified("participants");
       await call.save();
-      sockets.forEach(({ socketClientInstance }) => {
-        socketClientInstance.emit("banish-room", { author });
-        socketClientInstance.leave(roomId);
+      socketBroadcasts.forEach((broadcast) => {
+        broadcast.emit("banish-room", { author });
+        // socketStore.getInstance()?.in(roomId)
+        // broadcast.leave(roomId);
       });
-      socketStore.getRoom(roomId)?.emit("leave-room", { userId });
+      await socketStore.leaveRoomByClientId(participant.identity, roomId);
+      socketStore.getInstance()?.to(roomId)?.emit("leave-room", { userId });
     }
   };
 
   /**@async */
   #close = async () => {
-    if (!this.#roomId) return;
+    if (!this.#roomId || !this.#userId) return;
     const roomId = this.#roomId;
     if (!(await this.#getIsOrganizer())) {
       this.#socket?.emit("error-room", this.#getError().unauthorized);
       return;
     }
-    const room = socketStore.getRoom(roomId);
+    const room = socketStore.getInstance()?.to(roomId);
     room?.emit("close-room", { author: this.#userId });
-    const sockets = await socketStore.getInstancesByRoomId(roomId);
-    sockets.forEach((socket) => socket.leave(roomId));
+    await socketStore.leaveRoomForAll(roomId);
+    await socketStore.leaveRoom(this.#userId, roomId);
     this.#socket?.leave(roomId);
     CallSession.updateMany(
       { _id: roomId },

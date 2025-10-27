@@ -30,7 +30,7 @@ module.exports = {
       socket: socket,
     });
     socket.emit("connexion", {});
-    if (socket.userId.length > 8) {
+    if (!socket.isGuest) {
       updateContacts(/*socket.id,*/ userDetails);
       updatePendingInvitations(/*socket.id,*/ userDetails);
       updateStatus(socket.userId);
@@ -39,7 +39,7 @@ module.exports = {
   },
   disconnectHandler: (socket) => {
     const userId = socket.userId;
-    if (userId.length > 8) {
+    if (!socket.isGuest) {
       User.updateOne({ _id: userId }, { $set: { connected_at: Date.now() } })
         .then(async () => {
           const receiverList = [];

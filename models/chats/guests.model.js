@@ -7,10 +7,6 @@ const mongoose = require("mongoose"),
 
 const guestsSchema = new Schema(
   {
-    _id: {
-      type: String,
-      required: true,
-    },
     name: {
       type: String,
       required: true,
@@ -20,7 +16,7 @@ const guestsSchema = new Schema(
       required: false,
     },
   },
-  { timestamps: true, _id: false }
+  { timestamps: true }
 );
 
 // guestsSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 1000 * 24 });

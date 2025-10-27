@@ -29,13 +29,16 @@
 
 /**
  * @typedef {Object} Participant
- * @property {{controlAuthorization: boolean} & ParticipantAuth} organizerAuth
  * @property {string} identity
  * @property {"users"|"guests"} itemModel
  * @property {number} uid
- * @property {number} [screenId]
+ * @property {number} screenId
  * @property {ParticipantState} state
  * @property {ParticipantAuth} auth
+ */
+
+/**
+ * @typedef {{ controlAuthorization: boolean } & ParticipantAuth} OrganizerAuth
  */
 
 /**
@@ -56,7 +59,7 @@
 /**
  * @typedef {Object} CallSession
  * @property {string} _id
- * @property {{controlAuthorization: boolean} & ParticipantAuth} organizerAuth
+ * @property {OrganizerAuth} organizerAuth
  * @property {string} [title]
  * @property {string} startedAt
  * @property {string} [endedAt]

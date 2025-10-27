@@ -10,6 +10,7 @@ const getAllCallDetails = require("../controllers/chats/room/getAllCallDetails")
 const getUserSocketInstance = require("../controllers/chats/room/getUserSocketInstance");
 const createRoom = require("../controllers/chats/room/createRoom");
 const createCallRoom = require("../controllers/chats/call/createRoom/createRoom");
+const createGuest = require("../controllers/chats/call/createGuest/createGuest");
 const register = require("../controllers/chats/room/register");
 const auth = require("../middleware/users/auth");
 const callDetailsAuth = require("../middleware/users/callDetails");
@@ -21,6 +22,9 @@ const nocache = require("../middleware/chats/nocache");
 router.get("/", auth, getAll);
 
 router.post("/call/create", auth, createCallRoom);
+router.post("/guest/create", createGuest);
+//router.get("/guest/:id", chatCtrl.sendMessage);
+
 router.post("/direct", auth, multer, chatCtrl.sendDirectFile);
 router.post("/file", auth, multer, chatCtrl.sendFile);
 //router.post('/voice', multer, sendVoice);
