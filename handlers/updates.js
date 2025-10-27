@@ -144,6 +144,7 @@ module.exports = {
   updateStatus: async (userId) => {
     const receiverList = [];
     const userDetails = await User.findOne({ _id: userId }, { contacts: 1 });
+    if (!userDetails) return;
     userDetails.contacts.forEach((contact) => {
       receiverList.push(...serverStore.getActiveConnections(contact));
     });

@@ -4,6 +4,7 @@
 const jwt = require("../../../../tools/jwt");
 const CallSession = require("../../../../models/chats/callSession.model");
 const Guest = require("../../../../models/chats/guests.model");
+const { getGuest } = require("../../../../handlers/room/queryToJoin");
 
 /**
  * @param {import('express').Request} req
@@ -11,11 +12,13 @@ const Guest = require("../../../../models/chats/guests.model");
  */
 const createGuest = async (req, res) => {
   /**@type {string} */
-  const roomId = req.body?.roomId;
+  const roomId = req.body?.code || req.body?.roomId;
   /**@type {string} */
-  let userId = req.body?.id;
+  let _id = req.body?.id || null;
   /**@type {string} */
   const name = req.body?.name;
+
+  console.log("Create Guest called with:", { roomId, _id, name });
 
   /**@type {GuestUserDocument} */
   let guest;
@@ -27,28 +30,31 @@ const createGuest = async (req, res) => {
   if (!call) return res.status(404).json({ message: "Room not found" });
 
   const participants = call.participants;
-  const id = participants.find(({ identity: id }) => id === userId)?.identity;
+  const id = participants.find(({ identity: id }) => id === _id)?.identity;
 
-  if (userId === id) {
-    guest = await Guest.findOne({ _id: userId });
+  if (_id === id) {
+    guest = await Guest.findOne({ _id });
     if (guest)
       return res.status(409).json({
         message: "Guest  already exits",
-        name: guest.name,
-        token: jwt.sign({ id: userId }),
+        name,
+        token: jwt.sign({ _id, isGuest: true }),
       });
   }
 
   if (!name) return res.status(400).json({ message: "'name' is required" });
 
   try {
-    guest = await Guest.create({ name: req.body?.name });
-    userId = guest._id;
-    await guest?.save();
+    while (_id ? getGuest(_id) : true) {
+      guest = await Guest.create({ name });
+      _id ??= guest._id;
+    }
+    // await guest?.save();
     return res.status(200).json({
       message: "Guest created",
       name: req.body?.name,
-      token: jwt.sign({ id: userId }),
+      token: jwt.sign({ _id, isGuest: true }),
+      _id,
     });
   } catch (error) {
     console.error(error);

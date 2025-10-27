@@ -48,6 +48,7 @@
 
 /**
  * @typedef {Object} User
+ * @property {string} _id
  * @property {boolean} isValid
  * @property {Date} [connected_at]
  * @property {string} fname

@@ -10,6 +10,8 @@ const socketHandler = require("./handlers/socket");
 const roomHandler = require("./handlers/room");
 const serverStore = require("./serverStore");
 const socketStore = require("./socketStore");
+const { createAdapter } = require("@socket.io/cluster-adapter");
+const { setupWorker } = require("@socket.io/sticky");
 const RoomHandler = require("./handlers/room/room");
 const queryToJoin = require("./handlers/room/queryToJoin");
 const { updateContacts, updateCallHistory } = require("./handlers/updates");
@@ -23,7 +25,9 @@ const registerSocketServer = (server) => {
     },
     wsEngine: eiows.Server,
   });
+  io.adapter(createAdapter());
 
+  setupWorker(io);
   // const roomIo = io.of('/room');
 
   // const store = MongoStore.create({
@@ -52,6 +56,10 @@ const registerSocketServer = (server) => {
   serverStore.setSocketServerInstance(io);
   socketStore.setInstance(io);
   // roomStore.setSocketServerInstance(io);
+
+  setInterval(async () => {
+    console.log(await socketStore.getConnectedClientsCount());
+  }, 3000);
 
   io.use(auth).on("connection", (socket) => {
     socketHandler.newConnectionHandler(socket, io);
@@ -173,13 +181,14 @@ const registerSocketServer = (server) => {
       socketHandler.disconnectHandler(socket);
       roomHandler.disconnectHandler(socket);
       socketStore.deleteClient(socket.id);
+      console.log("bye disconnected !");
     });
 
     // new implement call room event
     socket.on("join-room", (data) => new RoomHandler(socket, data));
 
-    //  ask join room event
-    socket.on("ask-join-room", (socket, data) => queryToJoin(socket, data));
+    //  request join room event
+    socket.on("request-join-room", (data) => queryToJoin(socket, data));
   });
 
   // roomIo.use(auth)
@@ -240,6 +249,7 @@ const registerSocketServer = (server) => {
   //     // });
 
   //   });
+  return io;
 };
 
 module.exports = { registerSocketServer };

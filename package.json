@@ -10,6 +10,8 @@
   "author": "Eliel512",
   "license": "ISC",
   "dependencies": {
+    "@socket.io/cluster-adapter": "^0.3.0",
+    "@socket.io/sticky": "^1.0.4",
     "agora-access-token": "^2.0.4",
     "bcrypt": "^5.0.1",
     "busboy": "^1.6.0",
@@ -43,6 +45,7 @@
     "nodemailer-smtp-transport": "^2.7.4",
     "portscanner": "^2.2.0",
     "pusher": "^5.1.0-beta",
+    "redis": "^5.9.0",
     "socket.io": "^4.5.1",
     "validator": "^13.7.0"
   }
