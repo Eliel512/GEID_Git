@@ -1014,7 +1014,7 @@ module.exports = {
   },
   disconnectHandler: async (socket) => {
     const userId = socket.userId;
-    if (socket.userId?.length > 8) {
+    if (!socket?.isGuest) {
       User.updateOne({ _id: userId }, { $set: { connected_at: Date.now() } })
         .then(async () => {
           const receiverList = [];
