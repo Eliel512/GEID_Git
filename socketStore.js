@@ -1,7 +1,10 @@
 const parseClientInfo = require("./tools/parseClientInfo");
 const redisClient = require("./redisClient");
+const { deleteKeys } = require("./redisClient");
 
 const SOCKET_PREFIX = "SOCKET_DATA:"; // clé Redis : socket:<socketId>
+
+deleteKeys(SOCKET_PREFIX);
 
 /**
  * @typedef {Object} ClientInfo
@@ -29,9 +32,6 @@ class SocketStore {
    * @param {import('socket.io').Server} io
    */
   async setInstance(io) {
-    const keys = await redisClient.keys(SOCKET_PREFIX);
-    if (keys.length) await redisClient.del(keys);
-
     this.#io = io;
   }
 
@@ -397,6 +397,30 @@ class SocketStore {
     );
 
     return clientIds.size;
+  }
+  /**
+   * Compte le nombre de participants uniques dans une room (tous les workers)
+   * @param {string} roomId - ID de la room
+   * @returns {Promise<number>} - Nombre de participants uniques (clientId distincts)
+   */
+  async getRoomParticipantsCount(roomId) {
+    if (!roomId) return 0;
+
+    // Récupère toutes les entrées Redis
+    const all = await redisClient.hVals(SOCKET_PREFIX);
+    if (!all || all.length === 0) return 0;
+
+    // Filtre les clients connectés à cette room
+    const clientsInRoom = all
+      .map((v) => JSON.parse(v))
+      .filter(
+        (c) => c.rooms && Array.isArray(c.rooms) && c.rooms.includes(roomId)
+      );
+
+    // On ne compte qu’un participant par clientId (même si plusieurs sockets)
+    const uniqueClientIds = new Set(clientsInRoom.map((c) => c.clientId));
+
+    return uniqueClientIds.size;
   }
 }
 

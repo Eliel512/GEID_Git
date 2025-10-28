@@ -20,3 +20,16 @@ redisClient.on("error", (err) => console.error("Redis Client Error", err));
  * @type {import('redis').RedisClientType}
  */
 module.exports = redisClient;
+
+/**
+ * @async
+ * @param {string} pattern
+ * @returns {Promise<void>}
+ */
+const deleteKeys = async (pattern) => {
+  if (!pattern) return;
+  const keys = await redisClient.keys(pattern);
+  if (keys.length) await redisClient.del(keys);
+};
+
+module.exports.deleteKeys = deleteKeys;

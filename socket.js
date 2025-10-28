@@ -13,7 +13,10 @@ const socketStore = require("./socketStore");
 const { createAdapter } = require("@socket.io/cluster-adapter");
 const { setupWorker } = require("@socket.io/sticky");
 const RoomHandler = require("./handlers/room/room");
-const queryToJoin = require("./handlers/room/queryToJoin");
+const {
+  requestJoinRoom,
+  responseJoinRoom,
+} = require("./handlers/room/queryToJoin");
 const { updateContacts, updateCallHistory } = require("./handlers/updates");
 
 const registerSocketServer = (server) => {
@@ -57,13 +60,11 @@ const registerSocketServer = (server) => {
   socketStore.setInstance(io);
   // roomStore.setSocketServerInstance(io);
 
-  setInterval(async () => {
-    console.log(await socketStore.getConnectedClientsCount());
-  }, 3000);
-
-  io.use(auth).on("connection", (socket) => {
+  io.use(auth).on("connection", async (socket) => {
     socketHandler.newConnectionHandler(socket, io);
-    socketStore.addClient(socket.id, socket.userId, socket);
+    await socketStore.addClient(socket.id, socket.userId, socket);
+    const numClients = await socketStore.getConnectedClientsCount();
+    console.log("Connected clients:", numClients);
 
     socket.on("direct-message", (data) => {
       socketHandler.directMessageHandler(socket, data);
@@ -188,7 +189,10 @@ const registerSocketServer = (server) => {
     socket.on("join-room", (data) => new RoomHandler(socket, data));
 
     //  request join room event
-    socket.on("request-join-room", (data) => queryToJoin(socket, data));
+    socket.on("request-join-room", (data) => requestJoinRoom(socket, data));
+
+    //  response join room event
+    socket.on("response-join-room", (data) => responseJoinRoom(socket, data));
   });
 
   // roomIo.use(auth)

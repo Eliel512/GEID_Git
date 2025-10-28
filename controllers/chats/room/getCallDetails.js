@@ -1,12 +1,16 @@
+const { getGuestsFromRoomId } = require("../../../handlers/room/queryToJoin");
 const callSession = require("../../../models/chats/callSession.model");
+
 // const Chat = require('../../../models/chats/chat.model');
 // const User = require('../../../models/users/user.model');
 // const Guest = require('../../../models/chats/guests.model');
 // const serverStore = require('../../../serverStore');
 
 module.exports = (req, res) => {
+  const roomId = req.params.id;
+  const userId = res.locals.userId;
   callSession
-    .findOne({ _id: req.params.id, "participants.identity": res.locals.userId })
+    .findOne({ _id: roomId, "participants.identity": userId })
     .populate({
       path: "participants.identity",
       // model: doc => doc.itemsModel == 'users' ? User : Guest,
@@ -16,7 +20,7 @@ module.exports = (req, res) => {
       path: "createdBy",
       select: "_id fname mname lname email grade imageUrl",
     })
-    .exec((error, callDetails) => {
+    .exec(async (error, callDetails) => {
       if (error) {
         console.log(error);
         return res.status(500).json({
@@ -61,7 +65,22 @@ module.exports = (req, res) => {
             return res.status(200).json(callDetails);
           });
       } else {
-        res.status(200).json(callDetails);
+        const call = callDetails.toJSON();
+        let guests;
+        const isOrganizer = call.participants?.some(
+          (participant) =>
+            participant.identity._id === userId && participant.state.isOrganizer
+        );
+        if (isOrganizer)
+          guests = (await getGuestsFromRoomId(roomId)).map((guest) => ({
+            ...guest,
+            roomId: undefined,
+          }));
+        res.status(200).json({
+          ...call,
+          guests,
+          // guests: await getGuestsFromRoomId(roomId),
+        });
       }
     });
 };
