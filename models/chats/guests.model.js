@@ -20,6 +20,18 @@ const guestsSchema = new Schema(
 );
 
 // guestsSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 1000 * 24 });
+guestsSchema.pre("save", function (next) {
+  if (this._id && typeof this._id === "string") {
+    this._id = mongoose.Types.ObjectId(this._id);
+  }
+  next();
+});
+// guestsSchema.pre("save", function (next) {
+//   if (this._id && typeof this._id === "string") {
+//     this._id = Types.ObjectId(this._id);
+//   }
+//   next();
+// });
 
 /** @type {import('mongoose').Model<GuestUser>} */
 const Guest = mongoose.model("guests", guestsSchema);

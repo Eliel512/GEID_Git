@@ -9,6 +9,19 @@ const User = require("../../models/users/user.model");
 const auth = require("../../middleware/users/auth");
 const { isBoolean } = require("lodash");
 const Guest = require("../../models/chats/guests.model");
+/**
+ * @typedef {"roomNotFound" | "userNotFound" | "serverError" | "conflit" | "unauthorized" | "unknownQuery"} TypeError
+ */
+
+/**
+ * @typedef {Object} Error
+ * @property {TypeError} type
+ * @property {string} message
+ */
+
+/**
+ * @typedef {Object.<TypeError, {type: TypeError, message: string}>} ErrorTypeOject
+ */
 
 /**
  * @typedef {import('socket.io').Socket} BaseSocket
@@ -18,10 +31,6 @@ const Guest = require("../../models/chats/guests.model");
  * @typedef {BaseSocket & { userId: string }} AuthenticatedSocket
  */
 
-/**
- * @typedef {"roomNotFound" | "userNotFound" | "serverError" | "conflit" | "unauthorized"} TypeError
- */
-
 class JoinRoom {
   /** @type {string|undefined} */
   #userId;
@@ -29,7 +38,8 @@ class JoinRoom {
   #roomId;
   /** @type {AuthenticatedSocket|undefined} */
   #socket;
-  /** @type {Object.<TypeError, string>} */
+
+  /** @type {Record<TypeError, string>} */
   #errors = {
     roomNotFound: "Call not found or not exist",
     userNotFound: "User not found",
@@ -46,19 +56,18 @@ class JoinRoom {
   constructor(socket, data) {
     this.#join(socket, data);
   }
+
   /**
-   * @param {TypeError} [type]
-   * @returns {Object.<TypeError, string> & {type: TypeError, message: string}}
+   * @returns {Record<TypeError, {type: TypeError, message: string}>}
    */
-  #getError = (type) => {
-    let errors = {};
-    if (type)
-      return {
-        type,
-        message: this.#errors[type],
-      };
-    errors = this.#errors;
-    return errors;
+  #createError = () => {
+    /** @type {TypeError} */
+    let type;
+    /** @type {Record<TypeError, {type: TypeError, message: string}> | *} */
+    const obj = {};
+    for (type in this.#errors)
+      if (type) obj[type] = { type, message: this.#errors[type] };
+    return obj;
   };
   /**
    * @async
@@ -176,17 +185,17 @@ class JoinRoom {
     this.#socket = socket;
 
     if (!this.#roomId) {
-      socket.emit("error-room", this.#getError().roomNotFound);
+      socket.emit("error-room", this.#createError().roomNotFound);
       return;
     }
 
     if (!this.#userId) {
-      socket.emit("error-room", this.#getError().userNotFound);
+      socket.emit("error-room", this.#createError().userNotFound);
       return;
     }
 
     if (socket.rooms.has(this.#roomId)) {
-      socket.emit("error-room", this.#getError().conflit);
+      socket.emit("error-room", this.#createError().conflit);
       return;
     }
 
@@ -224,7 +233,7 @@ class JoinRoom {
         { new: true }
       );
       if (!call) {
-        socket.emit("error-room", this.#getError().roomNotFound);
+        socket.emit("error-room", this.#createError().roomNotFound);
         this.#removeEventsInClient();
         socket.leave(this.#roomId);
         return;
@@ -242,9 +251,10 @@ class JoinRoom {
           },
         });
       await this.#update();
+      console.log("Room joined: => ", call.status);
     } catch (e) {
       console.error(e);
-      socket.emit("error-room", this.#getError().serverError);
+      socket.emit("error-room", this.#createError().serverError);
     }
   };
   /**
@@ -279,7 +289,7 @@ class JoinRoom {
     if (!this.#userId) return;
     const call = await this.#getCallSession();
     if (!call) {
-      this.#socket?.emit("error-room", this.#getError().roomNotFound);
+      this.#socket?.emit("error-room", this.#createError().roomNotFound);
       return;
     }
 
@@ -294,12 +304,12 @@ class JoinRoom {
     const user = participants.find(({ identity }) => identity === this.#userId);
 
     if (!user) {
-      this.#socket?.emit("error-room", this.#getError().userNotFound);
+      this.#socket?.emit("error-room", this.#createError().userNotFound);
       return;
     }
 
     if (!(await this.#getIsOrganizer()) && clients?.length) {
-      this.#socket?.emit("error-room", this.#getError().unauthorized);
+      this.#socket?.emit("error-room", this.#createError().unauthorized);
       return;
     }
 
@@ -346,7 +356,7 @@ class JoinRoom {
       return { updated, call, clients };
     } catch (e) {
       console.error(e);
-      this.#socket?.emit("error-room", this.#getError().serverError);
+      this.#socket?.emit("error-room", this.#createError().serverError);
     }
   };
   /**
@@ -360,7 +370,7 @@ class JoinRoom {
     );
 
     if (!isOrganizer || !this.#roomId) {
-      this.#socket?.emit("error-room", this.#getError().unauthorized);
+      this.#socket?.emit("error-room", this.#createError().unauthorized);
       return;
     }
     if (Object.keys(data).length === 0) return;
@@ -457,13 +467,9 @@ class JoinRoom {
       author: this.#userId,
     });
 
-    const socketBroadcasts = await socketStore.getClientsSocketsInRoom(
-      organizers,
-      this.#roomId
-    );
-    socketBroadcasts.forEach((broadcast) =>
-      broadcast?.emit("update-auth-room", data)
-    );
+    (
+      await socketStore.getClientsSocketsInRoom(organizers, this.#roomId)
+    ).forEach((broadcast) => broadcast?.emit("update-auth-room", data));
   };
 
   /**@async */
@@ -498,11 +504,12 @@ class JoinRoom {
     if (this.#socket?.id)
       await socketStore.leaveRoom(this.#socket.id, this.#roomId);
     // this.#socket?.leave(this.#roomId);
-    const socketBroadcasts = await socketStore.getClientsSocketsInRoom(
-      participants.map(({ identity }) => identity),
-      this.#roomId
-    );
-    socketBroadcasts.forEach((broadcast) => {
+    (
+      await socketStore.getClientsSocketsInRoom(
+        participants.map(({ identity }) => identity),
+        this.#roomId
+      )
+    ).forEach((broadcast) => {
       broadcast?.emit("leave-room", { userId: this.#userId });
     });
     this.#removeEventsInClient();
@@ -517,7 +524,7 @@ class JoinRoom {
     const author = this.#userId;
     const { userId } = data;
     if (!(await this.#getIsOrganizer())) {
-      this.#socket?.emit("error-room", this.#getError().unauthorized);
+      this.#socket?.emit("error-room", this.#createError().unauthorized);
       return;
     }
 
@@ -535,13 +542,11 @@ class JoinRoom {
       { new: true }
     );
     if (!updatedCall) return;
-    const socketBroadcasts = await socketStore.getClientSocketsInRoom(
-      userId,
-      roomId
+    (await socketStore.getClientSocketsInRoom(userId, roomId)).forEach(
+      (broadcast) => {
+        broadcast.emit("banish-room", { author });
+      }
     );
-    socketBroadcasts.forEach((broadcast) => {
-      broadcast.emit("banish-room", { author });
-    });
     await socketStore.leaveRoomByClientId(userId, roomId);
     socketStore.getInstance()?.to(roomId)?.emit("leave-room", { userId });
   };
@@ -551,11 +556,13 @@ class JoinRoom {
     if (!this.#roomId || !this.#userId) return;
     const roomId = this.#roomId;
     if (!(await this.#getIsOrganizer())) {
-      this.#socket?.emit("error-room", this.#getError().unauthorized);
+      this.#socket?.emit("error-room", this.#createError().unauthorized);
       return;
     }
-    const room = socketStore.getInstance()?.to(roomId);
-    room?.emit("close-room", { author: this.#userId });
+    socketStore
+      .getInstance()
+      ?.to(roomId)
+      .emit("close-room", { author: this.#userId });
     await socketStore.leaveRoomForAll(roomId);
     await socketStore.leaveRoom(this.#userId, roomId);
     this.#socket?.leave(roomId);
@@ -581,7 +588,7 @@ class JoinRoom {
       case "shareScreen": {
       }
       default: {
-        this.#socket?.emit("error-room", this.#getError().unknownQuery);
+        this.#socket?.emit("error-room", this.#createError().unknownQuery);
       }
     }
   };
