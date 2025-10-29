@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference path="../../types/callSession.type.js" />
+/// <reference path="../../types/user.type.js" />
 // const callSessionSchema = require("./callSessionSchema");
 const socketStore = require("../../socketStore");
 const CallSession = require("../../models/chats/callSession.model");
@@ -8,6 +9,7 @@ const generateUid = require("../../controllers/chats/call/createRoom/generateUId
 const redisClient = require("../../redisClient");
 const { deleteKeys } = require("../../redisClient");
 const JoinRoom = require("./room");
+const User = require("../../models/users/user.model");
 
 const GUEST_PREFIX = "GUEST_DATA:";
 
@@ -21,7 +23,51 @@ const GUEST_PREFIX = "GUEST_DATA:";
  * @typedef {{roomId: string, name: string, userId: string}} GUEST
  */
 
+/**
+ * @typedef {{roomId: string} & User} UserAsGuest
+ */
+
+/**
+ * @typedef {"roomNotFound" | "userNotFound" | "serverError" | "conflit" | "unauthorized" | "unknownQuery" | "invalidRoomId" | "invalidUserId" | "invalidName" | "invalidStatus" } TypeError
+ */
+
+/**
+ * @typedef {Object} Error
+ * @property {TypeError} type
+ * @property {string} message
+ */
+
+/**
+ * @typedef {Object} ErrorTypeOject
+ */
+
 deleteKeys(GUEST_PREFIX);
+
+/** @type {Record<TypeError, string>} */
+const errors = {
+  roomNotFound: "Call not found or not exist",
+  invalidRoomId: "roomId is required",
+  invalidUserId: "userId is required",
+  invalidName: "name is required",
+  invalidStatus: "unknown status",
+  userNotFound: "User not found",
+  serverError: "An error occurred during this action",
+  conflit: "Client has already joined",
+  unauthorized: "No permission for this action",
+  unknownQuery: "Unknown query type",
+};
+
+/**
+ * @returns {Record<TypeError, {type: TypeError, message: string}>}
+ */
+const createError = () => {
+  /** @type {TypeError} */
+  let type;
+  /** @type {Record<TypeError, {type: TypeError, message: string}> | *} */
+  const obj = {};
+  for (type in errors) if (type) obj[type] = { type, message: errors[type] };
+  return obj;
+};
 
 /**
  * @async
@@ -30,44 +76,55 @@ deleteKeys(GUEST_PREFIX);
  */
 const requestJoinRoom = async (socket, data) => {
   const userId = socket.userId;
-  //const isGuest = socket.isGuest;
+  const isGuest = socket.isGuest;
   const roomId = data.roomId;
   const name = data.name;
   if (!roomId) {
-    socket.emit("error", "'roomId' is required");
+    socket.emit("error", createError().invalidRoomId);
     return;
   }
   if (await getGuest(userId)) return;
   /** @type {CallSessionDocument} */
   const call = await CallSession.findOne({ _id: roomId });
   if (!call) {
-    socket.emit("error", "Room not found");
+    socket.emit("error", createError().roomNotFound);
     return;
   }
-  const newGuest = { roomId, name, userId };
+
+  /** @type {UserAsGuest|GUEST|null} */
+  let newGuest = null;
+
+  if (!isGuest) {
+    /** @type {UserDocument} */
+    const user = await User.findOne({ _id: userId }).select(
+      "_id name fname mname lname email grade imageUrl"
+    );
+    newGuest = { ...user.toJSON(), roomId };
+  }
+  newGuest ??= { roomId, name, userId };
+  await addGuest(newGuest);
+
   const organizers = call.participants
     .filter(({ state }) => state.isOrganizer)
     .map(({ identity }) => identity);
-  await addGuest(newGuest);
-  const organizerSocketBroadcasts = await socketStore.getClientsSocketsInRoom(
-    organizers,
-    roomId
-  );
 
-  organizerSocketBroadcasts.forEach((socketBroadcast) => {
-    socketBroadcast.emit("request-join-room", newGuest);
-  });
+  (await socketStore.getClientsSocketsInRoom(organizers, roomId)).forEach(
+    (socketBroadcast) => {
+      socketBroadcast.emit("request-join-room", newGuest);
+    }
+  );
   /**
-   * @param {{roomId: string}} param0
+   * @param {{roomId: string}} param
    * @returns {Promise<void>}
    */
   const abortJoinRoom = async ({ roomId: id }) => {
-    console.log("abortJoinRoom => ", id);
     if (id !== roomId) return;
     await removeGuest(userId);
-    organizerSocketBroadcasts.forEach((socketBroadcast) => {
-      socketBroadcast.emit("abort-join-room", newGuest);
-    });
+    (await socketStore.getClientsSocketsInRoom(organizers, roomId)).forEach(
+      (socketBroadcast) => {
+        socketBroadcast.emit("abort-join-room", newGuest);
+      }
+    );
     socket.off("disconnect", disconnect);
     socket.off("decline-join-room", abortJoinRoom);
   };
@@ -84,11 +141,23 @@ const requestJoinRoom = async (socket, data) => {
  *  @param {{roomId: string, status: 'accepted' | 'declined', userId: string}} data
  */
 const responseJoinRoom = async (socket, data) => {
-  console.log("responseJoinRoom => ", data);
+  if (!["accepted", "declined"].includes(data.status)) {
+    socket.emit("error", createError().invalidStatus);
+    return;
+  }
+
   const userId = socket.userId;
   const roomId = data.roomId;
   const guest = await getGuest(data.userId);
-  if (!guest || !roomId) return;
+
+  if (!roomId) {
+    socket.emit("error", createError().invalidRoomId);
+    return;
+  }
+  if (!guest) {
+    socket.emit("error", createError().userNotFound);
+    return;
+  }
 
   /** @type {CallSessionDocument} */
   const call = await CallSession.findOne({ _id: roomId });
@@ -100,28 +169,29 @@ const responseJoinRoom = async (socket, data) => {
   );
   if (!isOrganizer) return;
 
-  const socketBroadcasts = await socketStore.getClientSockets(data.userId);
-
-  if (data.status !== "accepted") {
+  if (data.status === "declined") {
     await removeGuest(data.userId);
-    socketBroadcasts.forEach((socket) => {
+    (await socketStore.getClientSockets(data.userId)).forEach((socket) => {
+      socket.emit("response-join-room", data);
+    });
+    return;
+  }
+  const clientId = "userId" in guest ? guest.userId : guest._id;
+
+  if (pts.find(({ identity }) => identity === clientId)) {
+    (await socketStore.getClientSockets(data.userId)).forEach((socket) => {
       socket.emit("response-join-room", data);
     });
     return;
   }
 
-  if (pts.find(({ identity }) => identity === guest.userId)) {
-    socketBroadcasts.forEach((socket) => {
-      socket.emit("response-join-room", data);
-    });
-    return;
+  if ("name" in guest) {
+    const g = await Guest.findOneAndUpdate(
+      { _id: clientId },
+      { $setOnInsert: { name: guest.name } },
+      { upsert: true, new: true }
+    );
   }
-
-  await Guest.findOneAndUpdate(
-    { _id: guest.userId },
-    { $setOnInsert: { name: guest.name } },
-    { upsert: true, new: true }
-  );
 
   /** @type {number[]} */
   const excludes = pts.map(({ uid, screenId }) => [uid, screenId]).flat();
@@ -148,7 +218,7 @@ const responseJoinRoom = async (socket, data) => {
     {
       $push: {
         participants: {
-          identity: guest.userId,
+          identity: clientId,
           itemModel: "guests",
           uid,
           screenId,
@@ -164,23 +234,24 @@ const responseJoinRoom = async (socket, data) => {
   if (!updateCall) return;
   const update = await JoinRoom.getUpdateData(roomId);
   socketStore.getInstance()?.to(roomId).emit("update-room", update);
-  socketBroadcasts.forEach((socket) => {
+  (await socketStore.getClientSockets(data.userId)).forEach((socket) => {
     socket.emit("response-join-room", data);
   });
 };
 
 /**
  * @async
- * @param {GUEST} guest
+ * @param {GUEST|UserAsGuest} guest
  */
 const addGuest = async (guest) => {
-  await redisClient.hSet(GUEST_PREFIX, guest.userId, JSON.stringify(guest));
+  const id = ("userId" in guest ? guest.userId : guest._id).toString();
+  return await redisClient.hSet(GUEST_PREFIX, id, JSON.stringify(guest));
 };
 
 /**
  *@async
  * @param {string} id
- * @returns {Promise<GUEST|null>}
+ * @returns {Promise<GUEST|UserAsGuest|null>}
  */
 const getGuest = async (id) => {
   const gustDataRow = await redisClient.hGet(GUEST_PREFIX, id);
@@ -190,7 +261,7 @@ const getGuest = async (id) => {
 
 /**
  * @param {string} roomId
- * *  @returns {Promise<GUEST[]>}
+ * *  @returns {Promise<(GUEST|UserAsGuest)[]>}
  */
 const getGuestsFromRoomId = async (roomId) => {
   const all = await getGuests();
@@ -199,7 +270,7 @@ const getGuestsFromRoomId = async (roomId) => {
 
 /**
  * @async
- *  @returns {Promise<GUEST[]>}
+ *  @returns {Promise<(GUEST|UserAsGuest)[]>}
  */
 const getGuests = async () => {
   const all = await redisClient.hVals(GUEST_PREFIX);

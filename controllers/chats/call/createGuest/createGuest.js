@@ -19,8 +19,6 @@ const createGuest = async (req, res) => {
   /**@type {string} */
   const name = req.body?.name;
 
-  console.log("Create Guest called with:", { roomId, _id, name });
-
   /**@type {GuestUserDocument} */
   let guest;
   if (!roomId) return res.status(400).json({ message: "'roomId' is required" });
@@ -29,11 +27,16 @@ const createGuest = async (req, res) => {
   const call = await CallSession.findOne({ _id: roomId });
 
   if (!call) return res.status(404).json({ message: "Room not found" });
+  if (!name) return res.status(400).json({ message: "'name' is required" });
 
   const participants = call.participants;
 
   if (participants.find(({ identity: id }) => id === _id)) {
-    guest = await Guest.findOne({ _id });
+    guest = await Guest.findOneAndUpdate(
+      { _id },
+      { $set: { name } },
+      { new: true, upsert: true }
+    );
     if (guest)
       return res.status(200).json({
         message: "Guest  already exits",
@@ -43,13 +46,12 @@ const createGuest = async (req, res) => {
       });
   }
 
-  if (!name) return res.status(400).json({ message: "'name' is required" });
-
   try {
     while (_id ? await getGuest(_id) : true)
       _id ??= new Types.ObjectId().toString();
 
-    console.log("Guest id:", _id);
+    if (!Types.ObjectId.isValid(_id))
+      return res.status(400).json({ message: "'id' is invalid" });
 
     // await guest?.save();
     return res.status(200).json({
