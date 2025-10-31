@@ -2,13 +2,8 @@ const mongoose = require("mongoose");
 const CallSession = require("../../../../models/chats/callSession.model");
 
 /**
- * @typedef {{ participants: (Participant & { identity: User|Guest })[] & CallSession, createdBy: User }} CallSessionWithResolved
- */
-
-/**
- * Récupère une CallSession avec participants et createdBy peuplés
  * @param {string} sessionId
- * @returns {Promise<CallSessionWithResolved}>}
+ * @returns {Promise<ResolvedCallSession}>}
  */
 const getResolvedCallSession = async (sessionId) => {
   const res = await CallSession.aggregate([
