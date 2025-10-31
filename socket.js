@@ -10,8 +10,8 @@ const socketHandler = require("./handlers/socket");
 const roomHandler = require("./handlers/room");
 const serverStore = require("./serverStore");
 const socketStore = require("./socketStore");
-const { createAdapter } = require("@socket.io/cluster-adapter");
-const { setupWorker } = require("@socket.io/sticky");
+// const { createAdapter } = require("@socket.io/cluster-adapter");
+// const { setupWorker } = require("@socket.io/sticky");
 const RoomHandler = require("./handlers/room/room");
 const {
   requestJoinRoom,
@@ -28,9 +28,9 @@ const registerSocketServer = (server) => {
     },
     wsEngine: eiows.Server,
   });
-  io.adapter(createAdapter());
+  // io.adapter(createAdapter());
 
-  setupWorker(io);
+  // setupWorker(io);
   // const roomIo = io.of('/room');
 
   // const store = MongoStore.create({

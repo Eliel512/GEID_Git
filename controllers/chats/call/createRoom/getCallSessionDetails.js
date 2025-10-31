@@ -7,13 +7,20 @@ const APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE;
 
 /**
  * @param {string} userId
- * @param {{type: string, target: string, tokenType?: string, role?: string}} data
+ * @param {{type: string, target: string, tokenType?: string, role?: string, endedAt?: string, surplusTime?: number}} data
  * @returns {Promise<{TOKEN: string, APP_ID: string, UID: number, EXPIRE_AT: number}&{error: boolean, message: string, type: string}>}
  */
 const getCallDetails = async (userId, data) => {
-  const { type, target, tokenType, role = "subscriber" } = data;
+  const {
+    type,
+    target,
+    tokenType,
+    role = "subscriber",
+    endedAt,
+    surplusTime = 1800,
+  } = data;
 
-  // Validation des paramètres
+  // Validate parameters
   if (!target) return { error: true, message: "'target' is required" };
 
   if (!["direct", "room"].includes(type))
@@ -61,9 +68,17 @@ const getCallDetails = async (userId, data) => {
     };
   }
 
-  const expireTime = 3600 * 5;
+  // Calculate expiration time
   const currentTime = Math.floor(Date.now() / 1000);
-  const privilegeExpireTime = currentTime + expireTime;
+  let expireTime;
+
+  if (endedAt) {
+    // If `endedAt` is provided, use it as the base for token expiration
+    const endDateTime = new Date(endedAt).getTime() / 1000; // Convert to seconds
+    expireTime = endDateTime + surplusTime; // Add surplus time (default is 30 minutes)
+  }
+  // Otherwise, use the default expiration time (5 hours)
+  else expireTime = currentTime + 3600 * 5; // 5 hours by default
 
   let token;
   try {
@@ -74,7 +89,7 @@ const getCallDetails = async (userId, data) => {
         target,
         0,
         rtcRole,
-        privilegeExpireTime
+        expireTime
       );
     } else {
       token = RtcTokenBuilder.buildTokenWithAccount(
@@ -83,7 +98,7 @@ const getCallDetails = async (userId, data) => {
         target,
         0,
         rtcRole,
-        privilegeExpireTime
+        expireTime
       );
     }
   } catch (err) {
@@ -98,7 +113,7 @@ const getCallDetails = async (userId, data) => {
     TOKEN: token,
     APP_ID,
     UID: 0,
-    EXPIRE_AT: privilegeExpireTime,
+    EXPIRE_AT: expireTime,
   };
 };
 

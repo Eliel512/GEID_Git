@@ -11,11 +11,11 @@ const getCallDetails = require("./getCallSessionDetails");
 const callSessionSchema = require("./callSessionSchema");
 const generateUId = require("./generateUId");
 const socket = require("../../../../handlers/socket");
-const roomStore = require("../../../../serverStore");
+const socketStore = require("../../../../socketStore");
 const { identity } = require("lodash");
 
 /**
- * @typedef {{open?: boolean, title?: string, state?: ParticipantState, auth?: ParticipantAuth, type: ChatType, target: string, tokenType?: string, role?: string, startedAt?: string|Date|number, endedAt?: string|Date|number, duration?: Duration , summary?: string, description?: string}} DataRequest
+ * @typedef {{open?: boolean, title?: string, state?: ParticipantState, auth?: ParticipantAuth, type: ChatType, target: string, tokenType?: string, role?: string, startedAt?: string, endedAt?: string, duration?: Duration , summary?: string, description?: string, scheduled?: boolean}} DataRequest
  */
 
 /**
@@ -28,6 +28,7 @@ module.exports = async (req, res) => {
 
   /** @type {DataRequest} */
   const data = req.body || {};
+
   /** @type {UserDocument} */
   const user = await User.findOne({ _id: userId }).select(
     "_id fname mname lname grade email imageUrl contacts"
@@ -79,12 +80,12 @@ module.exports = async (req, res) => {
   const agoraIds = generateUId(nbr);
 
   const participants = [];
-  /** @type {Object<string, any>} */
+  /** @type {Object<string, ChatPopulatedMember>} */
   const members = {};
   for (let i = 0; i < nbr; i++) {
     const { _id: user } = room?.members[i] || {};
     const identity = user?._id?.toString() || "";
-    members[identity] = user;
+    if (user) members[identity] = user;
     const isOrganizer = identity === userId;
     const uid = agoraIds.randomNumbers[i];
     const screenId = agoraIds.screenNumbers[i];
@@ -112,19 +113,21 @@ module.exports = async (req, res) => {
       minutes: duration?.minutes,
       seconds: duration?.seconds,
     },
-    open: data.open ? true : false,
+    open: Boolean(data.open),
     summary: data.summary,
     description: data.description,
     createdBy: userId,
-    status: 0,
+    status: data?.scheduled ? 7 : 0,
     location,
     participants,
     callDetails,
     ...(data.type === "room" && {
       room: {
-        id: room?._id,
+        _id: room?._id,
         name: room?.name,
         description: room?.description,
+        //imageUrl: room?.imageUrl,
+        type: room?.type,
       },
     }),
   });
@@ -136,16 +139,24 @@ module.exports = async (req, res) => {
     call = new CallSession(value);
 
     await call.save();
-    const result = JSON.parse(JSON.stringify(call));
-
-    result.participants = result?.participants?.map(
-      (/** @type {Object&{identity: string}} */ participant) => {
+    const result = {
+      ...call.toJSON(),
+      participants: call.toJSON().participants?.map((participant) => {
         return {
           ...participant,
           identity: members[participant.identity],
         };
-      }
-    );
+      }),
+    };
+
+    (
+      await socketStore.getClientsSockets(
+        call.toJSON().participants.map((p) => p.identity.toString())
+      )
+    ).forEach((broadcastSocket) => {
+      broadcastSocket.emit("create-new-call", result);
+    });
+
     return res.status(200).json(result);
   } catch (error) {
     console.error("error => ", error);

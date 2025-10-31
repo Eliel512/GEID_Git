@@ -58,7 +58,7 @@
 
 /**
  * @typedef {Object} CallSession
- * @property {string} _id
+ * @property {string|import("mongoose").Types.ObjectId} _id
  * @property {OrganizerAuth} organizerAuth
  * @property {string} [title]
  * @property {string} startedAt
@@ -71,6 +71,38 @@
  * @property {*} [room]
  * @property {number} status
  * @property {Participant[]} participants
+ * @property {Guest} guests
+ * @property {Message[]} messages
+ * @property {*} callDetails
+ * @property {Date} createdAt
+ * @property {Date} updatedAt
+ */
+
+/**
+ * @typedef {Object} ResolvedParticipant
+ * @property {User & Guest} identity
+ * @property {"users"|"guests"} itemModel
+ * @property {number} uid
+ * @property {number} screenId
+ * @property {ParticipantState} state
+ * @property {ParticipantAuth} auth
+ */
+
+/**
+ * @typedef {Object} ResolvedCallSession
+ * @property {string|import("mongoose").Types.ObjectId} _id
+ * @property {OrganizerAuth} organizerAuth
+ * @property {string} [title]
+ * @property {string} startedAt
+ * @property {string} [endedAt]
+ * @property {Duration} duration
+ * @property {string} [summary]
+ * @property {string} [description]
+ * @property {User} createdBy
+ * @property {string} location
+ * @property {*} [room]
+ * @property {number} status
+ * @property {ResolvedParticipant[]} participants
  * @property {Guest} guests
  * @property {Message[]} messages
  * @property {*} callDetails
