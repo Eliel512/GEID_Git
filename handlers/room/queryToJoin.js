@@ -75,6 +75,7 @@ const createError = () => {
  * @param {{roomId: string, name: string, id: string}} data
  */
 const requestJoinRoom = async (socket, data) => {
+  console.log(data);
   const userId = socket.userId;
   const isGuest = socket.isGuest;
   const roomId = data.roomId;
@@ -83,7 +84,10 @@ const requestJoinRoom = async (socket, data) => {
     socket.emit("error", createError().invalidRoomId);
     return;
   }
-  if (await getGuest(userId)) return;
+  if (await getGuest(userId)) {
+    console.log("already guest");
+    return;
+  }
   /** @type {CallSessionDocument} */
   const call = await CallSession.findOne({ _id: roomId });
   if (!call) {
@@ -114,25 +118,42 @@ const requestJoinRoom = async (socket, data) => {
     }
   );
   /**
-   * @param {{roomId: string}} param
-   * @returns {Promise<void>}
+   *
+   * @param {{roomId: string}} param0
+   * @returns
    */
-  const abortJoinRoom = async ({ roomId: id }) => {
+  const disconnect = async ({ roomId: id }) => {
     if (id !== roomId) return;
-    await removeGuest(userId);
-    (await socketStore.getClientsSocketsInRoom(organizers, roomId)).forEach(
-      (socketBroadcast) => {
-        socketBroadcast.emit("abort-join-room", newGuest);
-      }
-    );
+    await abortJoinRoom({ roomId, userId });
     socket.off("disconnect", disconnect);
     socket.off("decline-join-room", abortJoinRoom);
   };
 
-  const disconnect = () => abortJoinRoom({ roomId });
+  socket.once("disconnect", () => disconnect({ roomId }));
+  socket.once("decline-join-room", disconnect);
+};
 
-  socket.once("disconnect", disconnect);
-  socket.once("decline-join-room", abortJoinRoom);
+/**
+ * @param {{roomId: string, userId: string}} param
+ * @returns {Promise<boolean>}
+ */
+const abortJoinRoom = async ({ roomId, userId }) => {
+  if (!roomId || !userId) return false;
+  const newGuest = await getGuest(userId);
+  await removeGuest(userId);
+  if (!newGuest) return false;
+  /** @type {CallSessionDocument} */
+  const call = await CallSession.findOne({ _id: roomId });
+  if (!call) return false;
+  const organizers = call.participants
+    .filter(({ state }) => state.isOrganizer)
+    .map(({ identity }) => identity);
+  (await socketStore.getClientsSocketsInRoom(organizers, roomId)).forEach(
+    (socketBroadcast) => {
+      socketBroadcast.emit("abort-join-room", newGuest);
+    }
+  );
+  return true;
 };
 
 /**
@@ -170,7 +191,7 @@ const responseJoinRoom = async (socket, data) => {
   if (!isOrganizer) return;
 
   if (data.status === "declined") {
-    await removeGuest(data.userId);
+    await abortJoinRoom({ roomId, userId: data.userId });
     (await socketStore.getClientSockets(data.userId)).forEach((socket) => {
       socket.emit("response-join-room", data);
     });
@@ -179,6 +200,7 @@ const responseJoinRoom = async (socket, data) => {
   const clientId = "userId" in guest ? guest.userId : guest._id;
 
   if (pts.find(({ identity }) => identity === clientId)) {
+    await abortJoinRoom({ roomId, userId: data.userId });
     (await socketStore.getClientSockets(data.userId)).forEach((socket) => {
       socket.emit("response-join-room", data);
     });
@@ -186,7 +208,7 @@ const responseJoinRoom = async (socket, data) => {
   }
 
   if ("name" in guest) {
-    const g = await Guest.findOneAndUpdate(
+    await Guest.findOneAndUpdate(
       { _id: clientId },
       { $setOnInsert: { name: guest.name } },
       { upsert: true, new: true }
@@ -233,6 +255,7 @@ const responseJoinRoom = async (socket, data) => {
   );
   if (!updateCall) return;
   const update = await JoinRoom.getUpdateData(roomId);
+  await abortJoinRoom({ roomId, userId: data.userId });
   socketStore.getInstance()?.to(roomId).emit("update-room", update);
   (await socketStore.getClientSockets(data.userId)).forEach((socket) => {
     socket.emit("response-join-room", data);
@@ -295,4 +318,5 @@ module.exports = {
   getGuestsFromRoomId,
   responseJoinRoom,
   requestJoinRoom,
+  abortJoinRoom,
 };

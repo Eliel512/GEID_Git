@@ -359,6 +359,7 @@ class JoinRoom {
       this.#socket?.emit("error-room", this.#createError().serverError);
     }
   };
+  /** @typedef {"shareScreen" | "activateCam" | "activateMic"  | "react" | "allowPrivateMessage"} AuthKey  */
   /**
    * @async
    * @param {{controlAuthorization: boolean} & ParticipantAuth} data
@@ -376,7 +377,7 @@ class JoinRoom {
     if (Object.keys(data).length === 0) return;
 
     let { controlAuthorization, writeMessage, ...rest } = data;
-    /** @typedef {"shareScreen" | "activateCam" | "activateMic"  | "react" | "allowPrivateMessage"} AuthKey  */
+
     const organizerAuth = dataCall?.organizerAuth;
 
     const updatedAuth =
@@ -395,10 +396,9 @@ class JoinRoom {
     const messagingProps = ["allowPrivateMessage"];
 
     /** @type {Object.<string, boolean|undefined>}*/
-    const auth = { controlAuthorization, writeMessage };
+    const auth = { writeMessage };
     /** @type {Object.<string, boolean|undefined>}*/
     const queryAuth = {
-      "participants.$[noOrg].auth.controlAuthorization": controlAuthorization,
       "participants.$[noOrg].auth.writeMessage": writeMessage,
     };
 
@@ -413,38 +413,42 @@ class JoinRoom {
       activateCam: "isCamActive",
       activateMic: "isMicActive",
     };
-    /** @type AuthKey - controlProp*/
-    let cp;
 
     if (controlAuthorization)
-      for (cp of controlProps) {
+      for (const cp of controlProps) {
         const v = rest[cp]; // value
         const sk = stateKey[cp]; // state key
-        if (isBoolean(v) && sk && !v) {
-          queryState[`participants.$[noOrg].state.${sk}`] = v;
-          state[sk] = v;
+        if (isBoolean(v)) {
+          if (sk && !v) {
+            queryState[`participants.$[noOrg].state.${sk}`] = v;
+            state[sk] = v;
+          }
+          queryAuth[`participants.$[noOrg].auth.${cp}`] = v;
+          auth[cp] = v;
         }
-        queryAuth[`participants.$[noOrg].auth.${cp}`] = v;
-        auth[cp] = v;
       }
-    /** @type  AuthKey - messagingProp */
-    let mp;
+    /** @type AuthKey*/
+    let r;
+    for (r in rest) {
+      const v = rest[r];
+      if (isBoolean(v)) queryAuth[`organizerAuth.${r}`] = v;
+    }
     if (writeMessage)
-      for (mp of messagingProps) {
+      for (const mp of messagingProps) {
         const v = rest[mp]; // value
-        queryAuth[`participants.$[noOrg].auth.${mp}`] = v;
+        if (isBoolean(v)) {
+          queryAuth[`participants.$[noOrg].auth.${mp}`] = v;
+          auth[mp] = v;
+        }
       }
-    if (!(updatedAuth || Object.keys(state).length >= 3)) return;
+    if (!(updatedAuth || Object.keys(state).length >= 0)) return;
     /** @type {CallSessionDocument} */
     const call = await CallSession.findOneAndUpdate(
       { _id: this.#roomId },
       {
         $set: {
-          organizerAuth: {
-            controlAuthorization,
-            writeMessage,
-            ...rest,
-          },
+          "organizerAuth.controlAuthorization": controlAuthorization,
+          "organizerAuth.writeMessage": writeMessage,
           ...queryAuth,
           ...queryState,
         },
@@ -466,10 +470,7 @@ class JoinRoom {
       auth,
       author: this.#userId,
     });
-
-    (
-      await socketStore.getClientsSocketsInRoom(organizers, this.#roomId)
-    ).forEach((broadcast) => broadcast?.emit("update-auth-room", data));
+    socketStore.getInstance()?.to(this.#roomId)?.emit("update-auth-room", data);
   };
 
   /**@async */
