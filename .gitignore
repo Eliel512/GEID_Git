@@ -141,3 +141,6 @@ dist
 
 # pnpm
 .pnp.*
+
+# Windsurf
+.windsurf
