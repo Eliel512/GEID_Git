@@ -7,7 +7,7 @@ const loginSchema = Joi.object({
         .required(),
 
     password: Joi.string()
-        .min(3)
+        .min(8)
         .required()
 });
 

@@ -5,7 +5,10 @@ module.exports = (req, res, next) => {
     const userId = res.locals.userId;    
     User.findOne({ _id: userId },{ "grade.permission": 1, _id: 0 })
         .then(grade => {
-            const permission = grade.grade.permission;    
+            if(!grade || !grade.grade || !grade.grade.permission){
+                return res.status(401).json({ message: 'Non authorisé' });
+            }
+            const permission = grade.grade.permission;
             if(permission.find(el => el === 'admin')){
                 next();
             }else{

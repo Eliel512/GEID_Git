@@ -3,7 +3,13 @@ const Role = require('../../models/users/role.model');
 const User = require('../../models/users/user.model');
 
 module.exports = async (req, res, next) => {
-  let { role, type } = JSON.parse(req.params.role);
+  let parsed;
+  try {
+    parsed = JSON.parse(req.params.role);
+  } catch {
+    return res.status(400).json({ message: 'Paramètre invalide.' });
+  }
+  let { role, type } = parsed;
   let roleF = role;
   //let  = JSON.parse(req.params.role)["type"];
   
