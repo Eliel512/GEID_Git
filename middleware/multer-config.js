@@ -1,11 +1,16 @@
 const multer = require('multer');
+const path = require('path');
+
+const RESSOURCES_BASE = path.resolve('ressources');
 
 const storage = multer.diskStorage({
   destination: (req, file, callback) => {
-    //const link = req.method === "PUT" ?
-      /*JSON.parse(req.body.path.split('=')[1]).path : req.body.path.split('=')[1];*/
-    const path = "ressources/"+req.body.path;
-    callback(null, path);
+    const userInput = (req.body.path || '').replace(/\.\./g, '');
+    const dest = path.resolve(RESSOURCES_BASE, userInput);
+    if (!dest.startsWith(RESSOURCES_BASE + path.sep) && dest !== RESSOURCES_BASE) {
+      return callback(new Error('Chemin non autorisé'));
+    }
+    callback(null, dest);
   },
   filename: (req, file, callback) => {
     const name = file.originalname/*.split(' ').join('_')*/;

@@ -1,7 +1,7 @@
 const fs = require('fs');
 const User = require('../../models/users/user.model');
 const Role = require('../../models/users/role.model');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const config = require('../../config');
@@ -118,8 +118,6 @@ exports.validate = (req, res, next) => {
 };
 
 exports.edit = (req, res, next) => {
-  //64071e41c042e427fe4561c3
-  // eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NDA3MWU0MWMwNDJlNDI3ZmU0NTYxYzMiLCJpYXQiOjE2NzkwNzI2MjgsImV4cCI6MTY3OTI0NTQyOH0.Y_AcpfFzP-VcYGUUJ0_qtKnW925tMWrOggkPIlvv2_U
   const { password } = req.body;
   let body = {};
 

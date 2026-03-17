@@ -1,0 +1,38 @@
+networks:
+  GEID_NETWORK:
+    name: GEID_NETWORK
+    driver: bridge
+
+services:
+  mongodb:
+    image: mongo:6
+    container_name: geid-mongodb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - ./data/mongodb:/data/db
+    networks:
+      - GEID_NETWORK
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    container_name: geid-redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --save 300 10 --loglevel warning --dir /data
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - GEID_NETWORK
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12

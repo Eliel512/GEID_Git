@@ -1,17 +1,23 @@
-// const session = require('express-session');
-// const sharedsession = require('express-socket.io-session');
-// const mongoose = require('mongoose');
-// const MongoStore = require('connect-mongo');
-// const CallSession = require('./models/chats/callSession.model');
-// const roomStore = require('./roomStore');
-const eiows = require("eiows");
+/**
+ * socket.js — Initialisation du serveur Socket.io et enregistrement des événements
+ *
+ * - Crée l'instance Socket.io attachée au serveur HTTP
+ * - Applique le middleware d'authentification JWT sur chaque connexion
+ * - Délègue chaque événement socket à son handler métier correspondant
+ *
+ * Handlers métier :
+ *   - handlers/socket.js   → messages directs, statut, appels P2P
+ *   - handlers/room.js     → création/gestion des salles d'appel
+ *   - handlers/room/room.js → logique avancée de rejoindre une salle
+ *   - handlers/room/queryToJoin.js → demande/réponse d'accès à une salle
+ *   - handlers/updates.js  → émission des mises à jour temps-réel (contacts, historique…)
+ */
+
 const auth = require("./middleware/socketAuth");
 const socketHandler = require("./handlers/socket");
 const roomHandler = require("./handlers/room");
 const serverStore = require("./serverStore");
 const socketStore = require("./socketStore");
-// const { createAdapter } = require("@socket.io/cluster-adapter");
-// const { setupWorker } = require("@socket.io/sticky");
 const RoomHandler = require("./handlers/room/room");
 const {
   requestJoinRoom,
@@ -19,164 +25,173 @@ const {
 } = require("./handlers/room/queryToJoin");
 const { updateContacts, updateCallHistory } = require("./handlers/updates");
 
+/**
+ * Crée et configure le serveur Socket.io sur le serveur HTTP fourni.
+ * @param {import('http').Server} server
+ * @returns {import('socket.io').Server}
+ */
 const registerSocketServer = (server) => {
   const { Server } = require("socket.io");
+
   const io = new Server(server, {
     cors: {
       origin: "*",
       methods: ["GET", "POST"],
     },
-    wsEngine: eiows.Server,
   });
-  // io.adapter(createAdapter());
 
-  // setupWorker(io);
-  // const roomIo = io.of('/room');
-
-  // const store = MongoStore.create({
-  //   client: mongoose.connection.getClient(), // Utiliser le client mongoose existant
-  //   collectionName: CallSession.collection.name, // Nom de la collection pour les sessions
-  //   modelName: CallSession.modelName, // Nom du modèle mongoose pour les sessions
-  //   stringify: false, // Ne pas convertir la session en chaîne JSON
-  //   ttl: 60 * 60 * 24 // 1 Jour
-  // });
-
-  // store.on('error', function (error) {
-  //   console.error(error);
-  // });
-
-  // const sessionMiddleware = session({
-  //   secret: process.env.SESSION_SECRET,
-  //   cookie: {
-  //     maxAge: 1000 * 60 * 60 * 24, // La durée de vie du cookie de session en millisecondes
-  //     secure: true // Activer le cookie sécurisé si vous utilisez HTTPS
-  //   },
-  //   store: store, // L'objet de stockage de session MongoDB
-  //   resave: false, // Force la sauvegarde de la session à chaque requête
-  //   saveUninitialized: false // Force la création d'une session même si elle est vide
-  // });
-
+  // Stocke l'instance io pour y accéder depuis d'autres modules
   serverStore.setSocketServerInstance(io);
   socketStore.setInstance(io);
-  // roomStore.setSocketServerInstance(io);
 
+  // ─── Authentification ───────────────────────────────────────────────────────
+  // Vérifie le token JWT de chaque socket avant d'accepter la connexion
   io.use(auth).on("connection", async (socket) => {
+
+    // ─── Connexion ──────────────────────────────────────────────────────────
     socketHandler.newConnectionHandler(socket, io);
     await socketStore.addClient(socket.id, socket.userId, socket);
+
     const numClients = await socketStore.getConnectedClientsCount();
     console.log("Connected clients:", numClients);
 
+    // ─── Messagerie directe ─────────────────────────────────────────────────
+
+    // Message texte entre deux utilisateurs
     socket.on("direct-message", (data) => {
       socketHandler.directMessageHandler(socket, data);
     });
 
+    // Partage de fichier entre deux utilisateurs
     socket.on("direct-file", (data) => {
       socketHandler.directFileHandler(socket, data);
     });
 
+    // Ouverture/fermeture d'une conversation directe
     socket.on("direct-chat", (data) => {
       socketHandler.directChatHandler(socket, data);
     });
 
+    // ─── Messagerie en salle ─────────────────────────────────────────────────
+
+    // Message envoyé dans une salle de chat
     socket.on("room-message", (data) => {
       socketHandler.roomMessageHandler(socket, data);
     });
 
+    // ─── Appels & signalisation ──────────────────────────────────────────────
+
+    // Message de signalisation dans un appel en cours
     socket.on("call-message", (data) => {
       roomHandler.callMessageHandler(socket, data);
     });
 
-    socket.on("rtt-ping", (data) => {
-      socketHandler.networkRttStat(socket, data);
-    });
-
-    // socket.on('ping', data => {
-    //   socketHandler.pingHandler(socket, data);
-    // });
-
-    socket.on("contacts", () => {
-      updateContacts(socket.userId);
-    });
-
-    socket.on("last", () => {
-      socketHandler.lastHandler(socket.userId);
-    });
-
+    // Initier un appel vers un autre utilisateur
     socket.on("call", (data) => {
       socketHandler.callHandler(socket, data);
     });
 
-    socket.on("call-history", () => {
-      updateCallHistory(socket);
-    });
-
+    // Décrocher un appel entrant
     socket.on("pick-up", (data) => {
       socketHandler.pickUpHandler(socket, data);
     });
 
-    // socket.on('hang-up', data => {
-    //   socketHandler.hangUpHandler(socket, data);
-    // });
-
-    // socket.on('signal', data => {
-    //   socketHandler.signalHandler(socket, data);
-    // });
-
-    socket.on("status", (data) => {
-      socketHandler.statusHandler(socket, data);
-    });
-
-    //
-
-    socket.on("ping", (data, callback) => {
-      // socket.emit('ping', 'ping');
-      callback("C'est bon");
-    });
-
-    socket.on("schedule", (data) => {
-      roomHandler.scheduleHandler(socket, data);
-    });
-
-    socket.on("create", (data) => {
-      roomHandler.createHandler(socket, data);
-    });
-
-    socket.on("join", (data) => {
-      roomHandler.joinRoom(socket, data);
-    });
-
-    socket.on("accept", (data) => {
-      roomHandler.accept(socket, data);
-    });
-
-    socket.on("leave", (data) => {
-      roomHandler.leaveRoom(socket, data);
-    });
-
-    socket.on("edit-room", (data) => {
-      roomHandler.edit(socket, data);
-    });
-
-    socket.on("signal", (data) => {
-      roomHandler.signal(socket, data);
-    });
-
-    // socket.on('call', data => {
-    //   roomHandler.callHandler(socket, data);
-    // });
-
+    // L'appelé sonne
     socket.on("ringing", (data) => {
       roomHandler.ringHandler(socket, data);
     });
 
+    // L'utilisateur est occupé
     socket.on("busy", (data) => {
       roomHandler.busyHandler(socket, data);
     });
 
-    socket.on("hang-up", (data, callback) => {
+    // Raccrocher / terminer un appel
+    socket.on("hang-up", (data) => {
       roomHandler.hangUpHandler(socket, data);
-      // callback('C\'est bon');
     });
+
+    // Signal WebRTC (ICE candidates, SDP offer/answer)
+    socket.on("signal", (data) => {
+      roomHandler.signal(socket, data);
+    });
+
+    // ─── Salles d'appel (rooms) ──────────────────────────────────────────────
+
+    // Planifier une réunion
+    socket.on("schedule", (data) => {
+      roomHandler.scheduleHandler(socket, data);
+    });
+
+    // Créer une nouvelle salle d'appel
+    socket.on("create", (data) => {
+      roomHandler.createHandler(socket, data);
+    });
+
+    // Rejoindre une salle existante (ancien handler)
+    socket.on("join", (data) => {
+      roomHandler.joinRoom(socket, data);
+    });
+
+    // Accepter une invitation à rejoindre une salle
+    socket.on("accept", (data) => {
+      roomHandler.accept(socket, data);
+    });
+
+    // Quitter une salle
+    socket.on("leave", (data) => {
+      roomHandler.leaveRoom(socket, data);
+    });
+
+    // Modifier les paramètres d'une salle (titre, permissions…)
+    socket.on("edit-room", (data) => {
+      roomHandler.edit(socket, data);
+    });
+
+    // Rejoindre une salle (nouveau handler avec classe RoomHandler)
+    socket.on("join-room", (data) => new RoomHandler(socket, data));
+
+    // Demander l'accès à une salle verrouillée
+    socket.on("request-join-room", (data) => requestJoinRoom(socket, data));
+
+    // Répondre à une demande d'accès (accepter/refuser)
+    socket.on("response-join-room", (data) => responseJoinRoom(socket, data));
+
+    // ─── Présence & mises à jour ─────────────────────────────────────────────
+
+    // Changer le statut en ligne/hors-ligne/absent
+    socket.on("status", (data) => {
+      socketHandler.statusHandler(socket, data);
+    });
+
+    // Demander la liste des contacts mise à jour
+    socket.on("contacts", () => {
+      updateContacts(socket.userId);
+    });
+
+    // Demander l'historique des dernières conversations
+    socket.on("last", () => {
+      socketHandler.lastHandler(socket.userId);
+    });
+
+    // Demander l'historique des appels
+    socket.on("call-history", () => {
+      updateCallHistory(socket);
+    });
+
+    // ─── Diagnostic réseau ───────────────────────────────────────────────────
+
+    // Mesure du RTT (Round Trip Time) réseau
+    socket.on("rtt-ping", (data) => {
+      socketHandler.networkRttStat(socket, data);
+    });
+
+    // Ping de test (répond immédiatement)
+    socket.on("ping", (data, callback) => {
+      callback("C'est bon");
+    });
+
+    // ─── Déconnexion ─────────────────────────────────────────────────────────
 
     socket.on("disconnect", () => {
       socketHandler.disconnectHandler(socket);
@@ -184,75 +199,8 @@ const registerSocketServer = (server) => {
       socketStore.deleteClient(socket.id);
       console.log("bye disconnected !");
     });
-
-    // new implement call room event
-    socket.on("join-room", (data) => new RoomHandler(socket, data));
-
-    //  request join room event
-    socket.on("request-join-room", (data) => requestJoinRoom(socket, data));
-
-    //  response join room event
-    socket.on("response-join-room", (data) => responseJoinRoom(socket, data));
   });
 
-  // roomIo.use(auth)
-  //   //.use(sharedsession(sessionMiddleware))
-  //   .on('connection', socket => {
-  //     socketHandler.newConnectionHandler(socket, roomIo);
-
-  //     roomStore.addNewConnectedUser({
-  //       socketId: socket.id,
-  //       userId: socket.userId,
-  //       socket: socket
-  //     });
-
-  //     socket.on('ping', (data, callback) => {
-  //       socket.emit('ping', 'ping');
-  //       callback('C\'est bon');
-  //     });
-
-  //     socket.on('schedule', data => {
-  //       roomHandler.scheduleHandler(socket, data);
-  //     });
-
-  //     socket.on('create', data => {
-  //       roomHandler.createHandler(socket, data);
-  //     });
-
-  //     socket.on('join', data => {
-  //       roomHandler.joinRoom(socket, data);
-  //     });
-
-  //     socket.on('leave', data => {
-  //       roomHandler.leaveRoom(socket, data);
-  //     });
-
-  //     socket.on('signal', data => {
-  //       roomHandler.signal(socket, data);
-  //     });
-
-  //     socket.on('call', data => {
-  //       roomHandler.callHandler(socket, data);
-  //     });
-
-  //     socket.on('ringing', data => {
-  //       roomHandler.ringHandler(socket, data);
-  //     });
-
-  //     socket.on('busy', data => {
-  //       roomHandler.busyHandler(socket, data);
-  //     });
-
-  //     socket.on('hang-up', (data, callback) => {
-  //       roomHandler.hangUpHandler(socket, data);
-  //       callback('C\'est bon');
-  //     });
-
-  //     // socket.on('disconnect', () => {
-  //     //   roomHandler.disconnectHandler(socket);
-  //     // });
-
-  //   });
   return io;
 };
 

@@ -1,7 +1,7 @@
 const User = require('../../models/users/user.model');
 const Role = require('../../models/users/role.model');
 const Auth = require('../../models/users/auth.model');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 module.exports = (req, res, next) => {
