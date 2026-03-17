@@ -5,6 +5,7 @@ const workAuth = require('../middleware/users/workAuth');
 
 const workspaceRoutes = require('./workspace');
 const archiveRoutes = require('./archive.routes');
+const physicalRoutes = require('./physical.routes');
 const validateRoutes = require('./validate.route');
 const bookRoutes = require('./book.routes');
 const filmRoutes = require('./film.routes');
@@ -14,6 +15,7 @@ const coverRoutes = require('./cover');
 
 router.use('/workspace', auth, workAuth, workspaceRoutes);
 router.use('/archives', auth, archiveRoutes);
+router.use('/archives/physical', auth, physicalRoutes);
 router.use('/bibliotheque', bookRoutes);
 router.use('/filmotheque', filmRoutes);
 router.use('/phototheque', imageRoutes);

@@ -17,6 +17,7 @@
  *   - routes/frozen.js         → /api/stuff/frozen/*
  *   - routes/cover.js          → /api/stuff/cover/*
  *   - routes/chat.js           → /api/chat/*
+ *   - routes/physical.routes.js → /api/stuff/archives/physical/*
  */
 
 const swaggerSpec = {
@@ -101,6 +102,440 @@ const swaggerSpec = {
           createdAt: { type: 'string', format: 'date-time' },
         },
       },
+      // ── Archivage physique ───────────────────────────────────────────────
+      //
+      // Hiérarchie : Conteneur → Étagère → Étage → Classeur → Dossier → Archive
+      //
+      // Chaque entité "Body" décrit le corps de requête attendu pour la
+      // création (POST) ou la modification (PUT). Les champs marqués comme
+      // `required` dans le Body sont obligatoires à la création.
+
+      // ── Container (Conteneur — niveau racine) ────────────────────────────
+      Container: {
+        type: 'object',
+        description:
+          'Unité de stockage physique de plus haut niveau dans la hiérarchie d\'archivage. ' +
+          'Représente typiquement une armoire, une salle d\'archives ou un meuble identifié. ' +
+          'Un conteneur peut contenir plusieurs étagères (Shelf).',
+        properties: {
+          _id: {
+            type: 'string',
+            example: '64a1b2c3d4e5f6a7b8c9d0e1',
+            description: 'Identifiant unique MongoDB (ObjectId) généré automatiquement.',
+          },
+          name: {
+            type: 'string',
+            example: 'ARMOIRE-A',
+            description: 'Nom du conteneur, stocké en majuscules. Doit être unique dans la collection.',
+          },
+          description: {
+            type: 'string',
+            example: 'Armoire principale — documents administratifs 2020-2024',
+            description: 'Description libre : dimensions, couleur, identifiant interne, etc. Facultatif.',
+          },
+          location: {
+            type: 'string',
+            example: 'Bâtiment principal, salle 102, couloir Nord',
+            description: 'Localisation physique précise dans les locaux. Facultatif mais recommandé pour la traçabilité.',
+          },
+          createdAt: { type: 'string', format: 'date-time', description: 'Date de création (gérée automatiquement par Mongoose).' },
+          updatedAt: { type: 'string', format: 'date-time', description: 'Date de dernière modification (gérée automatiquement par Mongoose).' },
+        },
+      },
+      ContainerBody: {
+        type: 'object',
+        description: 'Corps de requête pour la création ou la modification d\'un conteneur.',
+        required: ['name'],
+        properties: {
+          name: {
+            type: 'string',
+            example: 'ARMOIRE-A',
+            description: 'Nom du conteneur (obligatoire). Automatiquement converti en majuscules. Doit être unique.',
+          },
+          description: {
+            type: 'string',
+            example: 'Armoire principale — documents administratifs 2020-2024',
+            description: 'Description libre. Facultatif.',
+          },
+          location: {
+            type: 'string',
+            example: 'Bâtiment principal, salle 102, couloir Nord',
+            description: 'Localisation physique dans les locaux. Facultatif.',
+          },
+        },
+      },
+
+      // ── Shelf (Étagère — niveau 2) ───────────────────────────────────────
+      Shelf: {
+        type: 'object',
+        description:
+          'Subdivision d\'un conteneur. Une étagère représente un rayon, une travée ou un casier ' +
+          'numéroté à l\'intérieur d\'une armoire. Elle regroupe plusieurs étages (Floor), chacun ' +
+          'pouvant être attribué à une unité administrative différente.',
+        properties: {
+          _id: {
+            type: 'string',
+            example: '64a1b2c3d4e5f6a7b8c9d0e2',
+            description: 'Identifiant unique MongoDB (ObjectId).',
+          },
+          name: {
+            type: 'string',
+            example: 'ETAGERE-01',
+            description: 'Nom de l\'étagère, stocké en majuscules.',
+          },
+          container: {
+            $ref: '#/components/schemas/Container',
+            description: 'Conteneur parent peuplé automatiquement dans les réponses de lecture.',
+          },
+          description: {
+            type: 'string',
+            example: 'Travée gauche — dossiers RH 2020-2022',
+            description: 'Description libre de l\'étagère. Facultatif.',
+          },
+          createdAt: { type: 'string', format: 'date-time', description: 'Date de création.' },
+          updatedAt: { type: 'string', format: 'date-time', description: 'Date de dernière modification.' },
+        },
+      },
+      ShelfBody: {
+        type: 'object',
+        description: 'Corps de requête pour la création ou la modification d\'une étagère.',
+        required: ['name', 'container'],
+        properties: {
+          name: {
+            type: 'string',
+            example: 'ETAGERE-01',
+            description: 'Nom de l\'étagère (obligatoire). Converti en majuscules.',
+          },
+          container: {
+            type: 'string',
+            example: '64a1b2c3d4e5f6a7b8c9d0e1',
+            description: '_id MongoDB du conteneur parent (obligatoire). Doit être un ObjectId valide.',
+          },
+          description: {
+            type: 'string',
+            example: 'Travée gauche — dossiers RH 2020-2022',
+            description: 'Description libre. Facultatif.',
+          },
+        },
+      },
+
+      // ── Floor (Étage — niveau 3) ─────────────────────────────────────────
+      Floor: {
+        type: 'object',
+        description:
+          'Niveau numéroté à l\'intérieur d\'une étagère. L\'étage constitue le pont entre ' +
+          'la localisation physique (étagère → conteneur) et l\'organisation administrative ' +
+          '(unité administrative / rôle). Il permet de répondre à : ' +
+          '"Quel service utilise ce niveau d\'étagère ?"',
+        properties: {
+          _id: {
+            type: 'string',
+            example: '64a1b2c3d4e5f6a7b8c9d0e3',
+            description: 'Identifiant unique MongoDB (ObjectId).',
+          },
+          number: {
+            type: 'integer',
+            example: 2,
+            description: 'Numéro d\'ordre physique de l\'étage dans l\'étagère parente (1, 2, 3…). Permet le tri et l\'affichage ordonné.',
+          },
+          label: {
+            type: 'string',
+            example: 'Niveau 2 — Ressources Humaines 2019-2023',
+            description: 'Libellé descriptif de l\'étage. Facultatif mais utile pour l\'interface utilisateur.',
+          },
+          shelf: {
+            $ref: '#/components/schemas/Shelf',
+            description: 'Étagère parente peuplée automatiquement dans les réponses de lecture.',
+          },
+          administrativeUnit: {
+            type: 'object',
+            description: 'Unité administrative (rôle) responsable de cet étage, peuplée automatiquement.',
+            properties: {
+              _id:  { type: 'string', description: 'ObjectId du rôle.' },
+              name: { type: 'string', description: 'Nom du rôle / de la direction.' },
+            },
+          },
+          createdAt: { type: 'string', format: 'date-time', description: 'Date de création.' },
+          updatedAt: { type: 'string', format: 'date-time', description: 'Date de dernière modification.' },
+        },
+      },
+      FloorBody: {
+        type: 'object',
+        description: 'Corps de requête pour la création ou la modification d\'un étage.',
+        required: ['number', 'shelf', 'administrativeUnit'],
+        properties: {
+          number: {
+            type: 'integer',
+            example: 2,
+            description: 'Numéro de l\'étage dans l\'étagère (obligatoire). Entier positif.',
+          },
+          label: {
+            type: 'string',
+            example: 'Niveau 2 — Ressources Humaines',
+            description: 'Libellé descriptif. Facultatif.',
+          },
+          shelf: {
+            type: 'string',
+            example: '64a1b2c3d4e5f6a7b8c9d0e2',
+            description: '_id MongoDB de l\'étagère parente (obligatoire). Doit être un ObjectId valide.',
+          },
+          administrativeUnit: {
+            type: 'string',
+            example: '64a1b2c3d4e5f6a7b8c9d0e0',
+            description: '_id MongoDB du rôle / unité administrative responsable (obligatoire). Doit être un ObjectId valide.',
+          },
+        },
+      },
+
+      // ── Binder (Classeur — niveau 4) ─────────────────────────────────────
+      Binder: {
+        type: 'object',
+        description:
+          'Conteneur direct des dossiers physiques, positionné sur un étage. ' +
+          'Le classeur est l\'entité régulatrice du flux : il impose une nature unique ' +
+          '(seuls les dossiers de même nature peuvent y être rangés) et une capacité ' +
+          'maximale (aucun dossier supplémentaire n\'est accepté au-delà du plafond). ' +
+          'La suppression d\'un classeur non vide est refusée (HTTP 409).',
+        properties: {
+          _id: {
+            type: 'string',
+            example: '64a1b2c3d4e5f6a7b8c9d0e4',
+            description: 'Identifiant unique MongoDB (ObjectId).',
+          },
+          name: {
+            type: 'string',
+            example: 'CLASSEUR-RH-01',
+            description: 'Nom du classeur, stocké en majuscules.',
+          },
+          floor: {
+            $ref: '#/components/schemas/Floor',
+            description: 'Étage parent peuplé automatiquement dans les réponses de lecture.',
+          },
+          nature: {
+            type: 'string',
+            example: 'RH',
+            description:
+              'Spécialité du classeur (ex : "RH", "FINANCE", "JURIDIQUE"). ' +
+              'Stockée en majuscules. Détermine quels dossiers peuvent y être placés : ' +
+              'un dossier doit avoir exactement la même nature pour être accepté.',
+          },
+          maxCapacity: {
+            type: 'integer',
+            example: 50,
+            description: 'Nombre maximal de dossiers autorisés dans ce classeur (minimum 1). Toute tentative de dépassement est refusée avec HTTP 422.',
+          },
+          currentCount: {
+            type: 'integer',
+            example: 12,
+            description:
+              'Nombre de dossiers actuellement présents dans le classeur. ' +
+              'Champ calculé dynamiquement par le serveur (non stocké en base). ' +
+              'Disponible uniquement dans la réponse de GET /binders/:id.',
+          },
+          createdAt: { type: 'string', format: 'date-time', description: 'Date de création.' },
+          updatedAt: { type: 'string', format: 'date-time', description: 'Date de dernière modification.' },
+        },
+      },
+      BinderBody: {
+        type: 'object',
+        description: 'Corps de requête pour la création ou la modification d\'un classeur.',
+        required: ['name', 'floor', 'nature', 'maxCapacity'],
+        properties: {
+          name: {
+            type: 'string',
+            example: 'CLASSEUR-RH-01',
+            description: 'Nom du classeur (obligatoire). Converti en majuscules.',
+          },
+          floor: {
+            type: 'string',
+            example: '64a1b2c3d4e5f6a7b8c9d0e3',
+            description: '_id MongoDB de l\'étage parent (obligatoire). Doit être un ObjectId valide.',
+          },
+          nature: {
+            type: 'string',
+            example: 'RH',
+            description:
+              'Nature / spécialité du classeur (obligatoire). Converti en majuscules. ' +
+              'Exemples : "RH", "FINANCE", "JURIDIQUE", "TECHNIQUE". ' +
+              'Un dossier ne peut être ajouté que si sa nature est identique.',
+          },
+          maxCapacity: {
+            type: 'integer',
+            example: 50,
+            minimum: 1,
+            description: 'Capacité maximale en nombre de dossiers (obligatoire, minimum 1).',
+          },
+        },
+      },
+
+      // ── Record (Dossier physique — niveau 5) ─────────────────────────────
+      Record: {
+        type: 'object',
+        description:
+          'Entité pivot du système d\'archivage physique. Représente le dossier cartonné réel ' +
+          'placé dans un classeur. Possède un QR code unique (UUID v4) généré automatiquement ' +
+          'à la création, destiné à être imprimé et collé sur le dossier physique pour assurer ' +
+          'le lien physique-numérique. ' +
+          'Deux règles métier protègent l\'intégrité : ' +
+          '(1) la nature du dossier doit correspondre à celle du classeur cible ; ' +
+          '(2) le classeur ne doit pas être plein.',
+        properties: {
+          _id: {
+            type: 'string',
+            example: '64a1b2c3d4e5f6a7b8c9d0e5',
+            description: 'Identifiant unique MongoDB (ObjectId).',
+          },
+          internalNumber: {
+            type: 'string',
+            example: 'DOS-2024-0042',
+            description:
+              'Numéro interne attribué par l\'organisation selon sa propre nomenclature. ' +
+              'Doit être unique dans toute la collection. Exemple : "DOS-2024-0042", "DRH-2024-001".',
+          },
+          refNumber: {
+            type: 'string',
+            example: 'REF-MINISTERE-2024-007',
+            description:
+              'Numéro de référence externe, provenant d\'un système tiers, d\'un courrier ' +
+              'officiel ou d\'une procédure administrative externe.',
+          },
+          editionDate: {
+            type: 'string',
+            format: 'date',
+            example: '2024-01-15',
+            description:
+              'Date d\'édition (création) du document physique contenu dans le dossier. ' +
+              'Correspond à la date figurant sur le document lui-même, pas à la date d\'archivage.',
+          },
+          archivingDate: {
+            type: 'string',
+            format: 'date',
+            example: '2024-03-01',
+            description:
+              'Date à laquelle le dossier a été physiquement placé en archive. ' +
+              'Peut différer de editionDate si le document a circulé avant archivage.',
+          },
+          subject: {
+            type: 'string',
+            example: 'Contrat de travail — Jean Dupont',
+            description: 'Objet / sujet principal du dossier. Résumé court décrivant le contenu ou la finalité.',
+          },
+          category: {
+            type: 'string',
+            example: 'Contrats',
+            description: 'Catégorie selon la classification interne de l\'organisation. Exemples : "Contrats", "Marchés", "Correspondances".',
+          },
+          nature: {
+            type: 'string',
+            example: 'RH',
+            description:
+              'Nature du dossier, stockée en majuscules. ' +
+              'CONTRAINTE : doit être identique à binder.nature. ' +
+              'Vérifiée côté serveur — toute incompatibilité renvoie HTTP 422.',
+          },
+          binder: {
+            $ref: '#/components/schemas/Binder',
+            description: 'Classeur parent peuplé automatiquement dans les réponses de lecture (getOne, getByQrCode).',
+          },
+          agent: {
+            type: 'object',
+            description:
+              'Utilisateur ayant introduit le dossier dans le système. ' +
+              'Renseigné automatiquement par le serveur (utilisateur authentifié) — ' +
+              'ne pas fournir dans le corps de la requête.',
+            properties: {
+              _id:       { type: 'string',  description: 'ObjectId de l\'utilisateur.' },
+              firstName: { type: 'string',  description: 'Prénom.' },
+              lastName:  { type: 'string',  description: 'Nom de famille.' },
+            },
+          },
+          qrCode: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000',
+            description:
+              'UUID v4 généré automatiquement à la création via crypto.randomUUID(). ' +
+              'Destiné à être imprimé sur le dossier cartonné physique. ' +
+              'Permet de retrouver la fiche numérique via GET /records/qr/:qrCode. ' +
+              'Ne jamais fournir dans le corps de la requête (ignoré / rejeté par l\'unicité).',
+          },
+          metadata: {
+            type: 'object',
+            additionalProperties: true,
+            example: { visa: 'DRH', urgent: true, nbPages: 42, cote: 'A-12-RH' },
+            description:
+              'Champ JSON libre pour des informations complémentaires non prévues dans le schéma standard. ' +
+              'Permet à chaque organisation d\'ajouter ses propres attributs sans modifier la base. ' +
+              'Facultatif. Exemples : visa du responsable, niveau de confidentialité, cotation, etc.',
+          },
+          createdAt: { type: 'string', format: 'date-time', description: 'Date de création du dossier numérique.' },
+          updatedAt: { type: 'string', format: 'date-time', description: 'Date de dernière modification.' },
+        },
+      },
+      RecordBody: {
+        type: 'object',
+        description:
+          'Corps de requête pour la création ou la modification d\'un dossier. ' +
+          'Le champ `agent` est injecté automatiquement (utilisateur connecté) et ne doit pas être fourni. ' +
+          'Le champ `qrCode` est généré automatiquement à la création et ne peut pas être modifié.',
+        required: ['internalNumber', 'refNumber', 'editionDate', 'archivingDate', 'subject', 'category', 'nature', 'binder'],
+        properties: {
+          internalNumber: {
+            type: 'string',
+            example: 'DOS-2024-0042',
+            description: 'Numéro interne unique selon la nomenclature de l\'organisation (obligatoire).',
+          },
+          refNumber: {
+            type: 'string',
+            example: 'REF-MINISTERE-2024-007',
+            description: 'Numéro de référence externe (obligatoire).',
+          },
+          editionDate: {
+            type: 'string',
+            format: 'date',
+            example: '2024-01-15',
+            description: 'Date de création du document physique (obligatoire). Format ISO 8601 : YYYY-MM-DD.',
+          },
+          archivingDate: {
+            type: 'string',
+            format: 'date',
+            example: '2024-03-01',
+            description: 'Date de mise en archive physique (obligatoire). Format ISO 8601 : YYYY-MM-DD.',
+          },
+          subject: {
+            type: 'string',
+            example: 'Contrat de travail — Jean Dupont',
+            description: 'Objet principal du dossier (obligatoire).',
+          },
+          category: {
+            type: 'string',
+            example: 'Contrats',
+            description: 'Catégorie selon la classification interne (obligatoire).',
+          },
+          nature: {
+            type: 'string',
+            example: 'RH',
+            description:
+              'Nature du dossier (obligatoire). ' +
+              'RÈGLE MÉTIER : doit correspondre exactement à binder.nature (insensible à la casse — converti en majuscules). ' +
+              'Une incompatibilité déclenche HTTP 422.',
+          },
+          binder: {
+            type: 'string',
+            example: '64a1b2c3d4e5f6a7b8c9d0e4',
+            description:
+              '_id MongoDB du classeur cible (obligatoire). ' +
+              'Le classeur doit exister, avoir la même nature et ne pas être plein. ' +
+              'Toute violation déclenche HTTP 422.',
+          },
+          metadata: {
+            type: 'object',
+            additionalProperties: true,
+            example: { visa: 'DRH', urgent: true, nbPages: 42 },
+            description: 'Métadonnées libres JSON. Facultatif.',
+          },
+        },
+      },
       // ── Chat ─────────────────────────────────────────────────────────────
       Room: {
         type: 'object',
@@ -153,7 +588,8 @@ const swaggerSpec = {
     { name: 'Photothèque',  description: 'Gestion de la photothèque (images)' },
     { name: 'Favoris',      description: 'Éléments gelés / mis en favoris' },
     { name: 'Couvertures',  description: 'Gestion des images de couverture' },
-    { name: 'Chat',         description: 'Messagerie, appels et salles de chat' },
+    { name: 'Chat',              description: 'Messagerie, appels et salles de chat' },
+    { name: 'Archivage Physique', description: 'Hiérarchie physique d\'archivage : Conteneur → Étagère → Étage → Classeur → Dossier' },
   ],
 
   paths: {
@@ -1666,6 +2102,739 @@ const swaggerSpec = {
         },
       },
     },
+
+    // =========================================================================
+    // ARCHIVAGE PHYSIQUE  — /api/stuff/archives/physical/*
+    //
+    // Toutes ces routes sont protégées par JWT (middleware `auth` appliqué
+    // en amont dans stuff.js). Elles gèrent la hiérarchie physique complète :
+    //
+    //   Conteneur → Étagère → Étage → Classeur → Dossier → Archive
+    //
+    // Règles métier clés :
+    //   • Nature  : un dossier ne peut être placé que dans un classeur de même nature.
+    //   • Capacité: l'ajout est refusé si le classeur a atteint sa capacité maximale.
+    //   • QR code : généré automatiquement (UUID v4) à la création du dossier.
+    //   • Intégrité : un classeur non vide ne peut pas être supprimé.
+    // =========================================================================
+
+    // ── Conteneurs ────────────────────────────────────────────────────────────
+    // Niveau racine de la hiérarchie. Un conteneur regroupe plusieurs étagères.
+
+    '/api/stuff/archives/physical/containers': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Lister tous les conteneurs',
+        description:
+          'Retourne l\'ensemble des conteneurs de la base. ' +
+          'Utilisé pour alimenter les sélecteurs lors de la création d\'étagères ' +
+          'ou pour afficher la vue d\'ensemble de l\'organisation physique.',
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Liste complète des conteneurs.',
+            content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Container' } } } },
+          },
+          401: { description: 'Token JWT absent ou invalide.' },
+          500: { description: 'Erreur interne du serveur.' },
+        },
+      },
+      post: {
+        tags: ['Archivage Physique'],
+        summary: 'Créer un conteneur',
+        description:
+          'Crée un nouveau conteneur (niveau racine). ' +
+          'Le champ `name` est automatiquement converti en majuscules et doit être unique.',
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/ContainerBody' } } },
+        },
+        responses: {
+          201: {
+            description: 'Conteneur créé avec succès.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Container' } } },
+          },
+          400: { description: 'Données invalides — champ obligatoire manquant ou nom déjà existant.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    '/api/stuff/archives/physical/containers/{id}': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Récupérer un conteneur par son identifiant',
+        description: 'Retourne le détail complet d\'un conteneur identifié par son _id MongoDB.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB du conteneur (ObjectId).',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e1' },
+        }],
+        responses: {
+          200: {
+            description: 'Conteneur trouvé.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Container' } } },
+          },
+          404: { description: 'Aucun conteneur ne correspond à cet identifiant.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+      put: {
+        tags: ['Archivage Physique'],
+        summary: 'Modifier un conteneur',
+        description:
+          'Met à jour les champs d\'un conteneur existant (mise à jour partielle possible). ' +
+          'Les contraintes du schéma (unicité du nom, etc.) sont réévaluées.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB du conteneur à modifier.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e1' },
+        }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/ContainerBody' } } },
+        },
+        responses: {
+          200: {
+            description: 'Conteneur mis à jour.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Container' } } },
+          },
+          400: { description: 'Données invalides.' },
+          404: { description: 'Conteneur introuvable.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+      delete: {
+        tags: ['Archivage Physique'],
+        summary: 'Supprimer un conteneur',
+        description:
+          'Supprime un conteneur de la base. ' +
+          'Attention : vérifier au préalable que le conteneur ne contient plus d\'étagères ' +
+          'pour éviter des références orphelines.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB du conteneur à supprimer.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e1' },
+        }],
+        responses: {
+          200: {
+            description: 'Conteneur supprimé.',
+            content: { 'application/json': { schema: { type: 'object', properties: { message: { type: 'string', example: 'Conteneur supprimé' } } } } },
+          },
+          404: { description: 'Conteneur introuvable.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    // ── Étagères ──────────────────────────────────────────────────────────────
+    // Niveau 2. Une étagère appartient à un conteneur et regroupe des étages.
+
+    '/api/stuff/archives/physical/shelves': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Lister toutes les étagères',
+        description:
+          'Retourne l\'ensemble des étagères. ' +
+          'Le champ `container` est peuplé automatiquement (_id, name, location).',
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Liste complète des étagères avec conteneur peuplé.',
+            content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Shelf' } } } },
+          },
+          401: { description: 'Token JWT absent ou invalide.' },
+          500: { description: 'Erreur interne du serveur.' },
+        },
+      },
+      post: {
+        tags: ['Archivage Physique'],
+        summary: 'Créer une étagère',
+        description:
+          'Crée une nouvelle étagère rattachée à un conteneur existant. ' +
+          'Le champ `container` doit être un _id MongoDB valide d\'un conteneur existant.',
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/ShelfBody' } } },
+        },
+        responses: {
+          201: {
+            description: 'Étagère créée.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Shelf' } } },
+          },
+          400: { description: 'Données invalides — champ manquant ou _id de conteneur invalide.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    '/api/stuff/archives/physical/shelves/container/{containerId}': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Lister les étagères d\'un conteneur',
+        description:
+          'Retourne toutes les étagères appartenant au conteneur spécifié. ' +
+          'Utile pour construire la vue détaillée d\'un conteneur.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'containerId', in: 'path', required: true,
+          description: '_id MongoDB du conteneur parent.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e1' },
+        }],
+        responses: {
+          200: {
+            description: 'Liste des étagères du conteneur.',
+            content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Shelf' } } } },
+          },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    '/api/stuff/archives/physical/shelves/{id}': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Récupérer une étagère par son identifiant',
+        description: 'Retourne le détail d\'une étagère avec son conteneur parent peuplé.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB de l\'étagère.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e2' },
+        }],
+        responses: {
+          200: {
+            description: 'Étagère trouvée.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Shelf' } } },
+          },
+          404: { description: 'Étagère introuvable.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+      put: {
+        tags: ['Archivage Physique'],
+        summary: 'Modifier une étagère',
+        description: 'Met à jour les champs d\'une étagère existante (mise à jour partielle possible).',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB de l\'étagère à modifier.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e2' },
+        }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/ShelfBody' } } },
+        },
+        responses: {
+          200: {
+            description: 'Étagère mise à jour.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Shelf' } } },
+          },
+          400: { description: 'Données invalides.' },
+          404: { description: 'Étagère introuvable.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+      delete: {
+        tags: ['Archivage Physique'],
+        summary: 'Supprimer une étagère',
+        description: 'Supprime une étagère. Vérifier au préalable qu\'elle ne contient plus d\'étages.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB de l\'étagère à supprimer.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e2' },
+        }],
+        responses: {
+          200: {
+            description: 'Étagère supprimée.',
+            content: { 'application/json': { schema: { type: 'object', properties: { message: { type: 'string', example: 'Étagère supprimée' } } } } },
+          },
+          404: { description: 'Étagère introuvable.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    // ── Étages ────────────────────────────────────────────────────────────────
+    // Niveau 3. Double rattachement : étagère (physique) + unité administrative.
+
+    '/api/stuff/archives/physical/floors': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Lister tous les étages',
+        description:
+          'Retourne tous les étages. ' +
+          'Les champs `shelf` (étagère parente) et `administrativeUnit` (rôle/direction) ' +
+          'sont peuplés automatiquement.',
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Liste complète des étages.',
+            content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Floor' } } } },
+          },
+          401: { description: 'Token JWT absent ou invalide.' },
+          500: { description: 'Erreur interne du serveur.' },
+        },
+      },
+      post: {
+        tags: ['Archivage Physique'],
+        summary: 'Créer un étage',
+        description:
+          'Crée un nouvel étage rattaché à une étagère et à une unité administrative. ' +
+          'Les champs `shelf` et `administrativeUnit` doivent être des _id MongoDB valides.',
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/FloorBody' } } },
+        },
+        responses: {
+          201: {
+            description: 'Étage créé.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Floor' } } },
+          },
+          400: { description: 'Données invalides — champ manquant ou _id invalide.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    '/api/stuff/archives/physical/floors/shelf/{shelfId}': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Lister les étages d\'une étagère',
+        description:
+          'Retourne tous les étages d\'une étagère donnée, avec leur unité administrative respective. ' +
+          'Utile pour connaître les services qui utilisent chaque niveau d\'une étagère.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'shelfId', in: 'path', required: true,
+          description: '_id MongoDB de l\'étagère parente.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e2' },
+        }],
+        responses: {
+          200: {
+            description: 'Liste des étages de l\'étagère.',
+            content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Floor' } } } },
+          },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    '/api/stuff/archives/physical/floors/{id}': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Récupérer un étage par son identifiant',
+        description: 'Retourne le détail d\'un étage avec étagère et unité administrative peuplés.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB de l\'étage.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e3' },
+        }],
+        responses: {
+          200: {
+            description: 'Étage trouvé.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Floor' } } },
+          },
+          404: { description: 'Étage introuvable.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+      put: {
+        tags: ['Archivage Physique'],
+        summary: 'Modifier un étage',
+        description: 'Met à jour les champs d\'un étage existant (mise à jour partielle possible).',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB de l\'étage à modifier.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e3' },
+        }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/FloorBody' } } },
+        },
+        responses: {
+          200: {
+            description: 'Étage mis à jour.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Floor' } } },
+          },
+          400: { description: 'Données invalides.' },
+          404: { description: 'Étage introuvable.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+      delete: {
+        tags: ['Archivage Physique'],
+        summary: 'Supprimer un étage',
+        description: 'Supprime un étage. Vérifier au préalable qu\'il ne contient plus de classeurs.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB de l\'étage à supprimer.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e3' },
+        }],
+        responses: {
+          200: {
+            description: 'Étage supprimé.',
+            content: { 'application/json': { schema: { type: 'object', properties: { message: { type: 'string', example: 'Étage supprimé' } } } } },
+          },
+          404: { description: 'Étage introuvable.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    // ── Classeurs ─────────────────────────────────────────────────────────────
+    // Niveau 4. Entité régulatrice : impose une nature et une capacité maximale.
+
+    '/api/stuff/archives/physical/binders': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Lister tous les classeurs',
+        description:
+          'Retourne tous les classeurs. ' +
+          'Le champ `floor` est peuplé avec _id, number et label de l\'étage parent.',
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Liste complète des classeurs.',
+            content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Binder' } } } },
+          },
+          401: { description: 'Token JWT absent ou invalide.' },
+          500: { description: 'Erreur interne du serveur.' },
+        },
+      },
+      post: {
+        tags: ['Archivage Physique'],
+        summary: 'Créer un classeur',
+        description:
+          'Crée un nouveau classeur sur un étage existant. ' +
+          '`nature` et `name` sont convertis en majuscules. ' +
+          '`maxCapacity` (minimum 1) définit le plafond d\'accueil des dossiers.',
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/BinderBody' } } },
+        },
+        responses: {
+          201: {
+            description: 'Classeur créé.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Binder' } } },
+          },
+          400: { description: 'Données invalides — champ manquant, capacité < 1, ou _id invalide.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    '/api/stuff/archives/physical/binders/floor/{floorId}': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Lister les classeurs d\'un étage',
+        description:
+          'Retourne tous les classeurs d\'un étage donné. ' +
+          'Utile pour guider l\'utilisateur lors de l\'affectation d\'un dossier ' +
+          '(visualiser les classeurs disponibles et leurs natures).',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'floorId', in: 'path', required: true,
+          description: '_id MongoDB de l\'étage parent.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e3' },
+        }],
+        responses: {
+          200: {
+            description: 'Liste des classeurs de l\'étage.',
+            content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Binder' } } } },
+          },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    '/api/stuff/archives/physical/binders/{id}': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Récupérer un classeur avec son taux de remplissage',
+        description:
+          'Retourne le détail du classeur enrichi d\'un champ `currentCount` calculé dynamiquement. ' +
+          '`currentCount` représente le nombre de dossiers actuellement présents, ' +
+          'permettant à l\'interface d\'afficher une jauge : currentCount / maxCapacity.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB du classeur.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e4' },
+        }],
+        responses: {
+          200: {
+            description: 'Classeur trouvé avec currentCount calculé.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Binder' } } },
+          },
+          404: { description: 'Classeur introuvable.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+      put: {
+        tags: ['Archivage Physique'],
+        summary: 'Modifier un classeur',
+        description:
+          'Met à jour les champs d\'un classeur existant. ' +
+          'Attention : modifier `nature` après que des dossiers sont déjà présents ' +
+          'peut créer une incohérence. À valider côté client si nécessaire.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB du classeur à modifier.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e4' },
+        }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/BinderBody' } } },
+        },
+        responses: {
+          200: {
+            description: 'Classeur mis à jour.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Binder' } } },
+          },
+          400: { description: 'Données invalides.' },
+          404: { description: 'Classeur introuvable.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+      delete: {
+        tags: ['Archivage Physique'],
+        summary: 'Supprimer un classeur',
+        description:
+          'Supprime un classeur uniquement s\'il est vide. ' +
+          'Si au moins un dossier référence ce classeur, la suppression est refusée ' +
+          'avec HTTP 409 pour préserver l\'intégrité référentielle.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB du classeur à supprimer.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e4' },
+        }],
+        responses: {
+          200: {
+            description: 'Classeur supprimé.',
+            content: { 'application/json': { schema: { type: 'object', properties: { message: { type: 'string', example: 'Classeur supprimé' } } } } },
+          },
+          404: { description: 'Classeur introuvable.' },
+          409: {
+            description: 'Suppression refusée — le classeur contient encore des dossiers.',
+            content: { 'application/json': { schema: { type: 'object', properties: { message: { type: 'string', example: 'Impossible de supprimer ce classeur : il contient des dossiers' } } } } },
+          },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    // ── Dossiers (records) ────────────────────────────────────────────────────
+    // Niveau 5. Entité pivot. QR code généré automatiquement. Règles métier strictes.
+
+    '/api/stuff/archives/physical/records': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Lister tous les dossiers',
+        description:
+          'Retourne tous les dossiers physiques. ' +
+          'Les champs `binder` (nom, nature, étage) et `agent` (prénom, nom) ' +
+          'sont peuplés automatiquement.',
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Liste complète des dossiers.',
+            content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Record' } } } },
+          },
+          401: { description: 'Token JWT absent ou invalide.' },
+          500: { description: 'Erreur interne du serveur.' },
+        },
+      },
+      post: {
+        tags: ['Archivage Physique'],
+        summary: 'Créer un dossier physique',
+        description:
+          '**Règles métier appliquées avant création :**\n\n' +
+          '1. **Existence du classeur** — HTTP 404 si le classeur cible est introuvable.\n' +
+          '2. **Validation de la nature** — `record.nature` doit être identique à `binder.nature` ' +
+          '(insensible à la casse). HTTP 422 si incompatible.\n' +
+          '3. **Contrôle de capacité** — le nombre de dossiers existants doit être ' +
+          '< `binder.maxCapacity`. HTTP 422 si le classeur est plein.\n\n' +
+          '**Champs générés automatiquement :**\n' +
+          '- `qrCode` : UUID v4 unique, généré par `crypto.randomUUID()`. ' +
+          'Destiné à être imprimé sur le dossier physique.\n' +
+          '- `agent` : utilisateur connecté (res.locals.userId), ne pas fournir dans le body.',
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/RecordBody' } } },
+        },
+        responses: {
+          201: {
+            description: 'Dossier créé avec QR code généré.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Record' } } },
+          },
+          404: { description: 'Classeur cible introuvable.' },
+          422: {
+            description: 'Règle métier violée — nature incompatible ou classeur plein.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: { message: { type: 'string', example: 'La nature du dossier (\'FINANCE\') ne correspond pas à celle du classeur (\'RH\')' } },
+                },
+              },
+            },
+          },
+          400: { description: 'Données invalides (validation du schéma).' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    '/api/stuff/archives/physical/records/binder/{binderId}': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Lister les dossiers d\'un classeur',
+        description:
+          'Retourne tous les dossiers présents dans un classeur donné. ' +
+          'Utile pour afficher le contenu d\'un classeur ou vérifier son état de remplissage.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'binderId', in: 'path', required: true,
+          description: '_id MongoDB du classeur.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e4' },
+        }],
+        responses: {
+          200: {
+            description: 'Liste des dossiers du classeur.',
+            content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Record' } } } },
+          },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    '/api/stuff/archives/physical/records/qr/{qrCode}': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Retrouver un dossier par QR code — lien physique-numérique',
+        description:
+          '**Point d\'entrée principal du lien physique-numérique.**\n\n' +
+          'En scannant le QR code imprimé sur un dossier cartonné, l\'application ' +
+          'appelle cet endpoint pour afficher instantanément la fiche numérique complète.\n\n' +
+          'Retourne le dossier avec sa **chaîne hiérarchique entière peuplée** :\n' +
+          'Dossier → Classeur → Étage → Étagère → Conteneur + Unité administrative.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'qrCode', in: 'path', required: true,
+          description: 'UUID v4 du QR code imprimé sur le dossier physique. Exemple : "550e8400-e29b-41d4-a716-446655440000".',
+          schema: { type: 'string', format: 'uuid', example: '550e8400-e29b-41d4-a716-446655440000' },
+        }],
+        responses: {
+          200: {
+            description: 'Dossier trouvé avec toute la hiérarchie peuplée (Classeur → Étage → Étagère → Conteneur).',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Record' } } },
+          },
+          404: { description: 'Aucun dossier ne correspond à ce QR code.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    '/api/stuff/archives/physical/records/{id}': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Récupérer un dossier avec sa hiérarchie complète',
+        description:
+          'Retourne un dossier identifié par son _id MongoDB, enrichi de toute ' +
+          'la chaîne de localisation physique peuplée :\n' +
+          'Dossier → Classeur → Étage → { Étagère → Conteneur, Unité administrative }.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB du dossier.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e5' },
+        }],
+        responses: {
+          200: {
+            description: 'Dossier trouvé avec hiérarchie complète.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Record' } } },
+          },
+          404: { description: 'Dossier introuvable.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+      put: {
+        tags: ['Archivage Physique'],
+        summary: 'Modifier un dossier',
+        description:
+          'Met à jour un dossier existant. Si `binder` ou `nature` sont modifiés, ' +
+          'les règles métier sont **re-validées** :\n\n' +
+          '- **Nature** : la nouvelle nature doit correspondre à celle du classeur cible.\n' +
+          '- **Capacité** : si le classeur change, le classeur de destination ' +
+          'ne doit pas être plein.\n\n' +
+          'Note : le `qrCode` ne peut pas être modifié après sa génération initiale.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB du dossier à modifier.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e5' },
+        }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/RecordBody' } } },
+        },
+        responses: {
+          200: {
+            description: 'Dossier mis à jour.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Record' } } },
+          },
+          404: { description: 'Dossier ou classeur introuvable.' },
+          422: {
+            description: 'Règle métier violée — nature incompatible ou classeur de destination plein.',
+            content: {
+              'application/json': {
+                schema: { type: 'object', properties: { message: { type: 'string', example: 'Le classeur de destination est plein (capacité maximale : 50)' } } },
+              },
+            },
+          },
+          400: { description: 'Données invalides.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+      delete: {
+        tags: ['Archivage Physique'],
+        summary: 'Supprimer un dossier',
+        description:
+          'Supprime un dossier physique de la base. ' +
+          'Les archives numériques liées via le champ `record` (Archive model) ' +
+          'conservent leur référence après la suppression (références orphelines possibles).',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB du dossier à supprimer.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e5' },
+        }],
+        responses: {
+          200: {
+            description: 'Dossier supprimé.',
+            content: { 'application/json': { schema: { type: 'object', properties: { message: { type: 'string', example: 'Dossier supprimé' } } } } },
+          },
+          404: { description: 'Dossier introuvable.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
   },
 };
 

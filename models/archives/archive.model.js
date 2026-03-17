@@ -72,6 +72,16 @@ const archiveSchema = new Schema({
 		type: String,
 		required: true
 	},
+	// Référence vers le dossier physique dans la hiérarchie d'archivage
+	record: {
+		type: String,
+		ref: 'record',
+		validate: {
+			validator: value => !value || isValidObjectId(value),
+			message: () => "Au champ 'record' doit correspondre un _id de dossier valide"
+		},
+		required: false
+	},
 	validated: {
 		type: Boolean,
 		required: true,
