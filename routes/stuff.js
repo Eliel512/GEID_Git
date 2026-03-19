@@ -12,7 +12,9 @@ const filmRoutes = require('./film.routes');
 const imageRoutes = require('./image.routes');
 const frozenRoutes = require('./frozen');
 const coverRoutes = require('./cover');
+const permissionsCtrl = require('../controllers/archives/permissions');
 
+router.get('/me/permissions', auth, permissionsCtrl);  // permissions archives de l'utilisateur courant
 router.use('/workspace', auth, workAuth, workspaceRoutes);
 router.use('/archives', auth, archiveRoutes);
 router.use('/archives/physical', auth, physicalRoutes);

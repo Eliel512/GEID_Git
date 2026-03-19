@@ -8,20 +8,33 @@ const Archive = require('../../models/archives/archive.model');
 // const path = require('path');
 // const getPath = require('../../tools/getRoleUrl');
 
-module.exports = (req, res) => {
-    Archive.findOneAndUpdate({
-        _id: req.body.id
-    }, { $set: {
-        classNumber: req.body.classNumber,
-        refNumber: req.body.refNumber,
-        'type.profil': res.locals.profil,
-        validated: true
-    } }, { new: true })
-        .then(archive => {
-            res.status(200).json(archive);
-        })
-        .catch(error => {
-            console.log(error);
-            res.status(500).json({ message: 'Une erreur est survenue' });
-        });
+module.exports = async (req, res) => {
+    try {
+        const archive = await Archive.findOneAndUpdate(
+            { _id: req.body.id },
+            {
+                $set: {
+                    classNumber: req.body.classNumber,
+                    refNumber: req.body.refNumber,
+                    'type.profil': res.locals.profil,
+                    validated: true,
+                    status: 'validated'
+                },
+                $push: {
+                    lifecycleHistory: {
+                        status: 'validated',
+                        changedAt: new Date(),
+                        changedBy: res.locals.userId,
+                        note: 'Validation initiale'
+                    }
+                }
+            },
+            { new: true }
+        );
+        if (!archive) return res.status(404).json({ message: 'Archive introuvable' });
+        res.status(200).json(archive);
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: 'Une erreur est survenue' });
+    }
 };

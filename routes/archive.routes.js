@@ -11,14 +11,17 @@ const getAll = require('../controllers/archives/getAll');
 const getAllValidate = require('../controllers/archives/getAllValidate');
 const getAllValidateMiddleware = require('../middleware/archives/getAllValidate');
 const postOne = require('../controllers/archives/postOne');
+const lifecycle = require('../controllers/archives/lifecycle');
+const checkWriteAccess = require('../middleware/archives/checkWriteAccess');
 
 router.use('/invalid', invalidAuth, invalidRoutes);
 router.use('/event', eventRoutes);
 
 router.get('/archived', getAllValidateMiddleware, getAllValidate);
+router.patch('/:id/lifecycle', lifecycle);         // transitions du cycle de vie
 router.get('/:role', getAll);
 router.post('/', postOneMiddleware, postOne);
-router.put('/:id', archiveCtrl.modify);
-router.delete('/:id', archiveCtrl.delete);
+router.put('/:id', checkWriteAccess, archiveCtrl.modify);
+router.delete('/:id', checkWriteAccess, archiveCtrl.delete);
 
 module.exports = router;

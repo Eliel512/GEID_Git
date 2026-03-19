@@ -87,6 +87,19 @@ const archiveSchema = new Schema({
 		required: true,
 		default: false
 	},
+	// Cycle de vie : état courant du document
+	status: {
+		type: String,
+		enum: ['pending', 'validated', 'archived', 'disposed'],
+		default: 'pending'
+	},
+	// Historique des transitions du cycle de vie
+	lifecycleHistory: [{
+		status: { type: String, enum: ['pending', 'validated', 'archived', 'disposed'] },
+		changedAt: { type: Date, default: Date.now },
+		changedBy: { type: String, ref: 'users' },
+		note: { type: String, default: '' }
+	}],
 	fileUrl: {
 		type: String,
 		required: true

@@ -12,7 +12,7 @@ module.exports = (req, res, next) => {
                     }
                     const structs = [];
                     auth.privileges.forEach(priv => priv.permissions.forEach(permission => {
-                        if(permission.access === 'write') structs.push(permission.struct);
+                        structs.push(permission.struct); // read + write
                     }));
                     res.locals.structs = structs;
                     next();

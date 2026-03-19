@@ -140,11 +140,69 @@ const swaggerSpec = {
       Archive: {
         type: 'object',
         properties: {
-          _id: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e1' },
-          title: { type: 'string', example: 'Document important' },
-          role: { type: 'string', example: 'admin' },
-          validated: { type: 'boolean', example: false },
+          _id:              { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e1' },
+          designation:      { type: 'string', example: 'Rapport annuel RH 2024' },
+          description:      { type: 'string', example: 'Synthèse annuelle des effectifs...' },
+          classNumber:      { type: 'string', example: '2024-ADM-001' },
+          refNumber:        { type: 'string', example: 'REF-DRH-042' },
+          administrativeUnit: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e2' },
+          validated:        { type: 'boolean', example: false, description: 'Champ hérité — utiliser status.' },
+          status: {
+            type: 'string',
+            enum: ['pending', 'validated', 'archived', 'disposed'],
+            example: 'pending',
+            description: 'État courant dans le cycle de vie documentaire.',
+          },
+          lifecycleHistory: {
+            type: 'array',
+            description: 'Historique des transitions du cycle de vie.',
+            items: {
+              type: 'object',
+              properties: {
+                status:    { type: 'string', enum: ['pending', 'validated', 'archived', 'disposed'] },
+                changedAt: { type: 'string', format: 'date-time' },
+                changedBy: { type: 'string', description: '_id de l\'utilisateur.' },
+                note:      { type: 'string' },
+              },
+            },
+          },
+          fileUrl:   { type: 'string', example: '/workspace/64a1/files/rapport.pdf' },
+          tags:      { type: 'array', items: { type: 'string' }, example: ['RH', '2024'] },
           createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      LifecycleBody: {
+        type: 'object',
+        required: ['targetStatus'],
+        properties: {
+          targetStatus: {
+            type: 'string',
+            enum: ['pending', 'validated', 'archived', 'disposed'],
+            description: 'Statut cible de la transition. Transitions autorisées : pending→validated, validated→archived, validated→pending, archived→disposed.',
+            example: 'archived',
+          },
+          note: { type: 'string', description: 'Note optionnelle décrivant la raison de la transition.', example: 'Clôture du dossier RH 2024.' },
+        },
+      },
+      ArchivePermissions: {
+        type: 'object',
+        description: 'Permissions archives de l\'utilisateur authentifié.',
+        properties: {
+          isAdmin:  { type: 'boolean', example: false, description: 'Vrai si l\'utilisateur a accès en écriture à toutes les unités (struct=all).' },
+          canRead:  { type: 'boolean', example: true,  description: 'Vrai si au moins une permission de lecture.' },
+          canWrite: { type: 'boolean', example: true,  description: 'Vrai si au moins une permission d\'écriture.' },
+          structs: {
+            type: 'array',
+            description: 'Liste des unités administratives accessibles avec leur niveau d\'accès.',
+            items: {
+              type: 'object',
+              properties: {
+                struct: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e2' },
+                access: { type: 'string', enum: ['read', 'write'], example: 'write' },
+              },
+            },
+          },
         },
       },
       // ── Archivage physique ───────────────────────────────────────────────
@@ -2876,6 +2934,68 @@ const swaggerSpec = {
           },
           404: { description: 'Dossier introuvable.' },
           401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    // ── Permissions (utilisateur courant) ────────────────────────────────────────
+    '/api/stuff/me/permissions': {
+      get: {
+        tags: ['Permissions'],
+        summary: 'Permissions archives de l\'utilisateur connecté',
+        description:
+          'Retourne les droits d\'accès aux archives de l\'utilisateur authentifié.\n\n' +
+          '**Niveaux d\'accès :**\n' +
+          '- `read` — consultation des archives (visualisation)\n' +
+          '- `write` — création, modification, suppression, validation, transitions de cycle de vie\n\n' +
+          '**Admin** : utilisateur ayant `struct = "all"` et `access = "write"` — accès à toutes les unités administratives.',
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Permissions retournées.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ArchivePermissions' } } },
+          },
+          401: { description: 'Token JWT absent ou invalide.' },
+          500: { description: 'Erreur serveur.' },
+        },
+      },
+    },
+
+    // ── Cycle de vie d\'une archive ────────────────────────────────────────────
+    '/api/stuff/archives/{id}/lifecycle': {
+      patch: {
+        tags: ['Archives'],
+        summary: 'Changer le statut d\'une archive (cycle de vie)',
+        description:
+          'Applique une transition du cycle de vie documentaire.\n\n' +
+          '**Transitions autorisées :**\n' +
+          '| État actuel | → | État cible | Conditions |\n' +
+          '|---|---|---|---|\n' +
+          '| `pending` | → | `validated` | accès écriture sur l\'unité |\n' +
+          '| `validated` | → | `archived` | accès écriture sur l\'unité |\n' +
+          '| `validated` | → | `pending` | accès écriture (réouverture) |\n' +
+          '| `archived` | → | `disposed` | **admin uniquement** (struct=all) |\n\n' +
+          'Chaque transition est enregistrée dans `lifecycleHistory` avec la date, l\'auteur et la note.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: 'id', in: 'path', required: true,
+          description: '_id MongoDB de l\'archive.',
+          schema: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e1' },
+        }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/LifecycleBody' } } },
+        },
+        responses: {
+          200: {
+            description: 'Archive mise à jour avec la nouvelle transition.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Archive' } } },
+          },
+          400: { description: 'targetStatus manquant.' },
+          403: { description: 'Accès refusé (droits insuffisants ou transition réservée admin).' },
+          404: { description: 'Archive introuvable.' },
+          422: { description: 'Transition non autorisée depuis l\'état actuel.' },
+          500: { description: 'Erreur serveur.' },
         },
       },
     },

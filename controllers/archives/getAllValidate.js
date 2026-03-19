@@ -6,7 +6,11 @@ const Retention = require('../../models/archives/retention.model');
 module.exports = (req, res) => {
     const query = res.locals.structs.includes('all') ? {} : {
         administrativeUnit: { $in: res.locals.structs } };
-    query.validated = true;
+    // Compat: anciens docs sans status (validated=true) + nouveaux (status=validated|archived)
+    query.$or = [
+        { status: { $in: ['validated', 'archived'] } },
+        { status: { $exists: false }, validated: true }
+    ];
 
     Archive.find(query, { __v: 0 })
         .populate({
