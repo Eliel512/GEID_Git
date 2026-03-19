@@ -86,9 +86,54 @@ const swaggerSpec = {
       },
       LoginResponse: {
         type: 'object',
+        description: 'Réponse de connexion. Le token JWT doit être inclus dans le header Authorization: Bearer <token> pour toutes les routes protégées.',
         properties: {
-          token: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
-          user: { $ref: '#/components/schemas/User' },
+          userId:    { type: 'string',  example: '64a1b2c3d4e5f6a7b8c9d0e1', description: '_id MongoDB de l\'utilisateur.' },
+          userFname: { type: 'string',  example: 'Jean', description: 'Prénom.' },
+          userMname: { type: 'string',  example: 'Pierre', description: 'Deuxième prénom (optionnel).' },
+          userLname: { type: 'string',  example: 'Dupont', description: 'Nom de famille.' },
+          userEmail: { type: 'string',  format: 'email', example: 'jean.dupont@example.com', description: 'Adresse e-mail.' },
+          userGrade: {
+            type: 'object',
+            description: 'Grade et rôle organisationnel de l\'utilisateur.',
+            properties: {
+              role:  { type: 'string', example: 'archiviste' },
+              level: { type: 'number', example: 2 },
+            },
+          },
+          auth: {
+            type: 'object',
+            description: 'Objet Auth peuplé — contient les privilèges d\'accès aux applications.',
+            properties: {
+              _id:        { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e2' },
+              name:       { type: 'string', example: 'auth-archiviste' },
+              upper:      { type: 'boolean', example: false },
+              privileges: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    app: { type: 'string', example: 'archives' },
+                    permissions: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          access: { type: 'string', example: 'write' },
+                          scope:  { type: 'string', example: 'all' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          userImage:  { type: 'string',  example: '/workspace/64a1b2c3/images/profile.jpg', description: 'URL de la photo de profil (peut être null).' },
+          phoneCell:  { type: 'string',  example: '+221 77 000 00 00', description: 'Numéro de téléphone mobile.' },
+          permission: { type: 'string',  example: 'standard', description: 'Niveau de permission global.' },
+          docTypes:   { type: 'array',   items: { type: 'string' }, example: ['contrat', 'note'], description: 'Types de documents autorisés selon le rôle.' },
+          token:      { type: 'string',  example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', description: 'Token JWT valide 48h.' },
         },
       },
       // ── Archives ─────────────────────────────────────────────────────────
