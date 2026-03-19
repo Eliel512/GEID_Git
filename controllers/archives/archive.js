@@ -18,15 +18,21 @@ exports.getOne = (req, res, next) => {
  * Modifie les champs éditables d'une archive (designation, description, tags).
  */
 exports.modify = (req, res) => {
-  const update = {};
-  if (req.body.designation !== undefined) update.designation = req.body.designation;
-  if (req.body.description !== undefined) update.description = req.body.description;
-  if (req.body.tags !== undefined) update.tags = req.body.tags;
+  const setFields = {};
+  if (req.body.designation !== undefined) setFields.designation = req.body.designation;
+  if (req.body.description !== undefined) setFields.description = req.body.description;
+  if (req.body.tags       !== undefined) setFields.tags        = req.body.tags;
+
+  // Rattachement / détachement d'un dossier physique
+  // record: null  → détache   record: "<id>" → attache
+  if (req.body.record !== undefined) {
+    setFields.record = req.body.record || null;
+  }
 
   Archive.findByIdAndUpdate(
     req.params.id,
-    { $set: update },
-    { new: true, runValidators: true }
+    { $set: setFields },
+    { new: true, runValidators: false }
   )
     .then(archive => {
       if (!archive) return res.status(404).json({ error: 'Archive introuvable' });
