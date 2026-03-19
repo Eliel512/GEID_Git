@@ -46,14 +46,21 @@ const Record = require('../../../models/archives/record.model');
  * @returns {200} Tableau JSON de tous les classeurs
  * @returns {500} Erreur serveur interne
  */
-exports.getAll = (_req, res) => {
-    Binder.find()
-        .populate('floor', '_id number label')
-        .then(binders => res.status(200).json(binders))
-        .catch(error => {
-            console.log(error);
-            res.status(500).json({ message: 'Une erreur est survenue' });
-        });
+exports.getAll = async (_req, res) => {
+    try {
+        const binders = await Binder.find().populate('floor', '_id number label');
+        // Calcul du currentCount pour chaque classeur (identique à getOne)
+        const withCount = await Promise.all(
+            binders.map(async (binder) => {
+                const currentCount = await Record.countDocuments({ binder: binder._id });
+                return { ...binder.toObject(), currentCount };
+            })
+        );
+        res.status(200).json(withCount);
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: 'Une erreur est survenue' });
+    }
 };
 
 // ─── getAllByFloor ─────────────────────────────────────────────────────────────

@@ -25,6 +25,7 @@
  */
 
 const Shelf = require('../../../models/archives/shelf.model');
+const Floor = require('../../../models/archives/floor.model');
 
 // ─── getAll ───────────────────────────────────────────────────────────────────
 
@@ -179,14 +180,19 @@ exports.update = (req, res) => {
  * @returns {404} Étagère introuvable
  * @returns {500} Erreur serveur interne
  */
-exports.delete = (req, res) => {
-    Shelf.findByIdAndDelete(req.params.id)
-        .then(deleted => {
-            if (!deleted) return res.status(404).json({ message: 'Étagère introuvable' });
-            res.status(200).json({ message: 'Étagère supprimée' });
-        })
-        .catch(error => {
-            console.log(error);
-            res.status(500).json({ message: 'Une erreur est survenue' });
-        });
+exports.delete = async (req, res) => {
+    try {
+        const hasChildren = await Floor.exists({ shelf: req.params.id });
+        if (hasChildren) {
+            return res.status(409).json({
+                error: 'Cette étagère contient des étages. Supprimez-les avant de supprimer l\'étagère.'
+            });
+        }
+        const deleted = await Shelf.findByIdAndDelete(req.params.id);
+        if (!deleted) return res.status(404).json({ message: 'Étagère introuvable' });
+        res.status(200).json({ message: 'Étagère supprimée' });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: 'Une erreur est survenue' });
+    }
 };

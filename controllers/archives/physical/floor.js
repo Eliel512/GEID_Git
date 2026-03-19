@@ -26,7 +26,8 @@
  *     - `administrativeUnit` → propriétaire organisationnel (rôle/direction)
  */
 
-const Floor = require('../../../models/archives/floor.model');
+const Floor  = require('../../../models/archives/floor.model');
+const Binder = require('../../../models/archives/binder.model');
 
 // ─── getAll ───────────────────────────────────────────────────────────────────
 
@@ -185,14 +186,19 @@ exports.update = (req, res) => {
  * @returns {404} Étage introuvable
  * @returns {500} Erreur serveur interne
  */
-exports.delete = (req, res) => {
-    Floor.findByIdAndDelete(req.params.id)
-        .then(deleted => {
-            if (!deleted) return res.status(404).json({ message: 'Étage introuvable' });
-            res.status(200).json({ message: 'Étage supprimé' });
-        })
-        .catch(error => {
-            console.log(error);
-            res.status(500).json({ message: 'Une erreur est survenue' });
-        });
+exports.delete = async (req, res) => {
+    try {
+        const hasChildren = await Binder.exists({ floor: req.params.id });
+        if (hasChildren) {
+            return res.status(409).json({
+                error: 'Cet étage contient des classeurs. Supprimez-les avant de supprimer l\'étage.'
+            });
+        }
+        const deleted = await Floor.findByIdAndDelete(req.params.id);
+        if (!deleted) return res.status(404).json({ message: 'Étage introuvable' });
+        res.status(200).json({ message: 'Étage supprimé' });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: 'Une erreur est survenue' });
+    }
 };
