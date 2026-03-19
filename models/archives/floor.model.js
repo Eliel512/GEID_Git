@@ -82,7 +82,7 @@ const floorSchema = new Schema(
          */
         administrativeUnit: {
             type: String,
-            ref: 'role',
+            ref: 'roles',
             validate: {
                 validator: v => isValidObjectId(v),
                 message: () => "Au champ 'administrativeUnit' doit correspondre un _id de role valide"

@@ -20,7 +20,7 @@ const eventSchema = new Schema({
 	},	
 	administrativeUnits: {
 		type: [String],
-        ref: 'role',
+        ref: 'roles',
         validate: {
             validator: roles => roles.every(isValidObjectId),
             message: () => "Au champ 'administrativeUnits' doivent correspondre des _id de role valides"

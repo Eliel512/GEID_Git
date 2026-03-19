@@ -60,8 +60,8 @@ const archiveSchema = new Schema({
 		required: false
 	},
 	administrativeUnit: {
-		type: String, 
-		ref: 'role',
+		type: String,
+		ref: 'roles',
 		validate: {
             validator: role => isValidObjectId(role),
             message: () => "Au champ 'administrativeUnit' doit correspondre un _id de role valide"

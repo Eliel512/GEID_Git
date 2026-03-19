@@ -11,7 +11,7 @@ const profilSchema = new Schema({
     },
     roles: {
         type: [String],
-        ref: 'role',
+        ref: 'roles',
         validate: {
             validator: roles => roles.every(isValidObjectId),
             message: () => "Au champ 'roles' doivent correspondre des _id de role valides"

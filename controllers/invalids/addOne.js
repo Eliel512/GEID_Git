@@ -6,17 +6,19 @@ const path = require('path');
 const fs = require('fs');
 const getPath = require('../../tools/getRoleUrl');
 
-module.exports =  async (req, res, next) => {    
+module.exports =  async (req, res, next) => {
     try {
-        const userRole = await User.findOne({
-            _id: res.locals.userId
-        }, { "grade.role": 1 }).grade.role;
+        const userDoc = await User.findOne({ _id: res.locals.userId }, { "grade.role": 1 });
+        if (!userDoc) return res.status(401).json({ message: 'Utilisateur non trouvé' });
+        const userRole = userDoc.grade.role;
+
         const userIsInEvent = await Event.exists({
             name: req.body.event, administrativeUnits: userRole
         });
-        const management = await Role.findOne({
-            name: userRole
-        }, { management: 1 }).management;
+        const roleDoc = await Role.findOne({ name: userRole }, { management: 1 });
+        const management = roleDoc && roleDoc.management && roleDoc.management.length
+            ? roleDoc.management
+            : null;
 
         if(!management){
             return res.status(400).json({
