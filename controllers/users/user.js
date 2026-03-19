@@ -139,7 +139,7 @@ exports.edit = (req, res, next) => {
   if(password){
     bcrypt.hash(password, 10)
       .then(hash => {
-        User.updateOne({ _id: res.locals.user._id }, { password: hash, ...body })
+        User.updateOne({ _id: res.locals.userId }, { password: hash, ...body })
           .then(() => res.status(200).json({ message: 'Profile édité avec succès!' }))
           .catch(error => {
             console.log(error);
@@ -151,7 +151,7 @@ exports.edit = (req, res, next) => {
         res.status(500).json({ message: 'Une erreur est survenue, veuillez réessayer.' });
       });
     }else {
-      User.updateOne({ _id: res.locals.user._id }, { ...body })
+      User.updateOne({ _id: res.locals.userId }, { ...body })
         .then(() => res.status(200).json({ message: 'Profile édité avec succès!' }))
         .catch(error => {
           console.log(error);

@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const User = require('../../models/users/user.model');
 const Role = require('../../models/users/role.model');
 const Auth = require('../../models/users/auth.model');
@@ -14,10 +15,11 @@ module.exports = (req, res, next) => {
                     if (role) {
                         let auth;
                         try{
-                            auth = await Auth.findOne({ name: 'default' }, { _id: 1 })._id;
-                            if(!auth){
+                            const authDoc = await Auth.findOne({ name: 'default' }, { _id: 1 });
+                            if(!authDoc){
                                 return res.status(500).json({ message: 'Une erreur est survenue' });
                             }
+                            auth = authDoc._id;
                         }catch(error){
                             return res.status(500).json({ message: 'Une erreur est survenue' });
                         }
@@ -33,17 +35,18 @@ module.exports = (req, res, next) => {
                         });
                         user.save()
                             .then(() => {
-                                fs.mkdir(`../../workspace/${user._id}/images`, { recursive: true }, err => {
+                                const base = path.join(__dirname, '../../workspace', user._id.toString());
+                                fs.mkdir(path.join(base, 'images'), { recursive: true }, err => {
                                     if (err) {
                                         console.log(err);
                                         res.status(500).json({ message: 'Erreur interne du serveur' });
                                     } else {
-                                        fs.mkdir(`../../workspace/${user._id}/videos`, { recursive: true }, err => {
+                                        fs.mkdir(path.join(base, 'videos'), { recursive: true }, err => {
                                             if (err) {
                                                 console.log(err);
                                                 res.status(500).json({ message: 'Erreur interne du serveur' });
                                             } else {
-                                                fs.mkdir(`../../workspace/${user._id}/documents`, { recursive: true }, err => {
+                                                fs.mkdir(path.join(base, 'documents'), { recursive: true }, err => {
                                                     if (err) {
                                                         console.log(err);
                                                         res.status(500).json({ message: 'Erreur interne du serveur' });

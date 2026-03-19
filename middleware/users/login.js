@@ -2,7 +2,7 @@ const Joi = require('joi');
 
 const loginSchema = Joi.object({
     email: Joi.string()
-        .email({ minDomainSegments: 2, allowFullyQualified: true })
+        .email({ minDomainSegments: 2, allowFullyQualified: true, tlds: { allow: false } })
         .min(5)
         .required(),
 
