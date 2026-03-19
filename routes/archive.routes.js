@@ -6,7 +6,7 @@ const eventRoutes = require('./event.routes');
 const invalidAuth = require('../middleware/archives/auth');
 const postOneMiddleware = require('../middleware/archives/postOne');
 
-//const archiveCtrl = require('../controllers/archives/archive');
+const archiveCtrl = require('../controllers/archives/archive');
 const getAll = require('../controllers/archives/getAll');
 const getAllValidate = require('../controllers/archives/getAllValidate');
 const getAllValidateMiddleware = require('../middleware/archives/getAllValidate');
@@ -18,12 +18,7 @@ router.use('/event', eventRoutes);
 router.get('/archived', getAllValidateMiddleware, getAllValidate);
 router.get('/:role', getAll);
 router.post('/', postOneMiddleware, postOne);
-//router.post('/cover', multerCover, archiveCtrl.addCover);
-//router.get('/:id', archiveCtrl.getOne);
-//router.get('/types/:subtype', archiveCtrl.getByType);
-//router.put('/', multer, archiveCtrl.modify);
-//router.delete('/', archiveCtrl.deleteAll);
-//router.get('/struct/:struct', archiveCtrl.getStruct);
-//router.delete('/:id', archiveCtrl.delete);
+router.put('/:id', archiveCtrl.modify);
+router.delete('/:id', archiveCtrl.delete);
 
 module.exports = router;

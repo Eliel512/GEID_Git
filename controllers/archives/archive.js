@@ -1,39 +1,62 @@
 const Archive = require('../../models/archives/archive.model');
 const Role = require('../../models/users/role.model');
 const User = require('../../models/users/user.model');
-const getHost = require('./getHost').getHost();
 const fs = require('fs');
-
-//${req.get('host')}
+const path = require('path');
 
 exports.getOne = (req, res, next) => {
-  console.log(req.params);
-  Archive.findOne({
-    _id: req.params.id.split('=')[1]
-  }).then(
-    (archive) => {
-      res.status(200).json(archive);
-    }
-  ).catch(
-    (error) => {
-      res.status(404).json({
-        error: error
-      });
-    }
-  );
-};
-
-exports.delete = (req, res, next) => {
-  Archive.findOne({ _id: req.params.id.split('=')[1] })
+  Archive.findById(req.params.id)
     .then(archive => {
-      const filename = archive.contentUrl.split('/archives/archives/')[1];
-      fs.unlink(`archives/archives/${filename}`, () => {
-        Archive.deleteOne({ _id: req.params.id.split('=')[1] })
-          .then(() => res.status(200).json({ message: 'Document supprimé !'}))
-          .catch(error => res.status(400).json({ error }));
-      });
+      if (!archive) return res.status(404).json({ error: 'Archive introuvable' });
+      res.status(200).json(archive);
     })
     .catch(error => res.status(500).json({ error }));
+};
+
+/**
+ * PUT /api/stuff/archives/:id
+ * Modifie les champs éditables d'une archive (designation, description, tags).
+ */
+exports.modify = (req, res) => {
+  const update = {};
+  if (req.body.designation !== undefined) update.designation = req.body.designation;
+  if (req.body.description !== undefined) update.description = req.body.description;
+  if (req.body.tags !== undefined) update.tags = req.body.tags;
+
+  Archive.findByIdAndUpdate(
+    req.params.id,
+    { $set: update },
+    { new: true, runValidators: true }
+  )
+    .then(archive => {
+      if (!archive) return res.status(404).json({ error: 'Archive introuvable' });
+      res.status(200).json(archive);
+    })
+    .catch(error => {
+      console.log(error);
+      res.status(500).json({ error: 'Une erreur est survenue' });
+    });
+};
+
+/**
+ * DELETE /api/stuff/archives/:id
+ * Supprime une archive et tente d'effacer le fichier associé.
+ */
+exports.delete = (req, res) => {
+  Archive.findByIdAndDelete(req.params.id)
+    .then(archive => {
+      if (!archive) return res.status(404).json({ error: 'Archive introuvable' });
+      if (archive.fileUrl) {
+        const mainDir = path.dirname(require.main.filename);
+        try { fs.unlinkSync(path.join(mainDir, archive.fileUrl)); }
+        catch (e) { console.log('File deletion warning:', e.message); }
+      }
+      res.status(200).json({ message: 'Archive supprimée' });
+    })
+    .catch(error => {
+      console.log(error);
+      res.status(500).json({ error: 'Une erreur est survenue' });
+    });
 };
 
 exports.getStruct = (req, res, next) => {
