@@ -6,12 +6,12 @@ const Retention = require('../../models/archives/retention.model');
 module.exports = (req, res) => {
     const query = res.locals.structs.includes('all') ? {} : {
         administrativeUnit: { $in: res.locals.structs } };
-    // New lifecycle statuses + full backward compat (old French + old English values)
+    // All lifecycle statuses — PENDING included so the archive manager shows all records
     query.$or = [
-        { status: { $in: ['ACTIVE', 'SEMI_ACTIVE', 'PERMANENT', 'DESTROYED',
-                          'actif', 'intermédiaire', 'historique', 'détruit',
+        { status: { $in: ['PENDING', 'ACTIVE', 'SEMI_ACTIVE', 'PERMANENT', 'DESTROYED',
+                          'pending', 'actif', 'intermédiaire', 'historique', 'détruit',
                           'validated', 'archived', 'disposed'] } },
-        { status: { $exists: false }, validated: true }
+        { status: { $exists: false } }   // legacy docs without status field
     ];
 
     Archive.find(query, { __v: 0 })
