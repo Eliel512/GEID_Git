@@ -3,17 +3,19 @@
  *
  * PATCH /api/stuff/archives/:id/lifecycle
  *
- * Gère les transitions du cycle de vie d'une archive :
- *   pending    → validated  (via validate route, non géré ici)
- *   validated  → archived   (clôture définitive)
- *   validated  → pending    (réouverture pour correction)
- *   archived   → disposed   (élimination selon plan de conservation)
+ * Gère les transitions du cycle de vie d'une archive selon les
+ * Directives relatives à l'archivage (Ministère du Budget, RDC) :
  *
- * Transitions autorisées selon le statut actuel :
- *   pending   : → validated (archiviste)
- *   validated : → archived  (archiviste avec accès écriture)
- *   validated : → pending   (archiviste avec accès écriture — réouverture)
- *   archived  : → disposed  (admin seulement — struct 'all')
+ *   pending       → actif          (validation par archiviste)
+ *   actif         → intermédiaire  (passage en archives intermédiaires)
+ *   actif         → pending        (réouverture pour correction)
+ *   intermédiaire → actif          (réactivation)
+ *   intermédiaire → historique     (conservation définitive — DUA écoulé ou décision)
+ *   intermédiaire → détruit        (élimination — admin uniquement)
+ *   historique    → détruit        (destruction — admin uniquement)
+ *   détruit       → historique     (restauration — admin uniquement)
+ *
+ * Compatibilité : anciens statuts (validated, archived, disposed) sont aussi gérés.
  *
  * Body attendu : { targetStatus: string, note?: string }
  */
@@ -23,14 +25,23 @@ const User    = require('../../models/users/user.model');
 const Auth    = require('../../models/users/auth.model');
 
 const ALLOWED_TRANSITIONS = {
-    pending:   ['validated'],
-    validated: ['archived', 'pending'],
-    archived:  ['disposed'],
-    disposed:  []
+    // Nouveau cycle de vie
+    pending:          ['actif'],
+    actif:            ['intermédiaire', 'pending'],
+    'intermédiaire':  ['actif', 'historique', 'détruit'],
+    historique:       ['détruit'],
+    détruit:          ['historique'],
+    // Anciens statuts — compatibilité ascendante
+    validated: ['actif', 'intermédiaire', 'pending'],
+    archived:  ['actif', 'intermédiaire', 'historique', 'détruit'],
+    disposed:  ['historique'],
 };
 
-// Transitions nécessitant les droits admin (struct 'all' en écriture)
-const ADMIN_ONLY_TRANSITIONS = new Set(['disposed']);
+// Transitions réservées aux administrateurs (struct 'all' en écriture)
+const ADMIN_ONLY_TRANSITIONS = new Set(['détruit', 'disposed']);
+
+// Statuts considérés comme "actif/validé" (boolean validated = true)
+const VALIDATED_STATUSES = new Set(['actif', 'intermédiaire', 'historique', 'détruit', 'validated', 'archived']);
 
 module.exports = async (req, res) => {
     const { targetStatus, note = '' } = req.body;
@@ -83,16 +94,22 @@ module.exports = async (req, res) => {
             note
         };
 
+        // Démarrer la DUA si on passe en intermédiaire
+        const setFields = {
+            status: targetStatus,
+            validated: VALIDATED_STATUSES.has(targetStatus)
+        };
+        if (targetStatus === 'intermédiaire' && !archive.dua?.startDate) {
+            setFields['dua.startDate'] = new Date();
+        }
+
         const updatedArchive = await Archive.findByIdAndUpdate(
             req.params.id,
             {
-                $set: {
-                    status: targetStatus,
-                    validated: targetStatus === 'validated' || targetStatus === 'archived'
-                },
+                $set: setFields,
                 $push: { lifecycleHistory: historyEntry }
             },
-            { new: true }
+            { new: true, runValidators: false }
         );
 
         res.status(200).json(updatedArchive);

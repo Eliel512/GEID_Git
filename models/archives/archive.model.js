@@ -90,16 +90,24 @@ const archiveSchema = new Schema({
 	// Cycle de vie : état courant du document
 	status: {
 		type: String,
-		enum: ['pending', 'validated', 'archived', 'disposed'],
+		enum: ['pending', 'actif', 'intermédiaire', 'historique', 'détruit',
+		       'validated', 'archived', 'disposed'], // anciens valeurs conservées pour compatibilité
 		default: 'pending'
 	},
 	// Historique des transitions du cycle de vie
 	lifecycleHistory: [{
-		status: { type: String, enum: ['pending', 'validated', 'archived', 'disposed'] },
+		status: { type: String },
 		changedAt: { type: Date, default: Date.now },
 		changedBy: { type: String, ref: 'users' },
 		note: { type: String, default: '' }
 	}],
+	// DUA — Durée d'Utilité Administrative (directives archivage RDC)
+	dua: {
+		value:     { type: Number, required: false },
+		unit:      { type: String, enum: ['years', 'months'], required: false },
+		sortFinal: { type: String, enum: ['conservation', 'elimination'], required: false },
+		startDate: { type: Date, required: false }
+	},
 	fileUrl: {
 		type: String,
 		required: true

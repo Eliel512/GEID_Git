@@ -6,9 +6,10 @@ const Retention = require('../../models/archives/retention.model');
 module.exports = (req, res) => {
     const query = res.locals.structs.includes('all') ? {} : {
         administrativeUnit: { $in: res.locals.structs } };
-    // Compat: anciens docs sans status (validated=true) + nouveaux (status=validated|archived)
+    // Nouveau cycle : actif, intermédiaire, historique, détruit
+    // Compat : anciens statuts validated, archived, disposed + docs sans status
     query.$or = [
-        { status: { $in: ['validated', 'archived'] } },
+        { status: { $in: ['actif', 'intermédiaire', 'historique', 'détruit', 'validated', 'archived', 'disposed'] } },
         { status: { $exists: false }, validated: true }
     ];
 
