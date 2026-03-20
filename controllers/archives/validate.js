@@ -18,14 +18,14 @@ module.exports = async (req, res) => {
                     refNumber: req.body.refNumber,
                     'type.profil': res.locals.profil,
                     validated: true,
-                    status: 'actif'
+                    status: 'ACTIVE'
                 },
                 $push: {
                     lifecycleHistory: {
-                        status: 'actif',
+                        status: 'ACTIVE',
                         changedAt: new Date(),
                         changedBy: res.locals.userId,
-                        note: 'Validation — passage en archives courantes (actif)'
+                        note: 'Validation — promoted to ACTIVE (current archives)'
                     }
                 }
             },

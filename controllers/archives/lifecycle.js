@@ -3,21 +3,21 @@
  *
  * PATCH /api/stuff/archives/:id/lifecycle
  *
- * Gère les transitions du cycle de vie d'une archive selon les
- * Directives relatives à l'archivage (Ministère du Budget, RDC) :
+ * Lifecycle transitions (Directives archivage RDC — ISO 15489) :
  *
- *   pending       → actif          (validation par archiviste)
- *   actif         → intermédiaire  (passage en archives intermédiaires)
- *   actif         → pending        (réouverture pour correction)
- *   intermédiaire → actif          (réactivation)
- *   intermédiaire → historique     (conservation définitive — DUA écoulé ou décision)
- *   intermédiaire → détruit        (élimination — admin uniquement)
- *   historique    → détruit        (destruction — admin uniquement)
- *   détruit       → historique     (restauration — admin uniquement)
+ *   PENDING    → ACTIVE       (validation by archivist)
+ *   ACTIVE     → SEMI_ACTIVE  (transfer to intermediate archives)
+ *   ACTIVE     → PENDING      (reopen for correction)
+ *   SEMI_ACTIVE → ACTIVE      (reactivation)
+ *   SEMI_ACTIVE → PERMANENT   (final conservation — DUA expired or decision)
+ *   SEMI_ACTIVE → DESTROYED   (elimination — admin only)
+ *   PERMANENT  → DESTROYED    (destruction — admin only)
+ *   DESTROYED  → PERMANENT    (restoration — admin only)
  *
- * Compatibilité : anciens statuts (validated, archived, disposed) sont aussi gérés.
+ * Legacy status values (validated, archived, disposed, actif, etc.)
+ * are handled for backward compatibility.
  *
- * Body attendu : { targetStatus: string, note?: string }
+ * Body: { targetStatus: string, note?: string }
  */
 
 const Archive = require('../../models/archives/archive.model');
@@ -25,52 +25,58 @@ const User    = require('../../models/users/user.model');
 const Auth    = require('../../models/users/auth.model');
 
 const ALLOWED_TRANSITIONS = {
-    // Nouveau cycle de vie
-    pending:          ['actif'],
-    actif:            ['intermédiaire', 'pending'],
-    'intermédiaire':  ['actif', 'historique', 'détruit'],
-    historique:       ['détruit'],
-    détruit:          ['historique'],
-    // Anciens statuts — compatibilité ascendante
-    validated: ['actif', 'intermédiaire', 'pending'],
-    archived:  ['actif', 'intermédiaire', 'historique', 'détruit'],
-    disposed:  ['historique'],
+    // New lifecycle
+    PENDING:     ['ACTIVE'],
+    ACTIVE:      ['SEMI_ACTIVE', 'PENDING'],
+    SEMI_ACTIVE: ['ACTIVE', 'PERMANENT', 'DESTROYED'],
+    PERMANENT:   ['DESTROYED'],
+    DESTROYED:   ['PERMANENT'],
+    // Legacy backward compat
+    pending:        ['ACTIVE', 'PENDING'],
+    validated:      ['ACTIVE', 'SEMI_ACTIVE', 'PENDING'],
+    archived:       ['ACTIVE', 'SEMI_ACTIVE', 'PERMANENT', 'DESTROYED'],
+    disposed:       ['PERMANENT'],
+    actif:          ['SEMI_ACTIVE', 'PENDING', 'ACTIVE'],
+    'intermédiaire': ['ACTIVE', 'PERMANENT', 'DESTROYED', 'SEMI_ACTIVE'],
+    historique:     ['DESTROYED', 'PERMANENT'],
+    détruit:        ['PERMANENT', 'DESTROYED'],
 };
 
-// Transitions réservées aux administrateurs (struct 'all' en écriture)
-const ADMIN_ONLY_TRANSITIONS = new Set(['détruit', 'disposed']);
+// Transitions reserved for administrators (struct 'all' with write access)
+const ADMIN_ONLY_TRANSITIONS = new Set(['DESTROYED', 'disposed']);
 
-// Statuts considérés comme "actif/validé" (boolean validated = true)
-const VALIDATED_STATUSES = new Set(['actif', 'intermédiaire', 'historique', 'détruit', 'validated', 'archived']);
+// Statuses considered "validated" (boolean validated = true)
+const VALIDATED_STATUSES = new Set([
+    'ACTIVE', 'SEMI_ACTIVE', 'PERMANENT', 'DESTROYED',
+    'validated', 'archived', 'disposed', 'actif', 'intermédiaire', 'historique', 'détruit'
+]);
 
 module.exports = async (req, res) => {
     const { targetStatus, note = '' } = req.body;
 
     if (!targetStatus) {
-        return res.status(400).json({ error: 'Le champ targetStatus est requis.' });
+        return res.status(400).json({ error: 'targetStatus is required.' });
     }
 
     try {
         const archive = await Archive.findById(req.params.id);
-        if (!archive) return res.status(404).json({ error: 'Archive introuvable' });
+        if (!archive) return res.status(404).json({ error: 'Archive not found.' });
 
-        const currentStatus = archive.status || (archive.validated ? 'validated' : 'pending');
+        const currentStatus = archive.status || (archive.validated ? 'validated' : 'PENDING');
 
-        // Vérifier si la transition est autorisée
         const allowed = ALLOWED_TRANSITIONS[currentStatus] || [];
         if (!allowed.includes(targetStatus)) {
             return res.status(422).json({
-                error: `Transition non autorisée : ${currentStatus} → ${targetStatus}.`,
+                error: `Transition not allowed: ${currentStatus} → ${targetStatus}.`,
                 allowedTransitions: allowed
             });
         }
 
-        // Vérifier les droits de l'utilisateur
         const user = await User.findById(res.locals.userId, { auth: 1 });
         const auth = await Auth.findById(user.auth);
 
         const archPriv = auth.privileges.find(p => p.app === 'archives');
-        if (!archPriv) return res.status(403).json({ error: 'Aucun privilège archives.' });
+        if (!archPriv) return res.status(403).json({ error: 'No archives privilege.' });
 
         const perms = archPriv.permissions;
         const isAdmin = perms.some(p => p.struct === 'all' && p.access === 'write');
@@ -79,14 +85,13 @@ module.exports = async (req, res) => {
         );
 
         if (ADMIN_ONLY_TRANSITIONS.has(targetStatus) && !isAdmin) {
-            return res.status(403).json({ error: 'Seul un administrateur peut effectuer cette transition.' });
+            return res.status(403).json({ error: 'Only an administrator can perform this transition.' });
         }
 
         if (!hasWriteOnUnit) {
-            return res.status(403).json({ error: 'Accès en écriture requis sur cette unité administrative.' });
+            return res.status(403).json({ error: 'Write access required on this administrative unit.' });
         }
 
-        // Appliquer la transition
         const historyEntry = {
             status: targetStatus,
             changedAt: new Date(),
@@ -94,12 +99,12 @@ module.exports = async (req, res) => {
             note
         };
 
-        // Démarrer la DUA si on passe en intermédiaire
         const setFields = {
             status: targetStatus,
             validated: VALIDATED_STATUSES.has(targetStatus)
         };
-        if (targetStatus === 'intermédiaire' && !archive.dua?.startDate) {
+        // Start DUA timer when transitioning to SEMI_ACTIVE
+        if (targetStatus === 'SEMI_ACTIVE' && !archive.dua?.startDate) {
             setFields['dua.startDate'] = new Date();
         }
 
@@ -115,6 +120,6 @@ module.exports = async (req, res) => {
         res.status(200).json(updatedArchive);
     } catch (error) {
         console.error('[lifecycle]', error);
-        res.status(500).json({ error: 'Une erreur est survenue' });
+        res.status(500).json({ error: 'An error occurred.' });
     }
 };

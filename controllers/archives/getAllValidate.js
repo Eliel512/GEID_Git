@@ -6,10 +6,11 @@ const Retention = require('../../models/archives/retention.model');
 module.exports = (req, res) => {
     const query = res.locals.structs.includes('all') ? {} : {
         administrativeUnit: { $in: res.locals.structs } };
-    // Nouveau cycle : actif, intermédiaire, historique, détruit
-    // Compat : anciens statuts validated, archived, disposed + docs sans status
+    // New lifecycle statuses + full backward compat (old French + old English values)
     query.$or = [
-        { status: { $in: ['actif', 'intermédiaire', 'historique', 'détruit', 'validated', 'archived', 'disposed'] } },
+        { status: { $in: ['ACTIVE', 'SEMI_ACTIVE', 'PERMANENT', 'DESTROYED',
+                          'actif', 'intermédiaire', 'historique', 'détruit',
+                          'validated', 'archived', 'disposed'] } },
         { status: { $exists: false }, validated: true }
     ];
 
