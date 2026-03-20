@@ -12,13 +12,15 @@ const getAllValidate = require('../controllers/archives/getAllValidate');
 const getAllValidateMiddleware = require('../middleware/archives/getAllValidate');
 const postOne = require('../controllers/archives/postOne');
 const lifecycle = require('../controllers/archives/lifecycle');
+const setDua = require('../controllers/archives/dua');
 const checkWriteAccess = require('../middleware/archives/checkWriteAccess');
 
 router.use('/invalid', invalidAuth, invalidRoutes);
 router.use('/event', eventRoutes);
 
 router.get('/archived', getAllValidateMiddleware, getAllValidate);
-router.patch('/:id/lifecycle', lifecycle);         // transitions du cycle de vie
+router.patch('/:id/lifecycle', lifecycle);          // lifecycle transitions
+router.put('/:id/dua', checkWriteAccess, setDua);   // configure DUA parameters
 router.get('/:role', getAll);
 router.post('/', postOneMiddleware, postOne);
 router.put('/:id', checkWriteAccess, archiveCtrl.modify);

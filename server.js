@@ -10,6 +10,7 @@ require("dotenv").config();
 const http = require("http");
 const app = require("./app");
 const socketServer = require("./socket");
+const duaScheduler = require("./controllers/archives/duaScheduler");
 
 // ─── Configuration du port ────────────────────────────────────────────────────
 
@@ -69,6 +70,11 @@ socketServer.registerSocketServer(server);
 
 // Démarre l'écoute — PM2 fork mode crée autant de process que défini dans ecosystem.config.js
 server.listen(port);
+
+// DUA Scheduler — run only in PM2 instance 0 (or outside PM2) to avoid duplicate processing
+if (!process.env.NODE_APP_INSTANCE || process.env.NODE_APP_INSTANCE === '0') {
+    duaScheduler.start();
+}
 
 // ─── Événements du serveur ────────────────────────────────────────────────────
 
