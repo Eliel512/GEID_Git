@@ -22,7 +22,7 @@ redisClient.on("error", (err) => console.error("Redis Client Error", err));
 // Connexion asynchrone au démarrage du module
 (async () => {
   await redisClient.connect();
-})();
+})().catch((err) => console.error("Redis connect error (non-fatal):", err));
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 

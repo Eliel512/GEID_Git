@@ -16,12 +16,16 @@ const lifecycle = require('../controllers/archives/lifecycle');
 const setDua = require('../controllers/archives/dua');
 const checkWriteAccess = require('../middleware/archives/checkWriteAccess');
 const multerArchive = require('../middleware/archives/multer-archive');
+const search = require('../controllers/archives/search');
+const generateManualPdf = require('../controllers/archives/generateManualPdf');
 
 router.use('/invalid', invalidAuth, invalidRoutes);
 router.use('/event', eventRoutes);
 
+router.get('/manual/pdf', generateManualPdf);       // PDF manuel utilisateur (fallback serveur)
 router.get('/archived', getAllValidateMiddleware, getAllValidate);
 router.post('/upload', checkWriteAccess, multerArchive, postDirect); // direct file upload
+router.get('/search', search);                      // unified full-text search — AVANT /:role
 router.patch('/:id/lifecycle', lifecycle);          // lifecycle transitions
 router.put('/:id/dua', checkWriteAccess, setDua);   // configure DUA parameters
 router.get('/:role', getAll);

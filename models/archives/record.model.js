@@ -200,6 +200,23 @@ const recordSchema = new Schema(
 // les champs `internalNumber` et `qrCode` déclarés unique.
 recordSchema.plugin(uniqueValidator);
 
+// ─── Index de recherche plein-texte ──────────────────────────────────────────
+// Permet d'utiliser $text dans les requêtes de recherche unifiée.
+// Les poids donnent la priorité au numéro interne puis au sujet.
+recordSchema.index(
+    {
+        internalNumber: 'text',
+        refNumber:      'text',
+        subject:        'text',
+        category:       'text',
+        nature:         'text',
+    },
+    {
+        weights: { internalNumber: 10, subject: 5, refNumber: 3, category: 2, nature: 1 },
+        name: 'record_text_search',
+    }
+);
+
 // ─── Export du modèle ────────────────────────────────────────────────────────
 const Record = mongoose.model('record', recordSchema);
 

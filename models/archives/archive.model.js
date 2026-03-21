@@ -136,6 +136,24 @@ const archiveSchema = new Schema({
 
 archiveSchema.plugin(uniqueValidator);
 
+// ─── Index de recherche plein-texte ──────────────────────────────────────────
+// Permet d'utiliser $text dans les requêtes de recherche unifiée.
+// Les poids donnent la priorité à la désignation, puis aux tags et numéros.
+archiveSchema.index(
+	{
+		designation:  'text',
+		description:  'text',
+		folder:       'text',
+		classNumber:  'text',
+		refNumber:    'text',
+		tags:         'text',
+	},
+	{
+		weights: { designation: 10, tags: 5, classNumber: 3, refNumber: 3, description: 1, folder: 1 },
+		name: 'archive_text_search',
+	}
+);
+
 //const archiveDB = mongoose.connection.useDb('archives');
 
 const Archive = mongoose.model('archives', archiveSchema);

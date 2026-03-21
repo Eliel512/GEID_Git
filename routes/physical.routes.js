@@ -74,11 +74,12 @@
 const express = require('express');
 const router  = express.Router();
 
-const containerCtrl = require('../controllers/archives/physical/container');
-const shelfCtrl     = require('../controllers/archives/physical/shelf');
-const floorCtrl     = require('../controllers/archives/physical/floor');
-const binderCtrl    = require('../controllers/archives/physical/binder');
-const recordCtrl    = require('../controllers/archives/physical/record');
+const containerCtrl    = require('../controllers/archives/physical/container');
+const shelfCtrl        = require('../controllers/archives/physical/shelf');
+const floorCtrl        = require('../controllers/archives/physical/floor');
+const binderCtrl       = require('../controllers/archives/physical/binder');
+const recordCtrl       = require('../controllers/archives/physical/record');
+const recordArchives   = require('../controllers/archives/physical/record-archives');
 
 // ─── Routes des conteneurs ────────────────────────────────────────────────────
 
@@ -121,12 +122,13 @@ router.delete('/binders/:id',            binderCtrl.delete);
 // ─── Routes des dossiers (records) ───────────────────────────────────────────
 // Remarque : routes fixes (/binder/:binderId et /qr/:qrCode) avant /:id
 
-router.get   ('/records',                   recordCtrl.getAll);
-router.post  ('/records',                   recordCtrl.create);
-router.get   ('/records/binder/:binderId',  recordCtrl.getAllByBinder);
-router.get   ('/records/qr/:qrCode',        recordCtrl.getByQrCode);
-router.get   ('/records/:id',               recordCtrl.getOne);
-router.put   ('/records/:id',               recordCtrl.update);
-router.delete('/records/:id',               recordCtrl.delete);
+router.get   ('/records',                    recordCtrl.getAll);
+router.post  ('/records',                    recordCtrl.create);
+router.get   ('/records/binder/:binderId',   recordCtrl.getAllByBinder);
+router.get   ('/records/qr/:qrCode',         recordCtrl.getByQrCode);
+router.get   ('/records/:id/archives',       recordArchives);        // archives liées — AVANT /:id
+router.get   ('/records/:id',                recordCtrl.getOne);
+router.put   ('/records/:id',                recordCtrl.update);
+router.delete('/records/:id',                recordCtrl.delete);
 
 module.exports = router;

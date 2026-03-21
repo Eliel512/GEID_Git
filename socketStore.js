@@ -4,7 +4,7 @@ const { deleteKeys } = require("./redisClient");
 
 const SOCKET_PREFIX = "SOCKET_DATA:"; // clé Redis : socket:<socketId>
 
-deleteKeys(SOCKET_PREFIX);
+deleteKeys(SOCKET_PREFIX).catch((err) => console.error("Redis deleteKeys error (non-fatal):", err));
 
 /**
  * @typedef {Object} ClientInfo
