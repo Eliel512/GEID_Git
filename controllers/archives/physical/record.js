@@ -47,8 +47,9 @@
  */
 
 const { randomUUID } = require('crypto');
-const Record = require('../../../models/archives/record.model');
-const Binder = require('../../../models/archives/binder.model');
+const Record   = require('../../../models/archives/record.model');
+const Binder   = require('../../../models/archives/binder.model');
+const Document = require('../../../models/archives/document.model');
 
 // ─── getAll ───────────────────────────────────────────────────────────────────
 
@@ -375,14 +376,21 @@ exports.update = async (req, res) => {
  * @returns {404} Dossier introuvable
  * @returns {500} Erreur serveur interne
  */
-exports.delete = (req, res) => {
-    Record.findByIdAndDelete(req.params.id)
-        .then(deleted => {
-            if (!deleted) return res.status(404).json({ message: 'Dossier introuvable' });
-            res.status(200).json({ message: 'Dossier supprimé' });
-        })
-        .catch(error => {
-            console.log(error);
-            res.status(500).json({ message: 'Une erreur est survenue' });
-        });
+exports.delete = async (req, res) => {
+    try {
+        // Bloquer la suppression si des documents existent dans ce dossier
+        const docCount = await Document.countDocuments({ record: req.params.id });
+        if (docCount > 0) {
+            return res.status(409).json({
+                message: `Impossible de supprimer : ce dossier contient ${docCount} document(s)`
+            });
+        }
+
+        const deleted = await Record.findByIdAndDelete(req.params.id);
+        if (!deleted) return res.status(404).json({ message: 'Dossier introuvable' });
+        res.status(200).json({ message: 'Dossier supprimé' });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: 'Une erreur est survenue' });
+    }
 };

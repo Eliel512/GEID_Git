@@ -82,6 +82,16 @@ const archiveSchema = new Schema({
 		},
 		required: false
 	},
+	// Référence vers le document physique (subdivision du dossier)
+	document: {
+		type: String,
+		ref: 'document',
+		validate: {
+			validator: value => !value || isValidObjectId(value),
+			message: () => "Au champ 'document' doit correspondre un _id de document valide"
+		},
+		required: false
+	},
 	validated: {
 		type: Boolean,
 		required: true,

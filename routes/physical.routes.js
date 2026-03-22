@@ -80,6 +80,7 @@ const floorCtrl        = require('../controllers/archives/physical/floor');
 const binderCtrl       = require('../controllers/archives/physical/binder');
 const recordCtrl       = require('../controllers/archives/physical/record');
 const recordArchives   = require('../controllers/archives/physical/record-archives');
+const documentCtrl     = require('../controllers/archives/physical/document');
 
 // ─── Routes des conteneurs ────────────────────────────────────────────────────
 
@@ -130,5 +131,17 @@ router.get   ('/records/:id/archives',       recordArchives);        // archives
 router.get   ('/records/:id',                recordCtrl.getOne);
 router.put   ('/records/:id',                recordCtrl.update);
 router.delete('/records/:id',                recordCtrl.delete);
+
+// ─── Routes des documents ───────────────────────────────────────────────────
+// Remarque : routes fixes (/record/:recordId et /parent/:parentId) avant /:id
+
+router.get   ('/documents',                       documentCtrl.getAll);
+router.post  ('/documents',                       documentCtrl.create);
+router.get   ('/documents/record/:recordId',      documentCtrl.getAllByRecord);
+router.get   ('/documents/parent/:parentId',      documentCtrl.getChildren);
+router.get   ('/documents/:id/archives',          documentCtrl.getArchives);
+router.get   ('/documents/:id',                   documentCtrl.getOne);
+router.put   ('/documents/:id',                   documentCtrl.update);
+router.delete('/documents/:id',                   documentCtrl.delete);
 
 module.exports = router;

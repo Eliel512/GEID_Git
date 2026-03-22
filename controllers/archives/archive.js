@@ -29,6 +29,12 @@ exports.modify = (req, res) => {
     setFields.record = req.body.record || null;
   }
 
+  // Rattachement / détachement d'un document physique
+  // document: null → détache   document: "<id>" → attache
+  if (req.body.document !== undefined) {
+    setFields.document = req.body.document || null;
+  }
+
   Archive.findByIdAndUpdate(
     req.params.id,
     { $set: setFields },
