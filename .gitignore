@@ -107,6 +107,8 @@ out
 # Nuxt.js build / generate output
 .nuxt
 dist
+# Exception : le frontend GEID Archives est déployé via git
+!public/geid-platform/archives/dist/
 
 # Gatsby files
 .cache/
