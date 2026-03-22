@@ -354,25 +354,32 @@ module.exports = async function generateManualPdf(req, res) {
 
     // ── CHAPITRE 9 ───────────────────────────────────────────────
     chapterHeader("9", "L'archivage physique");
-    p("L'archivage physique modélise et gère l'inventaire des espaces et supports de conservation réels. Il crée le lien entre le monde numérique et le monde matériel.");
-    h(2, "9.1 — La hiérarchie des espaces physiques");
-    bullet("Local / Emplacement : bâtiment, salle ou espace de conservation délimité. Niveau racine.");
-    bullet("Étagère : meuble de rangement ou rayonnage à l'intérieur d'un local.");
-    bullet("Section : niveau, plateau ou compartiment à l'intérieur d'une étagère.");
-    bullet("Classeur : unité de rangement individuelle avec capacité maximale configurable.");
-    bullet("Document physique : fiche représentant un dossier réel. Reçoit un code QR unique.");
-    h(2, "9.2 — Créer un élément physique");
+    p("L'archivage physique modélise et gère l'inventaire des espaces et supports de conservation réels. Il crée le lien entre le monde numérique et le monde matériel. L'interface adopte une disposition de type explorateur de fichiers avec fil d'Ariane, titre contextuel et ligne de retour (..).");
+    h(2, "9.1 — La hiérarchie des espaces physiques (6 niveaux)");
+    bullet("Conteneur : armoire, salle ou espace de conservation délimité. Niveau racine de la hiérarchie.");
+    bullet("Étagère : rayon ou travée à l'intérieur d'un conteneur.");
+    bullet("Niveau : étage ou compartiment de l'étagère, rattaché à une unité administrative.");
+    bullet("Classeur : unité de rangement spécialisée par nature de document avec capacité maximale configurable.");
+    bullet("Dossier physique : fiche représentant un dossier réel identifié par un code QR unique.");
+    bullet("Document : subdivision du dossier pouvant contenir des archives numériques et/ou des sous-documents de manière récursive.");
+    h(2, "9.2 — Les documents et sous-documents");
+    p("Un dossier physique peut contenir un ou plusieurs documents. Chaque document peut lui-même contenir d'autres sous-documents et/ou des archives numériques. Cette structure récursive permet de modéliser des dossiers complexes avec plusieurs niveaux de classement internes. Dans l'explorateur, les documents et archives sont affichés dans une liste mixte.");
+    h(2, "9.3 — Créer un élément physique");
     step(1, "Naviguez jusqu'au niveau parent dans la hiérarchie.");
     step(2, "Cliquez sur le bouton Ajouter en haut de la liste.");
-    step(3, "Remplissez le formulaire et validez.");
-    h(2, "9.3 — Rattachement archive numérique / document physique");
+    step(3, "Remplissez le formulaire et validez. Les champs de date utilisent un calendrier interactif au format JJ/MM/AAAA.");
+    h(2, "9.4 — Rattacher une archive à un dossier ou un document");
+    p("Une archive numérique peut être rattachée à un dossier physique OU à un document spécifique à l'intérieur de ce dossier.");
     step(1, "Ouvrez le panneau de détail de l'archive numérique.");
     step(2, "Cliquez sur Dossier physique dans la barre d'actions.");
-    step(3, "Recherchez et sélectionnez le document physique correspondant.");
-    step(4, "Confirmez. Le panneau affiche maintenant la localisation physique complète.");
-    h(2, "9.4 — Le code QR");
-    p("Chaque document physique reçoit automatiquement un code QR unique. Imprimez-le et collez-le sur la chemise physique correspondante. Scanner ce code avec un smartphone retrouve instantanément la fiche dans GEID Archives.");
-    succ("L'utilisation systématique des codes QR réduit considérablement le risque d'erreur lors des opérations de classement et de recherche physique.");
+    step(3, "Naviguez dans la hiérarchie en cascade jusqu'au dossier ou document souhaité.");
+    step(4, "Cliquez sur l'élément pour le sélectionner. Utilisez la flèche pour explorer son contenu.");
+    step(5, "Confirmez avec le bouton Rattacher. Le détachement est aussi possible depuis le même dialogue.");
+    h(2, "9.5 — Le code QR");
+    p("Chaque dossier physique reçoit automatiquement un code QR unique (UUID). Imprimez-le et collez-le sur la chemise physique. Scanner ce code retrouve instantanément la fiche complète avec toute la localisation hiérarchique.");
+    h(2, "9.6 — Saisie des dates avec le calendrier");
+    p("Tous les champs de date utilisent un sélecteur de date avec calendrier interactif en français (JJ/MM/AAAA). Les dates sont enregistrées au format international ISO pour garantir la cohérence.");
+    succ("L'utilisation systématique des codes QR et du calendrier réduit considérablement les erreurs de saisie et de classement.");
     addPageFooter();
 
     // ── CHAPITRE 10 ──────────────────────────────────────────────

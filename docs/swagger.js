@@ -639,6 +639,46 @@ const swaggerSpec = {
           },
         },
       },
+      // ── Document physique (niveau 6) ────────────────────────────────────
+      PhysicalDocument: {
+        type: 'object',
+        description: 'Document physique — subdivision d\'un dossier. Structure récursive via le champ parent.',
+        properties: {
+          _id: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e6' },
+          title: { type: 'string', example: 'Contrat de travail' },
+          description: { type: 'string', example: 'Contrat CDI signé le 15/01/2024' },
+          record: { type: 'string', description: '_id du dossier parent (obligatoire).', example: '64a1b2c3d4e5f6a7b8c9d0e5' },
+          parent: { type: 'string', nullable: true, description: '_id du document parent (null = premier niveau, renseigné = sous-document).', example: null },
+          nature: { type: 'string', example: 'CONTRAT', description: 'Type de document (auto-majuscule).' },
+          documentDate: { type: 'string', format: 'date', example: '2024-01-15', description: 'Date figurant sur le document.' },
+          agent: {
+            type: 'object',
+            description: 'Utilisateur ayant créé l\'entrée (auto-injecté).',
+            properties: {
+              _id: { type: 'string' },
+              firstName: { type: 'string' },
+              lastName: { type: 'string' },
+            },
+          },
+          metadata: { type: 'object', additionalProperties: true },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      PhysicalDocumentBody: {
+        type: 'object',
+        description: 'Corps de requête pour créer ou modifier un document physique.',
+        required: ['title', 'record'],
+        properties: {
+          title: { type: 'string', example: 'Contrat de travail', description: 'Titre du document (obligatoire).' },
+          description: { type: 'string', example: 'Description du contenu' },
+          record: { type: 'string', example: '64a1b2c3d4e5f6a7b8c9d0e5', description: '_id du dossier parent (obligatoire).' },
+          parent: { type: 'string', nullable: true, description: '_id du document parent pour créer un sous-document.' },
+          nature: { type: 'string', example: 'CONTRAT' },
+          documentDate: { type: 'string', format: 'date', example: '2024-01-15' },
+          metadata: { type: 'object', additionalProperties: true },
+        },
+      },
       // ── Chat ─────────────────────────────────────────────────────────────
       Room: {
         type: 'object',
@@ -2933,6 +2973,144 @@ const swaggerSpec = {
             content: { 'application/json': { schema: { type: 'object', properties: { message: { type: 'string', example: 'Dossier supprimé' } } } } },
           },
           404: { description: 'Dossier introuvable.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    // ── Documents physiques ─────────────────────────────────────────────────────
+    // Niveau 6. Subdivision du dossier. Structure récursive (parent → sous-documents).
+
+    '/api/stuff/archives/physical/documents': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Lister tous les documents',
+        description: 'Retourne tous les documents physiques avec record, agent et parent peuplés.',
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: { description: 'Liste des documents.', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/PhysicalDocument' } } } } },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+      post: {
+        tags: ['Archivage Physique'],
+        summary: 'Créer un document',
+        description:
+          'Crée un document dans un dossier physique. Si `parent` est renseigné, ' +
+          'le document est un sous-document (structure récursive). ' +
+          'Le parent doit appartenir au même dossier (`record`).',
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/PhysicalDocumentBody' } } },
+        },
+        responses: {
+          201: { description: 'Document créé.', content: { 'application/json': { schema: { $ref: '#/components/schemas/PhysicalDocument' } } } },
+          404: { description: 'Dossier ou document parent introuvable.' },
+          422: { description: 'Le document parent doit appartenir au même dossier.' },
+          400: { description: 'Données invalides.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    '/api/stuff/archives/physical/documents/record/{recordId}': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Documents de premier niveau d\'un dossier',
+        description: 'Retourne les documents rattachés directement au dossier (parent = null).',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'recordId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          200: { description: 'Documents du dossier.', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/PhysicalDocument' } } } } },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    '/api/stuff/archives/physical/documents/parent/{parentId}': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Sous-documents d\'un document parent',
+        description: 'Retourne les documents enfants d\'un document donné (récursif).',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'parentId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          200: { description: 'Sous-documents.', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/PhysicalDocument' } } } } },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    '/api/stuff/archives/physical/documents/{id}': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Récupérer un document avec son contexte',
+        description: 'Retourne un document avec record, binder et parent peuplés.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          200: { description: 'Document trouvé.', content: { 'application/json': { schema: { $ref: '#/components/schemas/PhysicalDocument' } } } },
+          404: { description: 'Document introuvable.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+      put: {
+        tags: ['Archivage Physique'],
+        summary: 'Modifier un document',
+        description: 'Met à jour un document. Si `parent` est modifié, vérifie qu\'il appartient au même dossier et qu\'il n\'est pas son propre parent.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/PhysicalDocumentBody' } } },
+        },
+        responses: {
+          200: { description: 'Document mis à jour.', content: { 'application/json': { schema: { $ref: '#/components/schemas/PhysicalDocument' } } } },
+          404: { description: 'Document ou parent introuvable.' },
+          422: { description: 'Règle métier violée.' },
+          400: { description: 'Données invalides.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+      delete: {
+        tags: ['Archivage Physique'],
+        summary: 'Supprimer un document',
+        description: 'Supprime un document. Bloqué si des sous-documents existent (409). Les archives liées deviennent orphelines.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          200: { description: 'Document supprimé.', content: { 'application/json': { schema: { type: 'object', properties: { message: { type: 'string' } } } } } },
+          404: { description: 'Document introuvable.' },
+          409: { description: 'Impossible de supprimer : sous-documents existants.' },
+          401: { description: 'Token JWT absent ou invalide.' },
+        },
+      },
+    },
+
+    '/api/stuff/archives/physical/documents/{id}/archives': {
+      get: {
+        tags: ['Archivage Physique'],
+        summary: 'Archives numériques liées à un document',
+        description: 'Retourne toutes les archives numériques dont le champ `document` correspond.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          200: {
+            description: 'Archives liées.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    document: { type: 'string' },
+                    count: { type: 'integer' },
+                    archives: { type: 'array', items: { $ref: '#/components/schemas/Archive' } },
+                  },
+                },
+              },
+            },
+          },
           401: { description: 'Token JWT absent ou invalide.' },
         },
       },
