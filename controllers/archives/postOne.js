@@ -85,11 +85,15 @@ module.exports = (req, res, next) => {
             } catch (err) {
                 console.error('[MinIO upload] postOne:', err.message);
             }
+            // Normalise subType/subtype (les deux apps envoient des noms différents)
+            const rawType = req.body.type || {};
+            const subtype = rawType.subType || rawType.subtype || undefined;
             const newArchive = new Archive({
                 ...doc,
                 ...req.body,
                 type: {
-                    ...req.body.type,
+                    type: rawType.type,
+                    subtype,
                     profil: defaultProfil._id
                 },
                 folder: folder._id,
