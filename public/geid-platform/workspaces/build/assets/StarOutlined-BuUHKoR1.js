@@ -1,1 +1,0 @@
-import{m as t,j as r,n as a}from"./index-CtUE0rVC.js";var e={},u=a;Object.defineProperty(e,"__esModule",{value:!0});var l=e.default=void 0,i=u(t()),o=r;l=e.default=(0,i.default)((0,o.jsx)("path",{d:"M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"}),"StarOutlined");export{l as d};
