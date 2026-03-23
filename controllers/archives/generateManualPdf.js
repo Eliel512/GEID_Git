@@ -266,13 +266,13 @@ module.exports = async function generateManualPdf(req, res) {
     p("Type et sous-type classifiant la nature du document. Utilisé pour les statistiques et les règles de gestion.");
     h(4, "Numéro de classe");
     p("Code de classement selon le plan documentaire. Permet de regrouper les documents par famille.");
-    h(4, "Dossier (obligatoire)");
-    p("Dossier thématique ou fonctionnel. Utiliser une notation cohérente : 'Domaine / Sous-domaine'.");
+    h(4, "Dossier (automatique)");
+    p("Le dossier de classement est déterminé automatiquement par le serveur à partir du type de document choisi. Vous n'avez pas besoin de le renseigner manuellement.");
     h(4, "Description");
     p("Résumé du contenu en quelques phrases. Améliore significativement la pertinence des recherches.");
     h(4, "Pièce jointe");
     p("Fichier numérique du document. Formats recommandés : PDF, DOC/DOCX, XLS/XLSX, JPG, PNG.");
-    succ("Avant de soumettre, relisez la désignation et le dossier. Ce sont les deux champs les plus consultés lors des recherches.");
+    succ("Avant de soumettre, relisez la désignation et la description. Ce sont les deux champs les plus consultés lors des recherches.");
     addPageFooter();
 
     // ── CHAPITRE 5 ───────────────────────────────────────────────
@@ -323,11 +323,11 @@ module.exports = async function generateManualPdf(req, res) {
     step(2, "Cliquez sur l'archive à examiner pour ouvrir son panneau de détail.");
     step(3, "Lisez la désignation et la description. Vérifiez leur cohérence avec le contenu.");
     step(4, "Consultez le fichier joint pour vérifier sa conformité.");
-    step(5, "Vérifiez que le dossier de classement est correct.");
+    step(5, "Le dossier de classement est attribué automatiquement — vérifiez qu'il est cohérent.");
     step(6, "Cliquez sur Valider. Confirmez dans la fenêtre qui s'affiche.");
     h(2, "7.2 — Critères d'évaluation");
     bullet("La désignation identifie-t-elle clairement le document sans avoir à l'ouvrir ?");
-    bullet("Le dossier de classement est-il cohérent avec le plan documentaire ?");
+    bullet("Le dossier de classement (attribué automatiquement) est-il cohérent avec le plan documentaire ?");
     bullet("Le fichier est-il lisible, complet et dans un format pérenne ?");
     bullet("Le contenu du fichier correspond-il à la désignation ?");
     succ("Établissez un délai maximal de traitement des archives en attente (5 jours ouvrables est un standard courant). Consultez quotidiennement le tableau de bord pour ne pas dépasser ce délai.");
@@ -349,7 +349,7 @@ module.exports = async function generateManualPdf(req, res) {
     step(3, "Confirmez dans la fenêtre de confirmation.");
     warn("La suppression en masse est particulièrement risquée. Vérifiez scrupuleusement votre sélection avant de confirmer.");
     h(2, "8.3 — Exporter la liste en CSV");
-    p("Cliquez sur l'icône de téléchargement dans la barre de navigation gauche. Le fichier CSV contient : Désignation, Numéro de classe, Référence, Dossier, Statut, Date. Les filtres actifs sont respectés dans l'export.");
+    p("Cliquez sur l'icône de téléchargement dans la barre de navigation gauche. Le fichier CSV contient : Désignation, Numéro de classe, Référence, Dossier (automatique), Statut, Date. Les filtres actifs sont respectés dans l'export.");
     addPageFooter();
 
     // ── CHAPITRE 9 ───────────────────────────────────────────────
