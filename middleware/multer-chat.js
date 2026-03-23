@@ -1,6 +1,8 @@
 const multer = require('multer');
 const mime = require('mime-types');
 const fs = require('fs');
+const pathModule = require('path');
+const minioStorage = require('../tools/storage');
 
 const Chat = require('../models/chats/chat.model');
 const User = require('../models/users/user.model');
@@ -19,7 +21,7 @@ const getPath = async (userId, type, to) => {
         type: 'direct'
       };
       break;
-  
+
     case 'room':
       const chatExists = await Chat.exists({
         _id: to,
@@ -34,7 +36,7 @@ const getPath = async (userId, type, to) => {
         next(new Error('Chat introuvable.'));
       }
       break;
-  
+
     default:
       next(new Error('\'type\' incorrect.'));
   }
@@ -67,11 +69,11 @@ const getPath = async (userId, type, to) => {
   }catch{
     throw 'Coordonnées du chat invalides';
   }
-  
+
 }
 
 
-const storage = multer.diskStorage({
+const diskStorage = multer.diskStorage({
     destination: async (req, file, callback) => {
       const path = await getPath(req.userId, req.body.type, req.body.to);
       try{
@@ -100,5 +102,20 @@ const storage = multer.diskStorage({
       callback(null, name + '.' + extension);
     }
   });
-  
-module.exports = multer({storage: storage}).single('file');
+
+const upload = multer({storage: diskStorage}).single('file');
+
+// Wrap multer to also upload to MinIO after disk write
+module.exports = (req, res, next) => {
+    upload(req, res, (err) => {
+        if (err) return next(err);
+        if (req.file) {
+            // req.file.destination is like "salon/<chatId>"
+            const relPath = pathModule.join(req.file.destination, req.file.filename);
+            minioStorage.uploadFileFromDisk(relPath, req.file.path).catch(err2 => {
+                console.error('[MinIO upload] multer-chat:', err2.message);
+            });
+        }
+        next();
+    });
+};

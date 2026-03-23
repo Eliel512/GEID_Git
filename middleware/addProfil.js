@@ -1,4 +1,5 @@
 const multer = require('multer');
+const minioStorage = require('../tools/storage');
 
 const MIME_TYPES = {
   'image/jpg': 'jpg',
@@ -10,12 +11,12 @@ const MIME_TYPES = {
 
 
 
-const storage = multer.diskStorage({
+const diskStorage = multer.diskStorage({
     destination: (req, file, callback) => {
       callback(null, 'profils/');
     },
     filename: (req, file, callback) => {
-      const name = `${req.userId}`;      
+      const name = `${req.userId}`;
       const extension = MIME_TYPES[file.mimetype];
       if(!extension){
         next(new Error('Extension de fichier incorrecte'));
@@ -24,4 +25,18 @@ const storage = multer.diskStorage({
     }
 });
 
-module.exports = multer({storage: storage}).single('file');
+const upload = multer({storage: diskStorage}).single('file');
+
+// Wrap multer to also upload to MinIO after disk write
+module.exports = (req, res, next) => {
+    upload(req, res, (err) => {
+        if (err) return next(err);
+        if (req.file) {
+            const relPath = `profils/${req.file.filename}`;
+            minioStorage.uploadFileFromDisk(relPath, req.file.path).catch(err2 => {
+                console.error('[MinIO upload] addProfil:', err2.message);
+            });
+        }
+        next();
+    });
+};

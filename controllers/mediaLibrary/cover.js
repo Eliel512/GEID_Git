@@ -1,4 +1,5 @@
 const fs = require('fs');
+const storage = require('../../tools/storage');
 const Cover = require('../../models/mediaLibrary/cover.model');
 const Type = require('../../models/archives/type.model');
 const Book = require('../../models/mediaLibrary/book.model');
@@ -20,6 +21,11 @@ module.exports = {
       name: name.toUpperCase(),
       docTypes: docTypes.filter(doc => doctypes.includes(doc)),
       contentUrl: `/ressources/covers/${req.file.filename}`
+    });
+    // Dual-write: upload cover to MinIO
+    const coverRelPath = `ressources/covers/${req.file.filename}`;
+    storage.uploadFileFromDisk(coverRelPath, req.file.path).catch(err => {
+        console.error('[MinIO upload] cover.addOne:', err.message);
     });
     cover.save()
       .then(() => {
@@ -43,6 +49,11 @@ module.exports = {
           console.log(err);
           res.status(500).json({ message: 'Erreur interne du serveur!' });
         }else{
+          // Dual-write: delete from MinIO
+          const coverFileRelPath = `ressources/${cover.contentUrl.split('ressources/')[1]}`;
+          storage.deleteFile(coverFileRelPath).catch(err2 => {
+              console.error('[MinIO delete] cover.deleteOne:', err2.message);
+          });
           Cover.deleteOne({ name: req.params.name  })
           .then(res.status(200).json({ message: 'Couverture supprimée avec succès!' }))
           .catch(err => {

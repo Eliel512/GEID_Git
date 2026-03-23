@@ -1,4 +1,3 @@
-// const Invalid = require('../../models/archives/invalid.model');
 const Archive = require('../../models/archives/archive.model');
 const Doc = require('../../models/archives/doc.model');
 const Profil = require('../../models/archives/profil.model');
@@ -8,11 +7,18 @@ const User = require('../../models/users/user.model');
 const fs = require('fs');
 const path = require('path');
 const getPath = require('../../tools/getRoleUrl');
+const storage = require('../../tools/storage');
+
+/** Normalise un nom de dossier : majuscules, sans accents */
+function normalizeFolder(name) {
+    return name
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase().trim();
+}
 
 module.exports = (req, res, next) => {
     Doc.findOne({ _id: req.body.doc })
         .then(async doc => {
-            // console.log(req.body);
             const docId = doc._id;
             const mainDir = path.dirname(require.main.filename);
             delete doc._id;
@@ -28,9 +34,16 @@ module.exports = (req, res, next) => {
                 userRole = await Role.findOne({
                     name: userRoleName
                 }, { _id: 1, name: 1 });
-                folder = await Folder.findOne({
-                    name: req.body.folder
-                }, { _id: 1 });
+
+                // Déterminer le nom du dossier : fourni par l'utilisateur OU déduit du type
+                const folderName = normalizeFolder(
+                    req.body.folder || req.body.type?.type || 'DIVERS'
+                );
+                folder = await Folder.findOne({ name: folderName }, { _id: 1 });
+                if (!folder) {
+                    folder = new Folder({ name: folderName, description: folderName });
+                    await folder.save();
+                }
             }catch(error){
                 console.log(error);
                 return res.status(500).json({ message: 'Une erreur est survenue' })
@@ -64,6 +77,13 @@ module.exports = (req, res, next) => {
                 }
                 console.log(error);
                 return res.status(500).json({ message: 'Une erreur est survenue' });
+            }
+            // Dual-write: replicate to MinIO
+            const archiveRelPath = path.join('ARCHIVES', fileUrl, path.basename(doc.contentUrl));
+            try {
+                await storage.uploadFileFromDisk(archiveRelPath, path.join(mainDir, archiveRelPath));
+            } catch (err) {
+                console.error('[MinIO upload] postOne:', err.message);
             }
             const newArchive = new Archive({
                 ...doc,

@@ -13,6 +13,7 @@ const Role = require("../models/users/role.model");
 const bcrypt = require("bcryptjs");
 const fs = require("fs");
 const _ = require("lodash");
+const storage = require("../tools/storage");
 
 /**
  * Crée la structure de dossiers pour un nouvel utilisateur
@@ -39,6 +40,8 @@ const buildWorkspace = (res, user) => {
         console.log(err);
         return res.status(500).json({ err });
       }
+      // Dual-write: ensure dir in MinIO (no-op)
+      storage.ensureDir(`workspace/${user._id}/${folders[currentFolder]}`).catch(() => {});
       currentFolder++;
       createNextFolder();
     });

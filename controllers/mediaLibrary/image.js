@@ -2,6 +2,7 @@ const { Image } = require('../../models/mediaLibrary/image.model');
 const { imageFrozen } = require('../../models/mediaLibrary/frozen.model');
 const getHost = require('./getHost').getHost();
 const fs = require('fs');
+const storage = require('../../tools/storage');
 const User = require('../../models/users/user.model');
 
 exports.create = (req, res, next) => {
@@ -39,6 +40,11 @@ exports.create = (req, res, next) => {
                                     console.log(err);
                                     return res.status(500).json({ message: 'Erreur interne du serveur' });
                                 }else{
+                                  // Dual-write: upload to MinIO
+                                  const relPath = contentUrl.startsWith('./') ? contentUrl.slice(2) : contentUrl.startsWith('.') ? contentUrl.slice(1) : contentUrl;
+                                  storage.uploadFileFromDisk(relPath, contentUrl).catch(err2 => {
+                                      console.error('[MinIO upload] image.create:', err2.message);
+                                  });
                                   res.status(201).json({ message: 'Image enregistrée !' });
                                 }
                               });
@@ -96,6 +102,10 @@ exports.delete = (req, res, next) => {
     .then(image => {
       const filename = image.contentUrl.split('/ressources/mediatheque/phototheque/')[1];
       fs.unlink(`ressources/mediatheque/phototheque/${filename}`, () => {
+        // Dual-write: delete from MinIO
+        storage.deleteFile(`ressources/mediatheque/phototheque/${filename}`).catch(err => {
+            console.error('[MinIO delete] image.delete:', err.message);
+        });
         Image.deleteOne({ _id: req.params.id.split('=')[1] })
           .then(() => res.status(200).json({ message: 'Livre supprimé !'}))
           .catch(error => res.status(400).json({ error }));
@@ -124,8 +134,9 @@ exports.deleteAll = (req, res, next) => {
       images ? (() => {
         for(const image of images){
             const filename = image.contentUrl.split('/ressources/mediatheque/phototheque/')[1];
-            fs.unlink(`ressources/mediatheque/phototheque/${filename}`, () => {
-            });
+            fs.unlink(`ressources/mediatheque/phototheque/${filename}`, () => {});
+            // Dual-write: delete from MinIO
+            storage.deleteFile(`ressources/mediatheque/phototheque/${filename}`).catch(() => {});
         }
         Image.deleteMany({  })
               .then(count => res.status(200).json({ message: `${count.deletedCount} données supprimées !`}))

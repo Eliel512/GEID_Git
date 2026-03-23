@@ -10,7 +10,7 @@
  *   subtype     — document subtype string (optional)
  *   designation — archive title (required)
  *   description — archive description (required)
- *   folder      — activity/folder name (required)
+ *   folder      — activity/folder name (optional — defaults to type)
  *
  * The file is saved to ARCHIVES/direct/<userId>/<filename>.
  */
@@ -18,11 +18,19 @@
 const fs      = require('fs');
 const path    = require('path');
 const mime    = require('mime-types');
+const storage = require('../../tools/storage');
 const Archive = require('../../models/archives/archive.model');
 const Profil  = require('../../models/archives/profil.model');
 const Folder  = require('../../models/archives/folder.model');
 const Role    = require('../../models/users/role.model');
 const User    = require('../../models/users/user.model');
+
+/** Normalise un nom de dossier : majuscules, sans accents */
+function normalizeFolder(name) {
+    return name
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase().trim();
+}
 
 module.exports = async (req, res) => {
     if (!req.file) {
@@ -30,8 +38,8 @@ module.exports = async (req, res) => {
     }
 
     const { type, subtype, designation, description, folder: folderName } = req.body;
-    if (!designation || !description || !folderName || !type) {
-        return res.status(400).json({ message: 'Champs obligatoires manquants : designation, description, folder, type.' });
+    if (!designation || !description || !type) {
+        return res.status(400).json({ message: 'Champs obligatoires manquants : designation, description, type.' });
     }
 
     try {
@@ -46,16 +54,16 @@ module.exports = async (req, res) => {
         const defaultProfil = await Profil.findOne({ name: 'default' }, { _id: 1 });
         if (!defaultProfil) return res.status(500).json({ message: 'Profil par défaut introuvable.' });
 
-        // ── 2. Ensure folder exists ────────────────────────────────────────
-        let folderDoc = await Folder.findOne({ name: folderName });
+        // ── 2. Ensure folder exists (auto-create from type if not provided) ─
+        const resolvedFolderName = normalizeFolder(folderName || type || 'DIVERS');
+        let folderDoc = await Folder.findOne({ name: resolvedFolderName });
         if (!folderDoc) {
-            folderDoc = new Folder({ name: folderName, description });
+            folderDoc = new Folder({ name: resolvedFolderName, description: resolvedFolderName });
             await folderDoc.save();
         }
 
         // ── 3. Write file to disk ──────────────────────────────────────────
         const mainDir   = path.dirname(require.main.filename);
-        const ext       = mime.extension(req.file.mimetype) || 'bin';
         const safeName  = req.file.originalname
             .replace(/[^a-zA-Z0-9_\-\.]/g, '_');
         const fileName  = `${Date.now()}_${safeName}`;
@@ -66,6 +74,13 @@ module.exports = async (req, res) => {
         fs.writeFileSync(fullPath, req.file.buffer);
 
         const relativeFileUrl = path.join('ARCHIVES', 'direct', String(res.locals.userId), fileName);
+
+        // Dual-write: replicate to MinIO
+        try {
+            await storage.uploadFile(relativeFileUrl, req.file.buffer);
+        } catch (err) {
+            console.error('[MinIO upload] postDirect:', err.message);
+        }
 
         // ── 4. Create archive record ───────────────────────────────────────
         const archive = new Archive({

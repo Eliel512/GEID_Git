@@ -4,6 +4,7 @@ const fs = require('fs');
 const mime = require('mime-types');
 const paths = require('path');
 const docEvent = require('../events/doc');
+const storage = require('../tools/storage');
 
 const WORKSPACE_BASE = paths.resolve('workspace');
 
@@ -31,11 +32,17 @@ exports.create = (req, res, next) => {
       console.log(err);
       res.status(500).json({ message: 'Erreur interne du serveur' });
     }else{
+      const contentRelPath = paths.join('workspace', userId, path, filename);
+      // Dual-write: upload to MinIO
+      const localAbsPath = paths.resolve('./workspace', userId, path, filename);
+      storage.uploadFileFromDisk(contentRelPath, localAbsPath).catch(err => {
+          console.error('[MinIO upload] workspace.create:', err.message);
+      });
       const doc = new Doc({
         ...req.body,
         format: extension,
         owner: userId,
-        contentUrl: paths.join('workspace', userId, path, filename)
+        contentUrl: contentRelPath
       });
       doc.save()
         .then(() => {
@@ -91,6 +98,12 @@ exports.modify = (req, res, next) => {
       console.log(err);
       res.status(500).json({ message: 'Erreur interne du serveur' });
     }else{
+      // Dual-write: rename in MinIO
+      const oldRelPath = paths.join('workspace', userId, path, req.body.oldFilename);
+      const newRelPath = paths.join('workspace', req.body.userId, req.body.path, filename);
+      storage.renameFile(oldRelPath, newRelPath).catch(err2 => {
+          console.error('[MinIO rename] workspace.modify:', err2.message);
+      });
       const result = [];
       fs.readdir(`./workspace/${userId}/${path}`, (err, files) => {
         if (err) {
@@ -145,6 +158,11 @@ exports.delete = (req, res, next) => {
       console.log(err);
       res.status(500).json({ message: 'Une erreur est survenue' });
     }else{
+      // Dual-write: delete from MinIO
+      const delRelPath = paths.join('workspace', userId, subPath, filename);
+      storage.deleteFile(delRelPath).catch(err2 => {
+          console.error('[MinIO delete] workspace.delete:', err2.message);
+      });
       const result = [];
       fs.readdir(targetDir, (err, files) => {
         if (err) {
@@ -259,6 +277,8 @@ exports.createFolder = (req, res) => {
 
   try {
     fs.mkdirSync(newDir, { recursive: false });
+    // Dual-write: ensureDir in MinIO (no-op, but keeps intent clear)
+    storage.ensureDir(paths.join('workspace', userId, subPath, folderName.trim())).catch(() => {});
     res.status(201).json({ message: 'Dossier créé', name: folderName.trim(), isDirectory: true });
   } catch (e) {
     if (e.code === 'EEXIST') return res.status(409).json({ message: 'Ce dossier existe déjà.' });
@@ -302,6 +322,10 @@ exports.deleteFolder = (req, res) => {
 
   try {
     fs.rmSync(targetFolder, { recursive: true, force: false });
+    // Dual-write: delete directory prefix in MinIO
+    storage.deleteDir(paths.join('workspace', userId, subPath, folderName)).catch(err2 => {
+        console.error('[MinIO deleteDir] workspace.deleteFolder:', err2.message);
+    });
     res.status(200).json({ message: 'Dossier supprimé' });
   } catch (e) {
     console.log(e);
@@ -332,6 +356,10 @@ exports.renameFolder = (req, res) => {
 
   try {
     fs.renameSync(oldPath, newPath);
+    // Dual-write: MinIO does not have native rename for dirs.
+    // For folders, we would need to list+copy+delete all objects.
+    // This is handled at object level; new files written after rename go to the new prefix.
+    // TODO: implement full dir rename in MinIO if needed.
     res.status(200).json({ message: 'Dossier renommé', name: newName.trim() });
   } catch (e) {
     if (e.code === 'ENOENT') return res.status(404).json({ message: 'Dossier introuvable.' });

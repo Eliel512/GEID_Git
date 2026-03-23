@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const storage = require('../../tools/storage');
 const User = require('../../models/users/user.model');
 const Role = require('../../models/users/role.model');
 const Auth = require('../../models/users/auth.model');
@@ -51,6 +52,13 @@ module.exports = (req, res, next) => {
                                                         console.log(err);
                                                         res.status(500).json({ message: 'Erreur interne du serveur' });
                                                     } else {
+                                                        // Dual-write: ensure workspace dirs in MinIO (no-op)
+                                                        const uid = user._id.toString();
+                                                        Promise.all([
+                                                            storage.ensureDir(`workspace/${uid}/images`),
+                                                            storage.ensureDir(`workspace/${uid}/videos`),
+                                                            storage.ensureDir(`workspace/${uid}/documents`),
+                                                        ]).catch(e => console.error('[MinIO] signup ensureDir:', e.message));
                                                         res.status(201).json({
                                                             message: 'Inscription réussie!'
                                                         })

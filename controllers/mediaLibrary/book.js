@@ -4,6 +4,7 @@ const { bookFrozen } = require('../../models/mediaLibrary/frozen.model');
 const User = require('../../models/users/user.model');
 const getHost = require('./getHost').getHost();
 const fs = require('fs');
+const storage = require('../../tools/storage');
 
 exports.create = (req, res, next) => {
   const { userId, frozenId } = req.body;
@@ -40,6 +41,12 @@ exports.create = (req, res, next) => {
                                     console.log(err);
                                     return res.status(500).json({ message: 'Erreur interne du serveur' });
                                 }else{
+                                  // Dual-write: upload to MinIO
+                                  // contentUrl starts with './' — strip leading dot
+                                  const relPath = contentUrl.startsWith('./') ? contentUrl.slice(2) : contentUrl.startsWith('.') ? contentUrl.slice(1) : contentUrl;
+                                  storage.uploadFileFromDisk(relPath, contentUrl).catch(err2 => {
+                                      console.error('[MinIO upload] book.create:', err2.message);
+                                  });
                                   res.status(201).json({ message: 'Livre enregistré !' });
                                 }
                               });
@@ -183,6 +190,8 @@ exports.deleteAll = (req, res, next) => {
             fs.unlink(`ressources/mediatheque/bibliotheque/${filename}`, () => {
               count++
             });
+            // Dual-write: delete from MinIO
+            storage.deleteFile(`ressources/mediatheque/bibliotheque/${filename}`).catch(() => {});
         }
         count ? Book.deleteMany({  })
               .then(count => res.status(200).json({ message: `${count.deletedCount} données supprimées !`}))
