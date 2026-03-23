@@ -24,7 +24,12 @@ router.use('/invalid', invalidAuth, invalidRoutes);
 router.use('/event', eventRoutes);
 
 // ── Gestion des utilisateurs (cadre organique) — AVANT /:role ────
+router.get('/stats/global',             usersCtrl.getGlobalStats);
 router.get('/users',                    usersCtrl.getUsers);
+router.get('/users/:id/stats',          usersCtrl.getUserStats);
+router.get('/users/:id/activity',       usersCtrl.getUserActivity);
+router.patch('/users/:id/toggle',       usersCtrl.toggleActive);
+router.put('/users/:id/role',           usersCtrl.assignRole);
 router.get('/users/:id',                usersCtrl.getOneUser);
 router.put('/users/:id/permissions',    usersCtrl.setPermissions);
 router.get('/roles',                    usersCtrl.getRoles);
