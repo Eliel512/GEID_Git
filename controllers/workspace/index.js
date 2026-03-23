@@ -11,6 +11,7 @@ const { moveFile, copyFile } = require('./move');
 const { getRecent } = require('./recent');
 const { getQuota } = require('./quota');
 const { getActivity } = require('./activity');
+const { shareWithUser, createShareLink, revokeShare, getSharedWithMe } = require('./share');
 
 module.exports = {
   // Existing (refactored)
@@ -38,4 +39,8 @@ module.exports = {
   getRecent,
   getQuota,
   getActivity,
+  shareWithUser,
+  createShareLink,
+  revokeShare,
+  getSharedWithMe,
 };

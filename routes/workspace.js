@@ -34,6 +34,12 @@ router.get('/quota', workCtrl.getQuota);
 // ── Journal d'activité ──────────────────────────────────────────────────────
 router.get('/activity', workCtrl.getActivity);
 
+// ── Partage ─────────────────────────────────────────────────────────────
+router.get('/shared', workCtrl.getSharedWithMe);
+router.post('/share', workCtrl.shareWithUser);
+router.post('/share/link', workCtrl.createShareLink);
+router.delete('/share/:id', workCtrl.revokeShare);
+
 // ── Dossiers (routes spécifiques avant /:data) ──────────────────────────────
 router.post('/folder', workCtrl.createFolder);
 router.put('/folder', workCtrl.renameFolder);
