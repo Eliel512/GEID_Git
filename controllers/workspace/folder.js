@@ -3,7 +3,7 @@ const paths = require('path');
 const WorkspaceFile = require('../../models/workspace/workspaceFile.model');
 const ActivityLog = require('../../models/workspace/activityLog.model');
 const storage = require('../../tools/storage');
-const { WORKSPACE_BASE, safePath, isValidFolderName } = require('./utils');
+const { WORKSPACE_BASE, safePath, isValidFolderName, escapeRegex } = require('./utils');
 
 exports.createFolder = (req, res) => {
   const userId = res.locals.userId;
@@ -93,7 +93,7 @@ exports.deleteFolder = (req, res) => {
       owner: userId,
       $or: [
         { path: subPath, name: folderName, isDirectory: true },
-        { path: { $regex: `^${folderPath}` } },
+        { path: { $regex: `^${escapeRegex(folderPath)}` } },
       ]
     }).catch(() => {});
 

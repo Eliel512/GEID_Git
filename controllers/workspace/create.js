@@ -5,7 +5,6 @@ const Doc = require('../../models/archives/doc.model');
 const WorkspaceFile = require('../../models/workspace/workspaceFile.model');
 const ActivityLog = require('../../models/workspace/activityLog.model');
 const getHost = require('../getHost').getHost();
-const storage = require('../../tools/storage');
 const docEvent = require('../../events/doc');
 const { listDirectory, WORKSPACE_BASE, safePath } = require('./utils');
 
@@ -22,11 +21,6 @@ exports.create = (req, res) => {
 
     const contentRelPath = paths.join('workspace', userId, subPath, filename);
     const localAbsPath = paths.resolve('./workspace', userId, subPath, filename);
-
-    // Dual-write: upload to MinIO
-    storage.uploadFileFromDisk(contentRelPath, localAbsPath).catch(err2 => {
-      console.error('[MinIO upload] workspace.create:', err2.message);
-    });
 
     const doc = new Doc({
       ...req.body,

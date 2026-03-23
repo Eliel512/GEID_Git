@@ -1,4 +1,5 @@
 const multer = require('multer');
+const fs = require('fs');
 const mime = require('mime-types');
 const pathModule = require('path');
 const minioStorage = require('../tools/storage');
@@ -6,6 +7,7 @@ const minioStorage = require('../tools/storage');
 const diskStorage = multer.diskStorage({
   destination: (req, file, callback) => {
     const path = "workspace/"+req.body.userId+"/"+req.body.path;
+    fs.mkdirSync(path, { recursive: true });
     callback(null, path);
   },
   filename: (req, file, callback) => {
