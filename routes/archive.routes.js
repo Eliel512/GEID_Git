@@ -18,9 +18,17 @@ const checkWriteAccess = require('../middleware/archives/checkWriteAccess');
 const multerArchive = require('../middleware/archives/multer-archive');
 const search = require('../controllers/archives/search');
 const generateManualPdf = require('../controllers/archives/generateManualPdf');
+const usersCtrl = require('../controllers/archives/users');
 
 router.use('/invalid', invalidAuth, invalidRoutes);
 router.use('/event', eventRoutes);
+
+// ── Gestion des utilisateurs (cadre organique) — AVANT /:role ────
+router.get('/users',                    usersCtrl.getUsers);
+router.get('/users/:id',                usersCtrl.getOneUser);
+router.put('/users/:id/permissions',    usersCtrl.setPermissions);
+router.get('/roles',                    usersCtrl.getRoles);
+router.get('/auths',                    usersCtrl.getAuths);
 
 router.get('/manual/pdf', generateManualPdf);       // PDF manuel utilisateur (fallback serveur)
 router.get('/archived', getAllValidateMiddleware, getAllValidate);
