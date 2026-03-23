@@ -81,10 +81,11 @@ const binderCtrl       = require('../controllers/archives/physical/binder');
 const recordCtrl       = require('../controllers/archives/physical/record');
 const recordArchives   = require('../controllers/archives/physical/record-archives');
 const documentCtrl     = require('../controllers/archives/physical/document');
-const physicalSearch   = require('../controllers/archives/physical/search');
+const physicalSearchCtrl = require('../controllers/archives/physical/search');
 
 // ─── Recherche unifiée (tous niveaux + archives) — AVANT les routes paramétrées
-router.get('/search', physicalSearch);
+router.get('/search', physicalSearchCtrl.search);
+router.get('/path/:level/:id', physicalSearchCtrl.getPath);
 
 // ─── Routes des conteneurs ────────────────────────────────────────────────────
 
