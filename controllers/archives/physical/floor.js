@@ -28,6 +28,8 @@
 
 const Floor  = require('../../../models/archives/floor.model');
 const Binder = require('../../../models/archives/binder.model');
+const User   = require('../../../models/users/user.model');
+const Role   = require('../../../models/users/role.model');
 
 // ─── getAll ───────────────────────────────────────────────────────────────────
 
@@ -126,19 +128,38 @@ exports.getOne = (req, res) => {
  * @returns {201} Objet JSON de l'étage créé
  * @returns {400} Données invalides (champ manquant ou _id invalide)
  */
-exports.create = (req, res) => {
-    const floor = new Floor({
-        number:             req.body.number,
-        label:              req.body.label,
-        shelf:              req.body.shelf,
-        administrativeUnit: req.body.administrativeUnit
-    });
-    floor.save()
-        .then(saved => res.status(201).json(saved))
-        .catch(error => {
-            console.log(error);
-            res.status(400).json({ message: error.message });
+exports.create = async (req, res) => {
+    try {
+        // L'unité administrative est déterminée automatiquement :
+        // 1. Si fournie dans le body → l'utiliser (admin peut choisir)
+        // 2. Sinon → prendre le rôle de l'utilisateur connecté (grade.role)
+        let adminUnit = req.body.administrativeUnit;
+
+        if (!adminUnit) {
+            const user = await User.findById(res.locals.userId);
+            if (!user?.grade?.role) {
+                return res.status(400).json({ message: 'Impossible de déterminer votre unité administrative.' });
+            }
+            // Trouver le rôle pour avoir son _id
+            const role = await Role.findOne({ name: user.grade.role });
+            if (!role) {
+                return res.status(400).json({ message: `L'unité "${user.grade.role}" n'existe pas dans le système.` });
+            }
+            adminUnit = role._id;
+        }
+
+        const floor = new Floor({
+            number:             req.body.number,
+            label:              req.body.label,
+            shelf:              req.body.shelf,
+            administrativeUnit: adminUnit,
         });
+        const saved = await floor.save();
+        res.status(201).json(saved);
+    } catch (error) {
+        console.log(error);
+        res.status(400).json({ message: error.message });
+    }
 };
 
 // ─── update ───────────────────────────────────────────────────────────────────
