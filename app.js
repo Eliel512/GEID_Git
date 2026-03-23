@@ -153,7 +153,7 @@ app.use((req, res, next) => {
 
 // ─── Fichiers statiques ───────────────────────────────────────────────────────
 
-app.use("/ARCHIVES", express.static(path.join(__dirname, "ARCHIVES")));
+// /ARCHIVES est protégé — accès via /api/stuff/archives/file/:id (authentifié)
 app.use("/profils", express.static(path.join(__dirname, "profils")));
 app.use("/workspace", express.static(path.join(__dirname, "workspace")));
 app.use("/salon", express.static(path.join(__dirname, "salon")));

@@ -17,6 +17,7 @@ const setDua = require('../controllers/archives/dua');
 const checkWriteAccess = require('../middleware/archives/checkWriteAccess');
 const multerArchive = require('../middleware/archives/multer-archive');
 const search = require('../controllers/archives/search');
+const getFile = require('../controllers/archives/getFile');
 const generateManualPdf = require('../controllers/archives/generateManualPdf');
 const usersCtrl = require('../controllers/archives/users');
 const dashPrefsCtrl = require('../controllers/archives/dashboardPrefs');
@@ -41,6 +42,7 @@ router.put('/users/:id/permissions',    usersCtrl.setPermissions);
 router.get('/roles',                    usersCtrl.getRoles);
 router.get('/auths',                    usersCtrl.getAuths);
 
+router.get('/file/:id', getFile);                    // fichier archive authentifié (stream MinIO)
 router.get('/manual/pdf', generateManualPdf);       // PDF manuel utilisateur (fallback serveur)
 router.get('/archived', getAllValidateMiddleware, getAllValidate);
 router.post('/upload', checkWriteAccess, multerArchive, postDirect); // direct file upload
