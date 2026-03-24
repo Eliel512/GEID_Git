@@ -127,7 +127,7 @@ const recordSchema = new Schema(
          */
         nature: {
             type: String,
-            required: [true, "Le champ 'nature' est requis"],
+            required: false,  // Auto-déduit depuis binder.nature par le contrôleur
             set: v => v.toUpperCase()
         },
 

@@ -245,11 +245,13 @@ exports.create = async (req, res) => {
             return res.status(404).json({ message: 'Classeur introuvable' });
         }
 
-        // Étape 2 — Règle métier : la nature du dossier doit correspondre à celle du classeur
-        const recordNature = req.body.nature ? req.body.nature.toUpperCase() : '';
+        // Étape 2 — Nature du dossier : auto-déduite du classeur si non fournie
+        const recordNature = req.body.nature
+            ? req.body.nature.toUpperCase()
+            : binder.nature;
         if (recordNature !== binder.nature) {
             return res.status(422).json({
-                message: `La nature du dossier ('${recordNature}') ne correspond pas à celle du classeur ('${binder.nature}')`
+                message: `La nature du dossier ne correspond pas à celle du classeur (${binder.nature})`
             });
         }
 
@@ -269,7 +271,7 @@ exports.create = async (req, res) => {
             archivingDate:  req.body.archivingDate,
             subject:        req.body.subject,
             category:       req.body.category,
-            nature:         req.body.nature,
+            nature:         recordNature,
             binder:         req.body.binder,
             agent:          res.locals.userId,   // utilisateur connecté, jamais fourni par le client
             qrCode:         randomUUID(),         // UUID v4 unique, jamais fourni par le client

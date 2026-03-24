@@ -66,11 +66,11 @@ const archiveSchema = new Schema({
             validator: role => isValidObjectId(role),
             message: () => "Au champ 'administrativeUnit' doit correspondre un _id de role valide"
         },
-		required: [true, "Le champ 'administrativeUnit' est requis"]
+		required: false  // Auto-rempli depuis le rôle de l'utilisateur connecté
 	},
 	folder: {
 		type: String,
-		required: true
+		required: false  // Auto-déduit du type de document
 	},
 	// Référence vers le dossier physique dans la hiérarchie d'archivage
 	record: {
