@@ -160,6 +160,25 @@ function getFileUrl(relativePath) {
  * @param {string} relativePath
  * @returns {Promise<import('stream').Readable>}
  */
+/**
+ * Retourne la taille du fichier en octets (ou 0 si inconnu).
+ */
+async function getFileSize(relativePath) {
+    if (!MINIO_ENABLED) {
+        const mainDir = path.dirname(require.main.filename);
+        try {
+            const stat = fs.statSync(path.join(mainDir, relativePath));
+            return stat.size;
+        } catch { return 0; }
+    }
+    const resolved = resolveBucketKey(relativePath);
+    if (!resolved) return 0;
+    try {
+        const stat = await minioClient.statObject(resolved.bucket, resolved.key);
+        return stat.size || 0;
+    } catch { return 0; }
+}
+
 async function getFileStream(relativePath) {
     if (!MINIO_ENABLED) {
         // Fallback filesystem
@@ -339,6 +358,7 @@ module.exports = {
     deleteFile,
     getFileUrl,
     getFileStream,
+    getFileSize,
     fileExists,
     copyFile,
     ensureDir,

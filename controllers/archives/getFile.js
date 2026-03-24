@@ -25,9 +25,11 @@ module.exports = async (req, res) => {
         const fileName     = path.basename(relativePath);
         const contentType  = mime.lookup(fileName) || 'application/octet-stream';
 
-        // Header Content-Type + inline display (navigateur ouvre le fichier)
+        // Headers — Content-Type, Content-Length, Content-Disposition
         res.setHeader('Content-Type', contentType);
         res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`);
+        const fileSize = await storage.getFileSize(relativePath);
+        if (fileSize > 0) res.setHeader('Content-Length', fileSize);
 
         // Stream le fichier depuis MinIO (ou filesystem fallback)
         const stream = await storage.getFileStream(relativePath);
