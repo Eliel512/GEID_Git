@@ -50,6 +50,7 @@ const { randomUUID } = require('crypto');
 const Record   = require('../../../models/archives/record.model');
 const Binder   = require('../../../models/archives/binder.model');
 const Document = require('../../../models/archives/document.model');
+const Archive  = require('../../../models/archives/archive.model');
 
 // ─── getAll ───────────────────────────────────────────────────────────────────
 
@@ -390,6 +391,8 @@ exports.delete = async (req, res) => {
 
         const deleted = await Record.findByIdAndDelete(req.params.id);
         if (!deleted) return res.status(404).json({ message: 'Dossier introuvable' });
+        // Nettoyer les références fantômes dans les archives numériques
+        await Archive.updateMany({ record: req.params.id }, { $set: { record: null, document: null } });
         res.status(200).json({ message: 'Dossier supprimé' });
     } catch (error) {
         console.log(error);

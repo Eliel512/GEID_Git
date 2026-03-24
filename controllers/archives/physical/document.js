@@ -200,7 +200,6 @@ exports.update = async (req, res) => {
 
 /**
  * Supprime un document. Bloqué si des sous-documents existent.
- * Les archives liées deviennent orphelines (document ref cassée).
  */
 exports.delete = async (req, res) => {
     try {
@@ -208,12 +207,14 @@ exports.delete = async (req, res) => {
         const childCount = await Document.countDocuments({ parent: req.params.id });
         if (childCount > 0) {
             return res.status(409).json({
-                message: `Impossible de supprimer : ce document contient ${childCount} sous-document(s)`
+                message: `Impossible de supprimer : ce document contient ${childCount} sous-documents`
             });
         }
 
         const deleted = await Document.findByIdAndDelete(req.params.id);
         if (!deleted) return res.status(404).json({ message: 'Document introuvable' });
+        // Nettoyer les références fantômes dans les archives numériques
+        await Archive.updateMany({ document: req.params.id }, { $set: { document: null } });
         res.status(200).json({ message: 'Document supprimé' });
     } catch (error) {
         console.log(error);
