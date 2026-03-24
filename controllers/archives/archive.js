@@ -24,16 +24,11 @@ exports.modify = (req, res) => {
   if (req.body.description !== undefined) setFields.description = req.body.description;
   if (req.body.tags       !== undefined) setFields.tags        = req.body.tags;
 
-  // Rattachement / détachement d'un dossier physique
-  // record: null  → détache   record: "<id>" → attache
-  if (req.body.record !== undefined) {
-    setFields.record = req.body.record || null;
-  }
-
-  // Rattachement / détachement d'un document physique
-  // document: null → détache   document: "<id>" → attache
+  // Rattachement / détachement — une archive se rattache à un document (pas directement à un dossier)
   if (req.body.document !== undefined) {
     setFields.document = req.body.document || null;
+    // Le record est contextuel — si fourni on le stocke, sinon on le vide avec le document
+    setFields.record = req.body.record || null;
   }
 
   Archive.findByIdAndUpdate(
