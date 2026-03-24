@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const Invalid = require('../../models/archives/invalid.model');
+const storage = require('../../tools/storage');
 
 module.exports = (req, res, next) => {
     Invalid.findOneAndDelete({ _id: req.params.id, management: res.locals.userId })
@@ -10,6 +11,7 @@ module.exports = (req, res, next) => {
             }
             try {
                 fs.rmSync(path.join(__dirname, invalid.fileUrl), { force: true });
+                storage.deleteFile(invalid.fileUrl).catch(e => console.error('[MinIO] invalids.deleteOne:', e.message));
                 Invalid.find({ management: res.locals.userId })
                     .then(invalids => res.status(200).json(invalids))
                     .catch(error => {

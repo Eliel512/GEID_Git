@@ -356,10 +356,10 @@ exports.renameFolder = (req, res) => {
 
   try {
     fs.renameSync(oldPath, newPath);
-    // Dual-write: MinIO does not have native rename for dirs.
-    // For folders, we would need to list+copy+delete all objects.
-    // This is handled at object level; new files written after rename go to the new prefix.
-    // TODO: implement full dir rename in MinIO if needed.
+    // Dual-write: renomme tous les objets dans MinIO
+    const oldRel = path.join('workspace', userId, subPath, oldName.trim());
+    const newRel = path.join('workspace', userId, subPath, newName.trim());
+    storage.renameDirPrefix(oldRel, newRel).catch(e => console.error('[MinIO] workspace.renameFolder:', e.message));
     res.status(200).json({ message: 'Dossier renommé', name: newName.trim() });
   } catch (e) {
     if (e.code === 'ENOENT') return res.status(404).json({ message: 'Dossier introuvable.' });

@@ -45,6 +45,7 @@ if (MINIO_ENABLED) {
 
 const BUCKET_MAP = [
     { prefix: 'ARCHIVES/', bucket: 'archives' },
+    { prefix: 'archives/', bucket: 'archives' },
     { prefix: 'workspace/', bucket: 'workspace' },
     { prefix: 'profils/', bucket: 'profils' },
     { prefix: 'salon/', bucket: 'salon' },
@@ -294,6 +295,42 @@ async function listFiles(relativePath) {
     }
 }
 
+/**
+ * Renomme un repertoire (liste + copie + suppression des anciens objets).
+ * @param {string} oldPrefix — ex: "workspace/userId/oldFolder"
+ * @param {string} newPrefix — ex: "workspace/userId/newFolder"
+ */
+async function renameDirPrefix(oldPrefix, newPrefix) {
+    if (!MINIO_ENABLED) return;
+    const resolved = resolveBucketKey(oldPrefix + '/placeholder');
+    if (!resolved) return;
+    const oldKey = oldPrefix.replace(/\\/g, '/');
+    const newKey = newPrefix.replace(/\\/g, '/');
+    try {
+        const bucket = resolved.bucket;
+        const prefix = oldKey.split('/').slice(1).join('/');
+        const pfx = prefix.endsWith('/') ? prefix : prefix + '/';
+        const objects = [];
+        const stream = minioClient.listObjects(bucket, pfx, true);
+        await new Promise((resolve, reject) => {
+            stream.on('data', obj => objects.push(obj.name));
+            stream.on('error', reject);
+            stream.on('end', resolve);
+        });
+        const newPfx = newKey.split('/').slice(1).join('/');
+        for (const objName of objects) {
+            const suffix = objName.slice(pfx.length);
+            const dest = (newPfx.endsWith('/') ? newPfx : newPfx + '/') + suffix;
+            await minioClient.copyObject(bucket, dest, `/${bucket}/${objName}`);
+        }
+        if (objects.length > 0) {
+            await minioClient.removeObjects(bucket, objects);
+        }
+    } catch (err) {
+        console.error('[storage] renameDirPrefix error:', err.message);
+    }
+}
+
 // ── Export ───────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -307,6 +344,7 @@ module.exports = {
     ensureDir,
     deleteDir,
     renameFile,
+    renameDirPrefix,
     listFiles,
     resolveBucketKey,
     MINIO_ENABLED,

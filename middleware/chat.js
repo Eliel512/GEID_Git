@@ -2,6 +2,7 @@ const User = require('../models/users/user.model');
 const Chat = require('../models/chats/chat.model');
 const fs = require('fs');
 const busboy = require('busboy');
+const storage = require('../tools/storage');
 const os = require('os');
 const path = require('path');
 
@@ -198,6 +199,7 @@ module.exports = {
             socket.data.chatId = chat._id;
             delete socket.newChat;
             fs.mkdirSync(`salon/${chat._id}/`, { recursive: true });
+            storage.ensureDir(`salon/${chat._id}`).catch(e => console.error('[MinIO] chat.create:', e.message));
             return true;
         }catch(error){
             console.log(error);

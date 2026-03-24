@@ -2,7 +2,9 @@ const { Film } = require('../../models/mediaLibrary/film.model');
 const { filmFrozen } = require('../../models/mediaLibrary/frozen.model');
 const getHost = require('./getHost').getHost();
 const fs = require('fs');
+const path = require('path');
 const User = require('../../models/users/user.model');
+const storage = require('../../tools/storage');
 
 exports.create = (req, res, next) => {
   const { userId, frozenId } = req.body;
@@ -39,6 +41,8 @@ exports.create = (req, res, next) => {
                                     console.log(err);
                                     return res.status(500).json({ message: 'Erreur interne du serveur' });
                                 }else{
+                                  const relPath = contentUrl.replace(/^\.\//, '');
+                                  storage.uploadFileFromDisk(relPath, contentUrl).catch(e => console.error('[MinIO] film.create:', e.message));
                                   res.status(201).json({ message: 'Vidéo enregistrée !' });
                                 }
                               });
@@ -94,7 +98,9 @@ exports.modify = (req, res, next) => {
         res.status(200).json({ message: 'Vidéo modifié !'});
       }else{
         const filename = film.contentUrl.split('/ressources/mediatheque/filmotheque/')[1];
-        fs.unlink(`ressources/mediatheque/filmotheque/${filename}`, () => {
+        const relPath = `ressources/mediatheque/filmotheque/${filename}`;
+        fs.unlink(relPath, () => {
+          storage.deleteFile(relPath).catch(e => console.error('[MinIO] film.modify:', e.message));
           res.status(200).json({ message: 'Vidéo modifié !'})
         });
       }
@@ -107,7 +113,9 @@ exports.delete = (req, res, next) => {
   Film.findOne({ _id: req.params.id.split('=')[1] })
     .then(film => {
       const filename = film.contentUrl.split('/ressources/mediatheque/filmotheque/')[1];
-      fs.unlink(`ressources/mediatheque/filmotheque/${filename}`, () => {
+      const relPath = `ressources/mediatheque/filmotheque/${filename}`;
+      fs.unlink(relPath, () => {
+        storage.deleteFile(relPath).catch(e => console.error('[MinIO] film.delete:', e.message));
         film.deleteOne({ _id: req.params.id.split('=')[1] })
           .then(() => res.status(200).json({ message: 'Vidéo supprimé !'}))
           .catch(error => res.status(400).json({ error }));
@@ -137,8 +145,9 @@ exports.deleteAll = (req, res, next) => {
       films ? (() => {
         for(const film of films){
             const filename = film.contentUrl.split('/ressources/mediatheque/filmotheque/')[1];
-            fs.unlink(`ressources/mediatheque/filmotheque/${filename}`, () => {
-            });
+            const relPath = `ressources/mediatheque/filmotheque/${filename}`;
+            fs.unlink(relPath, () => {});
+            storage.deleteFile(relPath).catch(e => console.error('[MinIO] film.deleteAll:', e.message));
         }
         Film.deleteMany({  })
               .then(count => res.status(200).json({ message: `${count.deletedCount} données supprimées !`}))

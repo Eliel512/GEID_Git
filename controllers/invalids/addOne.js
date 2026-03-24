@@ -5,6 +5,7 @@ const Event = require('../../models/archives/event.model');
 const path = require('path');
 const fs = require('fs');
 const getPath = require('../../tools/getRoleUrl');
+const storage = require('../../tools/storage');
 
 module.exports =  async (req, res, next) => {
     try {
@@ -48,11 +49,14 @@ module.exports =  async (req, res, next) => {
         }
 
         try {
+            const destAbsPath = path.join(__dirname, 'archives', fileUrl, 'pending', req.body.fileName);
             fs.copyFileSync(
                 path.join(__dirname, 'workspace', res.locals.userId, 'documents', req.body.fileName),
-                path.join(__dirname, 'archives', fileUrl, 'pending', req.body.fileName),
+                destAbsPath,
                 fs.constants.COPYFILE_EXCL
             );
+            const relPath = path.join('archives', fileUrl, 'pending', req.body.fileName);
+            storage.uploadFileFromDisk(relPath, destAbsPath).catch(e => console.error('[MinIO] invalids.addOne:', e.message));
 
             const invalid = new Invalid({
                 type: {

@@ -3,6 +3,7 @@ const Role = require('../../models/users/role.model');
 const User = require('../../models/users/user.model');
 const fs = require('fs');
 const path = require('path');
+const storage = require('../../tools/storage');
 
 exports.getOne = (req, res, next) => {
   Archive.findById(req.params.id)
@@ -62,6 +63,7 @@ exports.delete = (req, res) => {
         const mainDir = path.dirname(require.main.filename);
         try { fs.unlinkSync(path.join(mainDir, archive.fileUrl)); }
         catch (e) { console.log('File deletion warning:', e.message); }
+        storage.deleteFile(archive.fileUrl).catch(err => console.error('[MinIO] archive.delete:', err.message));
       }
       res.status(200).json({ message: 'Archive supprimée' });
     })

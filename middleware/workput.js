@@ -1,4 +1,5 @@
 const fs = require('fs');
+const storage = require('../tools/storage');
 
 const MIME_TYPES = {
     'text/plain': 'text',
@@ -25,16 +26,14 @@ const MIME_TYPES = {
 module.exports = (req, res, next) => {
     const extension = MIME_TYPES[req.file.mimetype];
     const filename = req.body.oldfilename.split(' ').join('_') + '.' + extension;
+    const userId = req.body.userId || res.locals.userId;
+    const subPath = req.body.path || '';
+    const relPath = `workspace/${userId}/${subPath}/${filename}`.replace(/\/+/g, '/');
     try {
-        fs.accessSync(filename, fs.constants.F_OK);
-        fs.unlinkSync(`./workspace/${userId}/${path}/${filename}`, err => {
-            if(err){
-              console.log(err);
-              res.status(500).json({ message: 'Erreur interne du serveur' });
-            }else{
-              next();
-            }
-          });
+        fs.accessSync(`./${relPath}`, fs.constants.F_OK);
+        fs.unlinkSync(`./${relPath}`);
+        storage.deleteFile(relPath).catch(e => console.error('[MinIO] workput:', e.message));
+        next();
       } catch(err) {
         next();
       }
