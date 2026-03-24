@@ -30,45 +30,65 @@
 const Archive = require('../../models/archives/archive.model');
 const Record  = require('../../models/archives/record.model');
 
-// ─── Helper — Recherche $text avec fallback regex ─────────────────────────────
+// ─── Helper — Recherche tolérante (accents, fautes légères) ─────────────────
+
+/**
+ * Normalise une chaîne : retire les accents pour une recherche tolérante.
+ */
+function stripAccents(str) {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * Construit une regex tolérante aux accents et aux petites variations.
+ * Chaque caractère est rendu optionnel avec ses variantes accentuées.
+ */
+function buildFuzzyRegex(q) {
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Remplacer chaque lettre par sa classe de caractères avec accents
+    const pattern = stripAccents(escaped).split('').map(c => {
+        const map = {
+            a: '[aàâäáãå]', e: '[eèéêë]', i: '[iìîï]', o: '[oòôöõ]',
+            u: '[uùûü]', c: '[cç]', n: '[nñ]', y: '[yÿ]',
+        };
+        return map[c.toLowerCase()] || c;
+    }).join('');
+    return new RegExp(pattern, 'i');
+}
 
 /**
  * Lance une recherche $text sur le modèle Mongoose donné.
  * En cas d'erreur (index absent, etc.), retombe sur une recherche regex.
- *
- * @param {mongoose.Model}    Model    - Modèle Mongoose cible
- * @param {string}            q        - Chaîne de recherche
- * @param {object}            filter   - Filtre Mongoose additionnel
- * @param {object}            select   - Projection des champs
- * @param {number}            limit    - Nombre max de documents
- * @returns {Promise<object[]>}
  */
 async function textSearch(Model, q, filter = {}, select = {}, limit = 20) {
     try {
-        return await Model
+        const results = await Model
             .find({ $text: { $search: q }, ...filter }, { score: { $meta: 'textScore' }, ...select })
             .sort({ score: { $meta: 'textScore' } })
             .limit(limit)
             .lean();
+        // Si $text retourne peu de résultats, compléter avec regex floue
+        if (results.length < limit) {
+            const existingIds = new Set(results.map(r => r._id.toString()));
+            const fuzzyResults = await fallbackRegex(Model, q, filter, select, limit);
+            for (const r of fuzzyResults) {
+                if (!existingIds.has(r._id.toString())) {
+                    results.push(r);
+                    if (results.length >= limit) break;
+                }
+            }
+        }
+        return results;
     } catch (_err) {
-        // Fallback regex — tolère les collections sans index $text encore actif
-        const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-        return fallbackRegex(Model, q, regex, filter, select, limit);
+        return fallbackRegex(Model, q, filter, select, limit);
     }
 }
 
 /**
- * Fallback : cherche par regex sur les champs textuels principaux du modèle.
- *
- * @param {mongoose.Model} Model
- * @param {string}         q
- * @param {RegExp}         regex
- * @param {object}         filter
- * @param {object}         select
- * @param {number}         limit
- * @returns {Promise<object[]>}
+ * Recherche par regex tolérante aux accents sur les champs textuels.
  */
-async function fallbackRegex(Model, q, regex, filter, select, limit) {
+async function fallbackRegex(Model, q, filter, select, limit) {
+    const regex = buildFuzzyRegex(q);
     const collectionName = Model.collection.collectionName;
     let orFields = [];
 
@@ -82,7 +102,6 @@ async function fallbackRegex(Model, q, regex, filter, select, limit) {
             { tags:         regex },
         ];
     } else {
-        // records
         orFields = [
             { internalNumber: regex },
             { refNumber:      regex },
