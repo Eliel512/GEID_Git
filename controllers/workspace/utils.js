@@ -32,7 +32,7 @@ function listDirectory(targetDir, userId, subPath, getHost) {
         }
         result.push({
           name: file,
-          url: stat.isDirectory() ? null : `https://${getHost}/workspace/${userId}/${subPath}/${file}`,
+          url: stat.isDirectory() ? null : `https://${getHost}/api/stuff/workspace/file/${encodeURIComponent(userId + '/' + subPath + '/' + file)}`,
           createdAt: stat.mtime,
           size: stat.isDirectory() ? 0 : stat.size,
           isDirectory: stat.isDirectory(),

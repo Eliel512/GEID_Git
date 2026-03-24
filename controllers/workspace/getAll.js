@@ -41,7 +41,7 @@ exports.getAll = (req, res) => {
         continue;
       }
       const isDirectory = stat.isDirectory();
-      const url = isDirectory ? null : `https://${getHost}/workspace/${userId}/${subPath}/${file}`;
+      const url = isDirectory ? null : `https://${getHost}/api/stuff/workspace/file/${encodeURIComponent(paths.join(userId, subPath, file))}`;
       const doc = isDirectory ? null : await Doc.findOne({
         owner: userId,
         contentUrl: paths.join('workspace', userId, subPath, file)

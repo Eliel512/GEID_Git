@@ -45,6 +45,9 @@ router.post('/folder', workCtrl.createFolder);
 router.put('/folder', workCtrl.renameFolder);
 router.delete('/folder/:data', workCtrl.deleteFolder);
 
+// ── Téléchargement authentifié ────────────────────────────────────────────────
+router.get('/file/*', workCtrl.serveFile);
+
 // ── Fichiers (routes génériques) ────────────────────────────────────────────
 router.get('/:data', workCtrl.getAll);
 router.post('/', multer, workCtrl.create);

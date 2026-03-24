@@ -12,6 +12,7 @@ const { getRecent } = require('./recent');
 const { getQuota } = require('./quota');
 const { getActivity } = require('./activity');
 const { shareWithUser, createShareLink, revokeShare, getSharedWithMe } = require('./share');
+const { serveFile } = require('./serveFile');
 
 module.exports = {
   // Existing (refactored)
@@ -43,4 +44,5 @@ module.exports = {
   createShareLink,
   revokeShare,
   getSharedWithMe,
+  serveFile,
 };
