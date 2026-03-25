@@ -37,7 +37,7 @@ module.exports = async (req, res) => {
         return res.status(400).json({ message: 'Aucun fichier reçu.' });
     }
 
-    const { type, subtype, designation, description, folder: folderName } = req.body;
+    const { type, subtype, designation, description, folder: folderName, refNumber } = req.body;
     if (!designation || !description || !type) {
         return res.status(400).json({ message: 'Champs obligatoires manquants : designation, description, type.' });
     }
@@ -108,6 +108,7 @@ module.exports = async (req, res) => {
             fileUrl: relativeFileUrl,
             status: 'PENDING',
             validated: false,
+            ...(refNumber ? { refNumber } : {}),
         });
 
         await archive.save();
