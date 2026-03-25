@@ -8,7 +8,7 @@ module.exports = (req, res) => {
         administrativeUnit: { $in: res.locals.structs } };
     // All lifecycle statuses — PENDING included so the archive manager shows all records
     query.$or = [
-        { status: { $in: ['PENDING', 'ACTIVE', 'SEMI_ACTIVE', 'PERMANENT', 'DESTROYED',
+        { status: { $in: ['PENDING', 'ACTIVE', 'SEMI_ACTIVE', 'PROPOSED_ELIMINATION', 'PERMANENT', 'DESTROYED',
                           'pending', 'actif', 'intermédiaire', 'historique', 'détruit',
                           'validated', 'archived', 'disposed'] } },
         { status: { $exists: false } }   // legacy docs without status field
