@@ -22,9 +22,11 @@ const getFile = require('../controllers/archives/getFile');
 const generateManualPdf = require('../controllers/archives/generateManualPdf');
 const usersCtrl = require('../controllers/archives/users');
 const dashPrefsCtrl = require('../controllers/archives/dashboardPrefs');
+const eliminationRoutes = require('./elimination.routes');
 
 router.use('/invalid', invalidAuth, invalidRoutes);
 router.use('/event', eventRoutes);
+router.use('/elimination', eliminationRoutes);
 
 // ── Préférences dashboard — AVANT /:role ────
 router.get('/prefs/dashboard',      dashPrefsCtrl.get);
