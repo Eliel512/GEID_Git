@@ -7,11 +7,12 @@
  * approuvé par le service versant (producteur) puis par la DANTIC.
  */
 
-const Elimination  = require('../../models/archives/elimination.model');
-const Archive      = require('../../models/archives/archive.model');
-const User         = require('../../models/users/user.model');
-const Auth         = require('../../models/users/auth.model');
-const socketStore  = require('../../socketStore');
+const Elimination       = require('../../models/archives/elimination.model');
+const Archive           = require('../../models/archives/archive.model');
+const User              = require('../../models/users/user.model');
+const Auth              = require('../../models/users/auth.model');
+const socketStore       = require('../../socketStore');
+const eliminationMailer = require('../../tools/eliminationMailer');
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -109,6 +110,7 @@ exports.getAll = async (req, res) => {
 		}
 
 		const pvs = await Elimination.find(filter)
+			.populate('createdBy', 'fname lname email')
 			.sort({ createdAt: -1 })
 			.lean();
 
@@ -126,10 +128,10 @@ exports.getOne = async (req, res) => {
 	try {
 		const pv = await Elimination.findById(req.params.id)
 			.populate('archives')
-			.populate('createdBy', 'name surname')
-			.populate('producerApproval.approvedBy', 'name surname')
-			.populate('danticApproval.approvedBy', 'name surname')
-			.populate('executedBy', 'name surname')
+			.populate('createdBy', 'fname lname email')
+			.populate('producerApproval.approvedBy', 'fname lname email')
+			.populate('danticApproval.approvedBy', 'fname lname email')
+			.populate('executedBy', 'fname lname email')
 			.lean();
 
 		if (!pv) {
@@ -161,6 +163,7 @@ exports.submit = async (req, res) => {
 		await pv.save();
 
 		emitEliminationChange(pv._id);
+		eliminationMailer.onPvSubmitted(pv).catch(err => console.error('[elimination:mail:submit]', err));
 		res.status(200).json(pv);
 	} catch (error) {
 		console.error('[elimination:submit]', error);
@@ -201,6 +204,7 @@ exports.approveProducer = async (req, res) => {
 		await pv.save();
 
 		emitEliminationChange(pv._id);
+		eliminationMailer.onProducerApproved(pv).catch(err => console.error('[elimination:mail:approveProducer]', err));
 		res.status(200).json(pv);
 	} catch (error) {
 		console.error('[elimination:approveProducer]', error);
@@ -241,6 +245,7 @@ exports.approveDantic = async (req, res) => {
 		await pv.save();
 
 		emitEliminationChange(pv._id);
+		eliminationMailer.onDanticApproved(pv).catch(err => console.error('[elimination:mail:approveDantic]', err));
 		res.status(200).json(pv);
 	} catch (error) {
 		console.error('[elimination:approveDantic]', error);
@@ -274,10 +279,16 @@ exports.reject = async (req, res) => {
 			approvedAt: new Date(),
 			note: req.body.note || ''
 		};
+		const rejectedByProducer = rejectionField === 'producerApproval';
 		pv.status = 'REJECTED';
 		await pv.save();
 
 		emitEliminationChange(pv._id);
+		if (rejectedByProducer) {
+			eliminationMailer.onProducerRejected(pv).catch(err => console.error('[elimination:mail:rejectProducer]', err));
+		} else {
+			eliminationMailer.onDanticRejected(pv).catch(err => console.error('[elimination:mail:rejectDantic]', err));
+		}
 		res.status(200).json(pv);
 	} catch (error) {
 		console.error('[elimination:reject]', error);
@@ -331,6 +342,7 @@ exports.execute = async (req, res) => {
 		await pv.save();
 
 		emitEliminationChange(pv._id);
+		eliminationMailer.onPvExecuted(pv).catch(err => console.error('[elimination:mail:execute]', err));
 		res.status(200).json(pv);
 	} catch (error) {
 		console.error('[elimination:execute]', error);
@@ -347,9 +359,9 @@ exports.generatePdf = async (req, res) => {
 
 		const pv = await Elimination.findById(req.params.id)
 			.populate('archives')
-			.populate('createdBy', 'name surname')
-			.populate('producerApproval.approvedBy', 'name surname')
-			.populate('danticApproval.approvedBy', 'name surname')
+			.populate('createdBy', 'fname lname email')
+			.populate('producerApproval.approvedBy', 'fname lname email')
+			.populate('danticApproval.approvedBy', 'fname lname email')
 			.populate('administrativeUnit', 'name')
 			.lean();
 
@@ -430,7 +442,7 @@ exports.generatePdf = async (req, res) => {
 		doc.fontSize(9).font('Helvetica');
 		if (pv.producerApproval?.approved) {
 			const name = pv.producerApproval.approvedBy
-				? `${pv.producerApproval.approvedBy.name || ''} ${pv.producerApproval.approvedBy.surname || ''}`
+				? `${pv.producerApproval.approvedBy.fname || ''} ${pv.producerApproval.approvedBy.lname || ''}`
 				: '—';
 			doc.text(`Approuvé par : ${name}`, 50, sigStartY + 16);
 			doc.text(
@@ -443,7 +455,7 @@ exports.generatePdf = async (req, res) => {
 
 		if (pv.danticApproval?.approved) {
 			const name = pv.danticApproval.approvedBy
-				? `${pv.danticApproval.approvedBy.name || ''} ${pv.danticApproval.approvedBy.surname || ''}`
+				? `${pv.danticApproval.approvedBy.fname || ''} ${pv.danticApproval.approvedBy.lname || ''}`
 				: '—';
 			doc.text(`Approuvé par : ${name}`, 320, sigStartY + 16);
 			doc.text(
