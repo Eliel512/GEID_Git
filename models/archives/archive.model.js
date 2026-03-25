@@ -100,9 +100,9 @@ const archiveSchema = new Schema({
 	// Cycle de vie : état courant du document
 	status: {
 		type: String,
-		enum: ['PENDING', 'ACTIVE', 'SEMI_ACTIVE', 'PERMANENT', 'DESTROYED',
-		       'pending', 'validated', 'archived', 'disposed', // anciens valeurs — compatibilité ascendante
-		       'actif', 'intermédiaire', 'historique', 'détruit'],  // migration intermédiaire
+		enum: ['PENDING', 'ACTIVE', 'SEMI_ACTIVE', 'PERMANENT', 'PROPOSED_ELIMINATION', 'DESTROYED',
+		       'pending', 'validated', 'archived', 'disposed',
+		       'actif', 'intermédiaire', 'historique', 'détruit'],
 		default: 'PENDING'
 	},
 	// Historique des transitions du cycle de vie

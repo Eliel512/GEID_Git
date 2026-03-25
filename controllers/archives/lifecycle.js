@@ -25,12 +25,13 @@ const User    = require('../../models/users/user.model');
 const Auth    = require('../../models/users/auth.model');
 
 const ALLOWED_TRANSITIONS = {
-    // New lifecycle
-    PENDING:     ['ACTIVE'],
-    ACTIVE:      ['SEMI_ACTIVE', 'PENDING'],
-    SEMI_ACTIVE: ['ACTIVE', 'PERMANENT', 'DESTROYED'],
-    PERMANENT:   ['DESTROYED'],
-    DESTROYED:   ['PERMANENT'],
+    // Cycle de vie (aligné Directives DANTIC)
+    PENDING:                ['ACTIVE'],
+    ACTIVE:                 ['SEMI_ACTIVE', 'PENDING'],
+    SEMI_ACTIVE:            ['ACTIVE', 'PERMANENT', 'PROPOSED_ELIMINATION', 'DESTROYED'],
+    PROPOSED_ELIMINATION:   ['DESTROYED', 'SEMI_ACTIVE', 'PERMANENT'], // archiviste valide ou refuse
+    PERMANENT:              ['DESTROYED'],
+    DESTROYED:              ['PERMANENT'],
     // Legacy backward compat
     pending:        ['ACTIVE', 'PENDING'],
     validated:      ['ACTIVE', 'SEMI_ACTIVE', 'PENDING'],
