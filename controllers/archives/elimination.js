@@ -366,103 +366,120 @@ exports.generatePdf = async (req, res) => {
 
 		if (!pv) return res.status(404).json({ error: 'PV introuvable.' });
 
+		// Traduction des statuts
+		const STATUS_FR = {
+			DRAFT: 'Brouillon', PENDING_PRODUCER: 'Attente service versant',
+			PENDING_DANTIC: 'Attente DANTIC', APPROVED: 'Approuvé',
+			REJECTED: 'Rejeté', EXECUTED: 'Exécuté',
+			PENDING: 'En attente', ACTIVE: 'Actif', SEMI_ACTIVE: 'Intermédiaire',
+			PROPOSED_ELIMINATION: 'Élimination proposée', PERMANENT: 'Historique',
+			DESTROYED: 'Détruit',
+		};
+		const tStatus = (s) => STATUS_FR[s] || s || '—';
+		const tName = (u) => u ? `${u.fname || ''} ${u.lname || ''}`.trim() || '—' : '—';
+		const tDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+
 		const doc = new PDFDocument({ size: 'A4', margin: 50 });
 
 		res.setHeader('Content-Type', 'application/pdf');
-		res.setHeader(
-			'Content-Disposition',
-			`inline; filename="bordereau-elimination-${pv.pvNumber}.pdf"`
-		);
+		res.setHeader('Content-Disposition', `inline; filename="bordereau-elimination-${pv.pvNumber}.pdf"`);
 		doc.pipe(res);
 
-		// ── Header ──────────────────────────────────────────────────────
-		doc.fontSize(16).font('Helvetica-Bold')
-			.text("BORDEREAU D'ÉLIMINATION", { align: 'center' });
-		doc.moveDown(0.5);
-		doc.fontSize(11).font('Helvetica')
-			.text(`Procès-verbal N° : ${pv.pvNumber}`, { align: 'center' });
-		doc.text(`Date : ${new Date(pv.pvDate).toLocaleDateString('fr-FR')}`, { align: 'center' });
-		doc.moveDown();
+		// ── En-tête ─────────────────────────────────────────────────────
+		doc.fontSize(9).font('Helvetica').text('RÉPUBLIQUE DÉMOCRATIQUE DU CONGO', { align: 'center' });
+		doc.text('Secrétariat Général du Budget', { align: 'center' });
+		doc.moveDown(0.8);
 
-		// ── Administrative info ─────────────────────────────────────────
-		doc.fontSize(10).font('Helvetica-Bold').text('Unité administrative : ', { continued: true });
-		doc.font('Helvetica').text(pv.administrativeUnit?.name || '—');
-		doc.font('Helvetica-Bold').text('Motif : ', { continued: true });
-		doc.font('Helvetica').text(pv.motif);
-		doc.font('Helvetica-Bold').text('Statut : ', { continued: true });
-		doc.font('Helvetica').text(pv.status);
-		doc.moveDown();
+		doc.fontSize(16).font('Helvetica-Bold').text("BORDEREAU D'ÉLIMINATION", { align: 'center' });
+		doc.moveDown(0.3);
+		doc.fontSize(11).font('Helvetica').text(`Procès-verbal N° ${pv.pvNumber}`, { align: 'center' });
+		doc.text(`Établi le ${tDate(pv.pvDate || pv.createdAt)}`, { align: 'center' });
+		doc.moveDown(1);
 
-		// ── Archives table ──────────────────────────────────────────────
-		doc.fontSize(12).font('Helvetica-Bold').text('Archives concernées');
+		// ── Informations générales ──────────────────────────────────────
+		doc.fontSize(10);
+		doc.font('Helvetica-Bold').text('Unité administrative : ', { continued: true });
+		doc.font('Helvetica').text(pv.administrativeUnit || '—');
+		doc.font('Helvetica-Bold').text('Motif de l\'élimination : ', { continued: true });
+		doc.font('Helvetica').text(pv.motif || '—');
+		doc.font('Helvetica-Bold').text('Statut du procès-verbal : ', { continued: true });
+		doc.font('Helvetica').text(tStatus(pv.status));
+		doc.font('Helvetica-Bold').text('Établi par : ', { continued: true });
+		doc.font('Helvetica').text(tName(pv.createdBy));
+		doc.font('Helvetica-Bold').text('Nombre d\'archives concernées : ', { continued: true });
+		doc.font('Helvetica').text(String((pv.archives || []).length));
+		doc.moveDown(1);
+
+		// ── Tableau des archives ────────────────────────────────────────
+		doc.fontSize(12).font('Helvetica-Bold').text('Liste des archives concernées');
 		doc.moveDown(0.3);
 
 		const tableTop = doc.y;
-		const col = { num: 50, designation: 90, ref: 320, status: 420 };
+		const col = { num: 50, designation: 80, ref: 340, status: 430 };
 
-		// Header row
 		doc.fontSize(9).font('Helvetica-Bold');
 		doc.text('N°', col.num, tableTop);
 		doc.text('Désignation', col.designation, tableTop);
-		doc.text('Réf.', col.ref, tableTop);
+		doc.text('Référence', col.ref, tableTop);
 		doc.text('Statut', col.status, tableTop);
 		doc.moveTo(50, tableTop + 14).lineTo(545, tableTop + 14).stroke();
 
-		// Data rows
 		let y = tableTop + 20;
 		doc.font('Helvetica').fontSize(8);
 
 		(pv.archives || []).forEach((archive, i) => {
-			if (y > 750) {
-				doc.addPage();
-				y = 50;
-			}
+			if (y > 750) { doc.addPage(); y = 50; }
 			doc.text(String(i + 1), col.num, y);
-			doc.text(
-				(archive.designation || '—').substring(0, 40),
-				col.designation, y
-			);
+			doc.text((archive.designation || '—').substring(0, 45), col.designation, y);
 			doc.text(archive.refNumber || '—', col.ref, y);
-			doc.text(archive.status || '—', col.status, y);
+			doc.text(tStatus(archive.status), col.status, y);
 			y += 16;
 		});
 
-		doc.moveDown(2);
+		// ── Visas et signatures ─────────────────────────────────────────
+		const sigY = Math.max(y + 40, doc.y + 40);
+		if (sigY > 700) doc.addPage();
+		const sY = sigY > 700 ? 50 : sigY;
 
-		// ── Signatures ──────────────────────────────────────────────────
-		const sigY = Math.max(y + 30, doc.y + 30);
-		if (sigY > 720) doc.addPage();
-		const sigStartY = sigY > 720 ? 50 : sigY;
+		doc.fontSize(11).font('Helvetica-Bold').text('Visas et signatures', 50, sY);
+		doc.moveTo(50, sY + 16).lineTo(545, sY + 16).stroke();
 
+		const visaY = sY + 26;
 		doc.fontSize(10).font('Helvetica-Bold');
-		doc.text('Service versant', 50, sigStartY);
-		doc.text('DANTIC', 320, sigStartY);
+		doc.text('Visa du service versant', 50, visaY);
+		doc.text('Visa de la DANTIC', 320, visaY);
 
 		doc.fontSize(9).font('Helvetica');
 		if (pv.producerApproval?.approved) {
-			const name = pv.producerApproval.approvedBy
-				? `${pv.producerApproval.approvedBy.fname || ''} ${pv.producerApproval.approvedBy.lname || ''}`
-				: '—';
-			doc.text(`Approuvé par : ${name}`, 50, sigStartY + 16);
-			doc.text(
-				`Le : ${new Date(pv.producerApproval.approvedAt).toLocaleDateString('fr-FR')}`,
-				50, sigStartY + 28
-			);
+			doc.text(`Approuvé par : ${tName(pv.producerApproval.approvedBy)}`, 50, visaY + 18);
+			doc.text(`Le : ${tDate(pv.producerApproval.approvedAt)}`, 50, visaY + 30);
+			if (pv.producerApproval.note) doc.text(`Note : ${pv.producerApproval.note}`, 50, visaY + 42);
+		} else if (pv.producerApproval?.approved === false) {
+			doc.fillColor('red').text('Rejeté', 50, visaY + 18);
+			if (pv.producerApproval.note) doc.text(`Motif : ${pv.producerApproval.note}`, 50, visaY + 30);
+			doc.fillColor('black');
 		} else {
-			doc.text('En attente', 50, sigStartY + 16);
+			doc.text('En attente d\'approbation', 50, visaY + 18);
 		}
 
 		if (pv.danticApproval?.approved) {
-			const name = pv.danticApproval.approvedBy
-				? `${pv.danticApproval.approvedBy.fname || ''} ${pv.danticApproval.approvedBy.lname || ''}`
-				: '—';
-			doc.text(`Approuvé par : ${name}`, 320, sigStartY + 16);
-			doc.text(
-				`Le : ${new Date(pv.danticApproval.approvedAt).toLocaleDateString('fr-FR')}`,
-				320, sigStartY + 28
-			);
+			doc.text(`Approuvé par : ${tName(pv.danticApproval.approvedBy)}`, 320, visaY + 18);
+			doc.text(`Le : ${tDate(pv.danticApproval.approvedAt)}`, 320, visaY + 30);
+			if (pv.danticApproval.note) doc.text(`Note : ${pv.danticApproval.note}`, 320, visaY + 42);
+		} else if (pv.danticApproval?.approved === false) {
+			doc.fillColor('red').text('Rejeté', 320, visaY + 18);
+			if (pv.danticApproval.note) doc.text(`Motif : ${pv.danticApproval.note}`, 320, visaY + 30);
+			doc.fillColor('black');
 		} else {
-			doc.text('En attente', 320, sigStartY + 16);
+			doc.text('En attente d\'approbation', 320, visaY + 18);
+		}
+
+		// ── Pied de page ────────────────────────────────────────────────
+		const footY = Math.max(visaY + 80, 720);
+		if (footY < 780) {
+			doc.fontSize(8).fillColor('gray')
+				.text('Document généré automatiquement par le système GEID — Secrétariat Général du Budget, RDC', 50, footY, { align: 'center' });
+			doc.fillColor('black');
 		}
 
 		doc.end();
