@@ -45,6 +45,9 @@ router.post('/folder', workCtrl.createFolder);
 router.put('/folder', workCtrl.renameFolder);
 router.delete('/folder/:data', workCtrl.deleteFolder);
 
+// ── Miniature (thumbnail) ──────────────────────────────────────────────────────
+router.get('/thumbnail/*', workCtrl.serveThumbnail);
+
 // ── Téléchargement authentifié ────────────────────────────────────────────────
 router.get('/file/*', workCtrl.serveFile);
 

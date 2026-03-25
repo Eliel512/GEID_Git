@@ -45,6 +45,7 @@ router.put('/users/:id/permissions',    usersCtrl.setPermissions);
 router.get('/roles',                    usersCtrl.getRoles);
 router.get('/auths',                    usersCtrl.getAuths);
 
+router.get('/thumbnail/:id', checkReadAccess, require('../controllers/archives/serveThumbnail'));  // miniature archive
 router.get('/file/:id', checkReadAccess, getFile);    // fichier archive authentifié + vérifié par rôle
 router.get('/manual/pdf', generateManualPdf);       // PDF manuel utilisateur (fallback serveur)
 router.get('/archived', getAllValidateMiddleware, getAllValidate);
