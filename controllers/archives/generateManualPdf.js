@@ -225,6 +225,9 @@ module.exports = async function generateManualPdf(req, res) {
     p("Occupe la majeure partie de l'écran. Son organisation varie selon la section sélectionnée.");
     h(4, "Les notifications");
     p("Messages colorés apparaissant après chaque action : vert (succès), orange (avertissement), rouge (erreur). Disparaissent automatiquement.");
+    h(2, "2.4 — Expiration de la session");
+    p("Votre session expire automatiquement après une période d'inactivité prolongée. Lorsque cela se produit, l'application détecte l'expiration et vous déconnecte proprement. Un message vous informe de la situation et vous invite à vous reconnecter pour reprendre votre travail.");
+    info("Si vous êtes déconnecté de manière inattendue, reconnectez-vous simplement avec vos identifiants habituels. Les données non enregistrées avant l'expiration ne sont pas récupérables.");
     addPageFooter();
 
     // ── CHAPITRE 3 ───────────────────────────────────────────────
@@ -246,6 +249,14 @@ module.exports = async function generateManualPdf(req, res) {
     info("Vérifiez les alertes en début de journée pour traiter les situations urgentes avant qu'elles ne deviennent problématiques.");
     h(2, "3.3 — L'activité récente et les graphiques");
     p("La liste d'activité affiche les huit derniers documents modifiés, triés par date décroissante. Le graphique de répartition montre la proportion de chaque statut. Les alertes DUA listent les documents dont l'échéance est proche.");
+    h(2, "3.4 — Personnaliser le tableau de bord");
+    p("Le tableau de bord est entièrement personnalisable pour s'adapter à vos besoins quotidiens. Depuis les paramètres du tableau de bord, vous pouvez configurer les éléments suivants.");
+    bullet("Cartes de synthèse : choisissez jusqu'à six compteurs parmi les douze disponibles et réorganisez-les par glisser-déposer selon vos priorités.");
+    bullet("Sections du tableau de bord : activez ou désactivez individuellement chaque bloc — alertes, activité récente, répartition par statut, conservation, classeurs, inventaire, utilisateurs et raccourcis.");
+    bullet("Type de graphique : choisissez parmi donut, camembert, barres horizontales ou liste détaillée.");
+    bullet("Seuils d'alerte personnalisables : définissez le nombre de jours avant expiration d'une DUA et le pourcentage de remplissage des classeurs déclenchant une alerte.");
+    bullet("Profondeur de l'historique : réglez le nombre d'archives récentes affichées, de trois à vingt éléments.");
+    succ("Le tableau de bord se met à jour en temps réel. Chaque modification est immédiatement reflétée dans les compteurs et les graphiques.");
     addPageFooter();
 
     // ── CHAPITRE 4 ───────────────────────────────────────────────
@@ -289,7 +300,17 @@ module.exports = async function generateManualPdf(req, res) {
     h(2, "5.5 — Archive détruite");
     p("Fin du cycle de vie. L'élimination est définitive et irréversible. Elle doit être effectuée uniquement après expiration de la DUA et confirmation du sort final élimination.");
     warn("La destruction est irréversible. Vérifiez que la DUA est expirée, que le sort final est l'élimination, et que le document ne fait pas l'objet d'un contentieux.");
-    h(2, "5.6 — L'historique des transitions");
+    h(2, "5.6 — Élimination proposée");
+    p("Lorsque la DUA d'une archive arrive à échéance et que le sort final configuré est « élimination », l'archive ne passe pas directement en état détruit. Elle transite d'abord vers un état intermédiaire appelé « Élimination proposée ». Ce mécanisme garantit qu'aucune archive n'est détruite automatiquement sans intervention humaine.");
+    h(4, "Le procès-verbal d'élimination");
+    p("Pour détruire les archives en élimination proposée, un procès-verbal d'élimination (PV) doit être rédigé et approuvé selon un circuit de validation rigoureux.");
+    step(1, "Brouillon — Le PV est créé par un archiviste avec la liste des archives concernées et la justification de leur élimination.");
+    step(2, "Visa du producteur — Le service producteur examine le PV et confirme que les archives peuvent être éliminées.");
+    step(3, "Visa de la DANTIC — L'autorité compétente en gestion documentaire valide la conformité du PV.");
+    step(4, "Approuvé — Le PV a reçu tous les visas nécessaires et est prêt à être exécuté.");
+    step(5, "Exécuté — La destruction effective des archives est réalisée. Cette action est irréversible.");
+    info("Tant que le PV n'est pas exécuté, les archives restent consultables et intactes. Il est possible de réactiver une archive en élimination proposée ou de la basculer en conservation définitive si un intérêt historique est identifié.");
+    h(2, "5.7 — L'historique des transitions");
     p("Chaque changement d'état est enregistré avec la date, l'heure et l'identité de l'auteur. Cet audit trail est visible dans le panneau de détail et garantit la traçabilité complète.");
     addPageFooter();
 
