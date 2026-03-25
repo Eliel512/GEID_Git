@@ -30,7 +30,7 @@ exports.save = async (req, res) => {
     try {
         const userId = res.locals.userId;
         const allowedFields = [
-            'visibleWidgets', 'widgetOrder', 'chartType', 'recentCount',
+            'visibleWidgets', 'visibleStats', 'chartType', 'recentCount',
             'alertThresholds', 'autoRefreshSeconds', 'colorPalette',
             'defaultUnit', 'soundNotifications', 'customLayout',
         ];

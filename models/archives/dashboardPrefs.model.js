@@ -18,10 +18,16 @@ const dashboardPrefsSchema = new Schema({
         ref: 'users',
     },
 
-    /** 1. Widgets visibles (IDs dans l'ordre d'affichage, max 8) */
+    /** 1. Sections visibles du tableau de bord */
     visibleWidgets: {
         type: [String],
-        default: ['alerts', 'stats', 'recent', 'distribution', 'dua', 'binders', 'inventory', 'users'],
+        default: ['alerts', 'stats', 'recent', 'distribution', 'dua', 'binders', 'inventory', 'users', 'quickAccess'],
+    },
+
+    /** 2. Cartes de synthèse visibles (max 6, dans l'ordre d'affichage) */
+    visibleStats: {
+        type: [String],
+        default: ['totalArchives', 'pending', 'active', 'semiActive', 'permanent', 'containers'],
     },
 
     /** 3. Type de chart pour la répartition par statut */
