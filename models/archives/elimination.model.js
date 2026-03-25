@@ -53,8 +53,7 @@ const eliminationSchema = new Schema({
 
 	// Administrative unit
 	administrativeUnit: {
-		type: String,
-		ref: 'roles'
+		type: String
 	}
 }, { timestamps: true });
 

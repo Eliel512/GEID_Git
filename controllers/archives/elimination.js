@@ -362,7 +362,6 @@ exports.generatePdf = async (req, res) => {
 			.populate('createdBy', 'fname lname email')
 			.populate('producerApproval.approvedBy', 'fname lname email')
 			.populate('danticApproval.approvedBy', 'fname lname email')
-			.populate('administrativeUnit', 'name')
 			.lean();
 
 		if (!pv) return res.status(404).json({ error: 'PV introuvable.' });
