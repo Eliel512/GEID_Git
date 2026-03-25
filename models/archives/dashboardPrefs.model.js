@@ -18,16 +18,10 @@ const dashboardPrefsSchema = new Schema({
         ref: 'users',
     },
 
-    /** 1. Widgets visibles (IDs des cartes à afficher) */
+    /** 1. Widgets visibles (IDs dans l'ordre d'affichage, max 8) */
     visibleWidgets: {
         type: [String],
-        default: ['stats', 'recent', 'distribution', 'dua', 'binders', 'inventory', 'users', 'quickAccess'],
-    },
-
-    /** 2. Ordre des widgets (IDs dans l'ordre souhaité) */
-    widgetOrder: {
-        type: [String],
-        default: ['stats', 'recent', 'distribution', 'dua', 'binders', 'inventory', 'users', 'quickAccess'],
+        default: ['alerts', 'stats', 'recent', 'distribution', 'dua', 'binders', 'inventory', 'users'],
     },
 
     /** 3. Type de chart pour la répartition par statut */
