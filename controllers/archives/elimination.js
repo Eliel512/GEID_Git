@@ -7,10 +7,37 @@
  * approuvé par le service versant (producteur) puis par la DANTIC.
  */
 
-const Elimination = require('../../models/archives/elimination.model');
-const Archive     = require('../../models/archives/archive.model');
+const Elimination  = require('../../models/archives/elimination.model');
+const Archive      = require('../../models/archives/archive.model');
+const User         = require('../../models/users/user.model');
+const Auth         = require('../../models/users/auth.model');
+const socketStore  = require('../../socketStore');
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
+
+function emitEliminationChange(pvId) {
+	const io = socketStore.getInstance();
+	if (io) io.emit('elimination:change', { pvId });
+}
+
+/**
+ * Vérifie les droits d'un utilisateur sur le cadre organique.
+ * Retourne { isAdmin, hasWriteOnUnit } basé sur les permissions archives.
+ */
+async function checkPermissions(userId, administrativeUnit) {
+	const user = await User.findById(userId, { auth: 1 });
+	if (!user?.auth) return { isAdmin: false, hasWriteOnUnit: false };
+	const auth = await Auth.findById(user.auth);
+	if (!auth) return { isAdmin: false, hasWriteOnUnit: false };
+	const archPriv = auth.privileges?.find(p => p.app === 'archives');
+	if (!archPriv) return { isAdmin: false, hasWriteOnUnit: false };
+	const perms = archPriv.permissions || [];
+	const isAdmin = perms.some(p => p.struct === 'all' && p.access === 'write');
+	const hasWriteOnUnit = isAdmin || perms.some(
+		p => (p.struct === administrativeUnit) && p.access === 'write'
+	);
+	return { isAdmin, hasWriteOnUnit };
+}
 
 /**
  * Generate a sequential PV number: PV-ELIM-YYYY-NNNN
@@ -62,6 +89,7 @@ exports.create = async (req, res) => {
 			status: 'DRAFT'
 		});
 
+		emitEliminationChange(elimination._id);
 		res.status(201).json(elimination);
 	} catch (error) {
 		console.error('[elimination:create]', error);
@@ -132,6 +160,7 @@ exports.submit = async (req, res) => {
 		pv.status = 'PENDING_PRODUCER';
 		await pv.save();
 
+		emitEliminationChange(pv._id);
 		res.status(200).json(pv);
 	} catch (error) {
 		console.error('[elimination:submit]', error);
@@ -154,6 +183,14 @@ exports.approveProducer = async (req, res) => {
 			});
 		}
 
+		// Seul un utilisateur ayant accès en écriture sur l'unité du PV peut approuver
+		const { hasWriteOnUnit } = await checkPermissions(res.locals.userId, pv.administrativeUnit);
+		if (!hasWriteOnUnit) {
+			return res.status(403).json({
+				error: "Vous n'avez pas les droits d'approbation sur cette unité administrative."
+			});
+		}
+
 		pv.producerApproval = {
 			approved: true,
 			approvedBy: res.locals.userId,
@@ -163,6 +200,7 @@ exports.approveProducer = async (req, res) => {
 		pv.status = 'PENDING_DANTIC';
 		await pv.save();
 
+		emitEliminationChange(pv._id);
 		res.status(200).json(pv);
 	} catch (error) {
 		console.error('[elimination:approveProducer]', error);
@@ -185,6 +223,14 @@ exports.approveDantic = async (req, res) => {
 			});
 		}
 
+		// Seul un administrateur (DANTIC — struct=all + write) peut approuver
+		const { isAdmin: isDantic } = await checkPermissions(res.locals.userId, pv.administrativeUnit);
+		if (!isDantic) {
+			return res.status(403).json({
+				error: "Seul un membre de la DANTIC peut approuver cette étape."
+			});
+		}
+
 		pv.danticApproval = {
 			approved: true,
 			approvedBy: res.locals.userId,
@@ -194,6 +240,7 @@ exports.approveDantic = async (req, res) => {
 		pv.status = 'APPROVED';
 		await pv.save();
 
+		emitEliminationChange(pv._id);
 		res.status(200).json(pv);
 	} catch (error) {
 		console.error('[elimination:approveDantic]', error);
@@ -230,6 +277,7 @@ exports.reject = async (req, res) => {
 		pv.status = 'REJECTED';
 		await pv.save();
 
+		emitEliminationChange(pv._id);
 		res.status(200).json(pv);
 	} catch (error) {
 		console.error('[elimination:reject]', error);
@@ -249,6 +297,14 @@ exports.execute = async (req, res) => {
 		if (pv.status !== 'APPROVED') {
 			return res.status(422).json({
 				error: "Seul un PV approuvé peut être exécuté."
+			});
+		}
+
+		// Seul un administrateur (DANTIC) peut exécuter la destruction
+		const { isAdmin: canExecute } = await checkPermissions(res.locals.userId, pv.administrativeUnit);
+		if (!canExecute) {
+			return res.status(403).json({
+				error: "Seul un administrateur peut exécuter la destruction des archives."
 			});
 		}
 
@@ -274,6 +330,7 @@ exports.execute = async (req, res) => {
 		pv.executedBy = res.locals.userId;
 		await pv.save();
 
+		emitEliminationChange(pv._id);
 		res.status(200).json(pv);
 	} catch (error) {
 		console.error('[elimination:execute]', error);
