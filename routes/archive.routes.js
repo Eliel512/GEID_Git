@@ -46,7 +46,7 @@ router.get('/auths',                    usersCtrl.getAuths);
 router.get('/file/:id', checkReadAccess, getFile);    // fichier archive authentifié + vérifié par rôle
 router.get('/manual/pdf', generateManualPdf);       // PDF manuel utilisateur (fallback serveur)
 router.get('/archived', getAllValidateMiddleware, getAllValidate);
-router.post('/upload', checkWriteAccess, multerArchive, postDirect); // direct file upload
+router.post('/upload', multerArchive, postDirect); // direct file upload (auth via parent router)
 router.get('/search', search);                      // unified full-text search — AVANT /:role
 router.patch('/:id/lifecycle', lifecycle);          // lifecycle transitions
 router.put('/:id/dua', checkWriteAccess, setDua);   // configure DUA parameters

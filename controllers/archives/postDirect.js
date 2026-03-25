@@ -62,7 +62,7 @@ module.exports = async (req, res) => {
             await folderDoc.save();
         }
 
-        // ── 3. Write file to disk ──────────────────────────────────────────
+        // ── 3. Write file to ARCHIVES ─────────────────────────────────────
         const mainDir   = path.dirname(require.main.filename);
         const safeName  = req.file.originalname
             .replace(/[^a-zA-Z0-9_\-\.]/g, '_');
@@ -80,6 +80,18 @@ module.exports = async (req, res) => {
             await storage.uploadFile(relativeFileUrl, req.file.buffer);
         } catch (err) {
             console.error('[MinIO upload] postDirect:', err.message);
+        }
+
+        // ── 3b. Copy to user workspace (espace personnel) ───────────────
+        try {
+            const wsDir = path.join(mainDir, 'workspace', String(res.locals.userId), 'documents');
+            fs.mkdirSync(wsDir, { recursive: true });
+            const wsPath = path.join(wsDir, fileName);
+            fs.copyFileSync(fullPath, wsPath);
+            const wsRelPath = path.join('workspace', String(res.locals.userId), 'documents', fileName);
+            await storage.uploadFileFromDisk(wsRelPath, wsPath).catch(() => {});
+        } catch (err) {
+            console.error('[workspace copy] postDirect:', err.message);
         }
 
         // ── 4. Create archive record ───────────────────────────────────────
