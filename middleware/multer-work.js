@@ -18,7 +18,8 @@ module.exports = (req, res, next) => {
 
     const filename = name + '.' + extension;
     const subPath = req.body.path || '';
-    const parts = ['workspace', req.body.userId, subPath, filename].filter(Boolean);
+    const userId = res.locals.userId || req.body.userId;
+    const parts = ['workspace', userId, subPath, filename].filter(Boolean);
     const relativePath = parts.join('/');
 
     // Set filename on req.file since memoryStorage doesn't set it

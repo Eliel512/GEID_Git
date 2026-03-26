@@ -1,9 +1,6 @@
-const fs = require('fs');
-const paths = require('path');
 const WorkspaceFile = require('../../models/workspace/workspaceFile.model');
 const ActivityLog = require('../../models/workspace/activityLog.model');
 const storage = require('../../tools/storage');
-const { WORKSPACE_BASE, safePath } = require('./utils');
 
 exports.getTrash = async (req, res) => {
   const userId = res.locals.userId;
@@ -73,10 +70,8 @@ exports.permanentDelete = async (req, res) => {
     const file = await WorkspaceFile.findOne({ _id: id, owner: userId, isTrashed: true });
     if (!file) return res.status(404).json({ message: 'Fichier introuvable.' });
 
-    // Delete from filesystem + MinIO
+    // Delete from MinIO only
     if (file.contentUrl) {
-      const absPath = paths.resolve(file.contentUrl);
-      try { fs.unlinkSync(absPath); } catch { /* already deleted */ }
       storage.deleteFile(file.contentUrl).catch(() => {});
     }
 
@@ -102,7 +97,6 @@ exports.emptyTrash = async (req, res) => {
 
     for (const file of trashedFiles) {
       if (file.contentUrl) {
-        try { fs.unlinkSync(paths.resolve(file.contentUrl)); } catch { /* ok */ }
         storage.deleteFile(file.contentUrl).catch(() => {});
       }
     }
