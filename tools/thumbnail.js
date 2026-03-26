@@ -18,7 +18,8 @@ const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff', 
 const PDF_EXTS = new Set(['pdf']);
 const OFFICE_EXTS = new Set(['docx', 'xlsx', 'pptx', 'doc', 'xls', 'ppt', 'odt', 'ods', 'odp', 'rtf']);
 const TEXT_EXTS = new Set(['txt', 'md', 'csv', 'log', 'json', 'xml', 'html', 'css', 'js', 'ts', 'py', 'sh', 'yml', 'yaml', 'ini', 'cfg', 'conf', 'env']);
-const ALL_SUPPORTED = new Set([...IMAGE_EXTS, ...PDF_EXTS, ...OFFICE_EXTS, ...TEXT_EXTS]);
+const VIDEO_EXTS = new Set(['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv', 'wmv', 'mpg', 'mpeg', 'mxf', 'qt', 'asf']);
+const ALL_SUPPORTED = new Set([...IMAGE_EXTS, ...PDF_EXTS, ...OFFICE_EXTS, ...TEXT_EXTS, ...VIDEO_EXTS]);
 
 const THUMB_SIZE = 200;
 const THUMB_BUCKET = 'thumbnails';
@@ -68,7 +69,7 @@ async function getThumbnail(fileBuffer, filename, cacheId) {
 	if (IMAGE_EXTS.has(ext)) {
 		// Images : sharp directement
 		thumbBuffer = await generateImageThumb(fileBuffer);
-	} else if (PDF_EXTS.has(ext) || OFFICE_EXTS.has(ext) || TEXT_EXTS.has(ext)) {
+	} else if (PDF_EXTS.has(ext) || OFFICE_EXTS.has(ext) || TEXT_EXTS.has(ext) || VIDEO_EXTS.has(ext)) {
 		// PDF/Office/Texte : appeler le micro-service Python
 		thumbBuffer = await callThumbService(fileBuffer, filename);
 	}

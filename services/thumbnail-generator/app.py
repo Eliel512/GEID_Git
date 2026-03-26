@@ -26,6 +26,7 @@ IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff', '.tif',
 PDF_EXTS = {'.pdf'}
 OFFICE_EXTS = {'.docx', '.xlsx', '.pptx', '.doc', '.xls', '.ppt', '.odt', '.ods', '.odp', '.rtf'}
 TEXT_EXTS = {'.txt', '.md', '.csv', '.log', '.json', '.xml', '.html', '.css', '.js', '.ts', '.py', '.sh', '.yml', '.yaml', '.ini', '.cfg', '.conf', '.env'}
+VIDEO_EXTS = {'.mp4', '.webm', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.mpg', '.mpeg', '.mxf', '.qt', '.asf'}
 
 def make_thumbnail(img: Image.Image) -> bytes:
     """Redimensionne et convertit en WebP."""
@@ -129,6 +130,103 @@ def thumbnail_from_text(file_bytes: bytes) -> bytes:
     return make_thumbnail(img)
 
 
+def thumbnail_from_video(file_bytes: bytes, ext: str) -> bytes:
+    """Extrait une frame représentative d'une vidéo via ffmpeg."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_path = Path(tmpdir) / f"input{ext}"
+        output_path = Path(tmpdir) / "frame.png"
+        input_path.write_bytes(file_bytes)
+
+        # D'abord récupérer la durée pour choisir un bon moment
+        duration = 10  # fallback
+        probe = subprocess.run(
+            ['ffprobe', '-v', 'quiet', '-show_entries', 'format=duration',
+             '-of', 'csv=p=0', str(input_path)],
+            capture_output=True, timeout=10
+        )
+        if probe.returncode == 0 and probe.stdout.strip():
+            try:
+                duration = float(probe.stdout.strip())
+            except ValueError:
+                pass
+
+        # Choisir un moment à ~15% de la durée (évite le noir du début et la fin)
+        seek_time = max(1, min(duration * 0.15, duration - 1))
+
+        subprocess.run(
+            ['ffmpeg', '-ss', str(seek_time), '-i', str(input_path),
+             '-vframes', '1', '-vf', 'scale=400:-1', str(output_path)],
+            capture_output=True, timeout=30
+        )
+
+        # Fallback à 25% si l'image est trop sombre
+        if output_path.exists():
+            img = Image.open(output_path)
+            # Vérifier si l'image est quasi noire (moyenne < 15)
+            grayscale = img.convert('L')
+            avg_brightness = sum(grayscale.getdata()) / len(grayscale.getdata())
+            if avg_brightness < 15:
+                output_path.unlink()
+                seek_time = max(2, duration * 0.25)
+                subprocess.run(
+                    ['ffmpeg', '-ss', str(seek_time), '-i', str(input_path),
+                     '-vframes', '1', '-vf', 'scale=400:-1', str(output_path)],
+                    capture_output=True, timeout=30
+                )
+
+        if not output_path.exists():
+            raise ValueError("Impossible d'extraire une image de la vidéo")
+
+        img = Image.open(output_path)
+        return make_thumbnail(img)
+
+
+def get_video_info(file_bytes: bytes, ext: str) -> dict:
+    """Extrait les métadonnées d'une vidéo via ffprobe."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_path = Path(tmpdir) / f"input{ext}"
+        input_path.write_bytes(file_bytes)
+
+        result = subprocess.run(
+            ['ffprobe', '-v', 'quiet', '-print_format', 'json',
+             '-show_format', '-show_streams', str(input_path)],
+            capture_output=True, timeout=15
+        )
+
+        if result.returncode != 0:
+            return {}
+
+        import json
+        try:
+            data = json.loads(result.stdout)
+        except Exception:
+            return {}
+
+        info = {}
+        fmt = data.get('format', {})
+        if fmt.get('duration'):
+            secs = float(fmt['duration'])
+            mins = int(secs // 60)
+            remaining = int(secs % 60)
+            info['duration'] = f"{mins}:{remaining:02d}"
+            info['durationSeconds'] = round(secs)
+        if fmt.get('size'):
+            info['fileSize'] = int(fmt['size'])
+        if fmt.get('format_long_name'):
+            info['format'] = fmt['format_long_name']
+
+        for stream in data.get('streams', []):
+            if stream.get('codec_type') == 'video':
+                info['width'] = stream.get('width')
+                info['height'] = stream.get('height')
+                info['codec'] = stream.get('codec_name')
+                info['fps'] = stream.get('r_frame_rate')
+            elif stream.get('codec_type') == 'audio':
+                info['audioCodec'] = stream.get('codec_name')
+
+        return info
+
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify(status='ok')
@@ -161,6 +259,8 @@ def generate():
             thumb = thumbnail_from_office(file_bytes, ext)
         elif ext in TEXT_EXTS:
             thumb = thumbnail_from_text(file_bytes)
+        elif ext in VIDEO_EXTS:
+            thumb = thumbnail_from_video(file_bytes, ext)
         else:
             return jsonify(error=f'Format non supporté: {ext}'), 415
 
@@ -171,6 +271,29 @@ def generate():
         )
     except Exception as e:
         app.logger.error(f'Erreur génération miniature: {e}')
+        return jsonify(error=str(e)[:200]), 500
+
+
+@app.route('/video-info', methods=['POST'])
+def video_info():
+    """
+    POST /video-info — Retourne les métadonnées d'une vidéo (durée, résolution, codec).
+    """
+    if 'file' not in request.files:
+        return jsonify(error='Aucun fichier reçu'), 400
+
+    file = request.files['file']
+    filename = request.form.get('filename', file.filename or 'unknown')
+    ext = Path(filename).suffix.lower()
+
+    if ext not in VIDEO_EXTS:
+        return jsonify(error='Format vidéo non supporté'), 415
+
+    try:
+        file_bytes = file.read()
+        info = get_video_info(file_bytes, ext)
+        return jsonify(info)
+    except Exception as e:
         return jsonify(error=str(e)[:200]), 500
 
 
