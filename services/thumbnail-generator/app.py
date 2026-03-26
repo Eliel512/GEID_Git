@@ -25,6 +25,7 @@ THUMB_SIZE = (200, 200)
 IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff', '.tif', '.avif'}
 PDF_EXTS = {'.pdf'}
 OFFICE_EXTS = {'.docx', '.xlsx', '.pptx', '.doc', '.xls', '.ppt', '.odt', '.ods', '.odp', '.rtf'}
+TEXT_EXTS = {'.txt', '.md', '.csv', '.log', '.json', '.xml', '.html', '.css', '.js', '.ts', '.py', '.sh', '.yml', '.yaml', '.ini', '.cfg', '.conf', '.env'}
 
 def make_thumbnail(img: Image.Image) -> bytes:
     """Redimensionne et convertit en WebP."""
@@ -84,6 +85,50 @@ def thumbnail_from_office(file_bytes: bytes, ext: str) -> bytes:
         return thumbnail_from_pdf(pdf_path.read_bytes())
 
 
+def thumbnail_from_text(file_bytes: bytes) -> bytes:
+    """Miniature d'un fichier texte — dessine les premières lignes sur fond blanc."""
+    from PIL import ImageDraw, ImageFont
+
+    # Décoder le texte (utf-8 avec fallback latin-1)
+    try:
+        text = file_bytes.decode('utf-8')
+    except UnicodeDecodeError:
+        text = file_bytes.decode('latin-1', errors='replace')
+
+    # Prendre les premières lignes
+    lines = text.splitlines()[:20]
+
+    # Créer l'image style "feuille de papier"
+    w, h = 200, 260
+    img = Image.new('RGB', (w, h), '#FFFFFF')
+    draw = ImageDraw.Draw(img)
+
+    # Bordure subtile
+    draw.rectangle([0, 0, w - 1, h - 1], outline='#E0E0E0')
+
+    # Petite barre de titre en haut
+    draw.rectangle([0, 0, w, 16], fill='#F5F5F5')
+    draw.line([0, 16, w, 16], fill='#E0E0E0')
+
+    # Dessiner le texte
+    y = 20
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 8)
+    except (OSError, IOError):
+        font = ImageFont.load_default()
+
+    for line in lines:
+        if y > h - 10:
+            break
+        # Tronquer les lignes longues
+        display_line = line[:40]
+        draw.text((6, y), display_line, fill='#333333', font=font)
+        y += 11
+
+    # Redimensionner en thumbnail
+    return make_thumbnail(img)
+
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify(status='ok')
@@ -114,6 +159,8 @@ def generate():
             thumb = thumbnail_from_pdf(file_bytes)
         elif ext in OFFICE_EXTS:
             thumb = thumbnail_from_office(file_bytes, ext)
+        elif ext in TEXT_EXTS:
+            thumb = thumbnail_from_text(file_bytes)
         else:
             return jsonify(error=f'Format non supporté: {ext}'), 415
 

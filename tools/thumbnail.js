@@ -17,7 +17,8 @@ const storage = require('./storage');
 const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'tif', 'avif']);
 const PDF_EXTS = new Set(['pdf']);
 const OFFICE_EXTS = new Set(['docx', 'xlsx', 'pptx', 'doc', 'xls', 'ppt', 'odt', 'ods', 'odp', 'rtf']);
-const ALL_SUPPORTED = new Set([...IMAGE_EXTS, ...PDF_EXTS, ...OFFICE_EXTS]);
+const TEXT_EXTS = new Set(['txt', 'md', 'csv', 'log', 'json', 'xml', 'html', 'css', 'js', 'ts', 'py', 'sh', 'yml', 'yaml', 'ini', 'cfg', 'conf', 'env']);
+const ALL_SUPPORTED = new Set([...IMAGE_EXTS, ...PDF_EXTS, ...OFFICE_EXTS, ...TEXT_EXTS]);
 
 const THUMB_SIZE = 200;
 const THUMB_BUCKET = 'thumbnails';
