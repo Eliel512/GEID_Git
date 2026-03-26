@@ -3,6 +3,7 @@ const { create } = require('./create');
 const { modify } = require('./modify');
 const { delete: deleteFile } = require('./delete');
 const { createFolder, deleteFolder, renameFolder } = require('./folder');
+const { setFolderColor } = require('./color');
 const { createFolderTree } = require('./folderTree');
 const { getFavorites, toggleFavorite } = require('./favorites');
 const { getTrash, moveToTrash, restoreFromTrash, permanentDelete, emptyTrash } = require('./trash');
@@ -27,6 +28,7 @@ module.exports = {
   createFolderTree,
   deleteFolder,
   renameFolder,
+  setFolderColor,
 
   // New - Drive features
   getFavorites,

@@ -45,6 +45,7 @@ router.delete('/share/:id', workCtrl.revokeShare);
 router.post('/folder/tree', workCtrl.createFolderTree);
 router.post('/folder', workCtrl.createFolder);
 router.put('/folder', workCtrl.renameFolder);
+router.patch('/folder/color/:id', workCtrl.setFolderColor);
 router.delete('/folder/:data', workCtrl.deleteFolder);
 
 // ── Miniature (thumbnail) ──────────────────────────────────────────────────────

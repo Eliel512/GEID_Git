@@ -52,11 +52,14 @@ async function listFromDB(userId, subPath, getHost) {
 
     const urlPath = [userId, normalizedPath, file.name].filter(Boolean).join('/');
     result.push({
+      _id: file._id,
       name: file.name,
       url: file.isDirectory ? null : `https://${getHost}/api/stuff/workspace/file/${encodeURIComponent(urlPath)}`,
       createdAt: file.updatedAt || file.createdAt,
       size: file.size || 0,
       isDirectory: file.isDirectory || false,
+      color: file.color || null,
+      tags: file.tags || [],
       doc,
       ...(file.isDirectory ? { count } : {}),
     });
