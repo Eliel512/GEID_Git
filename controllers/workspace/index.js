@@ -13,8 +13,9 @@ const { moveFile, copyFile } = require('./move');
 const { getRecent, getRecentTags } = require('./recent');
 const { getQuota } = require('./quota');
 const { getActivity } = require('./activity');
-const { shareWithUser, createShareLink, revokeShare, getSharedWithMe } = require('./share');
+const { shareWithUser, createShareLink, revokeShare, getSharedWithMe, getInvitations, acceptInvitation, rejectInvitation, getSentInvitations } = require('./share');
 const { serveFile } = require('./serveFile');
+const { listUsers } = require('./listUsers');
 const { serveThumbnail } = require('./serveThumbnail');
 const { getVideoInfo } = require('./videoInfo');
 
@@ -51,7 +52,12 @@ module.exports = {
   createShareLink,
   revokeShare,
   getSharedWithMe,
+  getInvitations,
+  acceptInvitation,
+  rejectInvitation,
+  getSentInvitations,
   serveFile,
+  listUsers,
   serveThumbnail,
   getVideoInfo,
 };

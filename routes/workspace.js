@@ -36,9 +36,14 @@ router.get('/quota', workCtrl.getQuota);
 router.get('/activity', workCtrl.getActivity);
 
 // ── Partage ─────────────────────────────────────────────────────────────
+router.get('/users/list', workCtrl.listUsers);
 router.get('/shared', workCtrl.getSharedWithMe);
+router.get('/share/invitations', workCtrl.getInvitations);
+router.get('/share/sent', workCtrl.getSentInvitations);
 router.post('/share', workCtrl.shareWithUser);
 router.post('/share/link', workCtrl.createShareLink);
+router.patch('/share/accept/:id', workCtrl.acceptInvitation);
+router.patch('/share/reject/:id', workCtrl.rejectInvitation);
 router.delete('/share/:id', workCtrl.revokeShare);
 
 // ── Dossiers (routes spécifiques avant /:data) ──────────────────────────────
