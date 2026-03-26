@@ -302,7 +302,6 @@ exports.getSharedWithMe = async (req, res) => {
     const files = await WorkspaceFile.find({
       'sharedWith.userId': userId,
       isTrashed: { $ne: true },
-      isDirectory: false, // N'afficher que les fichiers — les dossiers partagés incluent déjà leurs enfants
     }).sort({ updatedAt: -1 }).lean();
 
     const host = getHost();
@@ -312,31 +311,116 @@ exports.getSharedWithMe = async (req, res) => {
     const owners = await User.find({ _id: { $in: ownerIds } }, 'fname lname email').lean();
     const ownerMap = Object.fromEntries(owners.map(u => [u._id.toString(), u]));
 
-    const result = files.map(f => {
+    // Pour les dossiers, compter les enfants
+    const result = [];
+    for (const f of files) {
       const share = f.sharedWith.find(s => s.userId === userId);
       const urlPath = [f.owner, f.path, f.name].filter(Boolean).join('/');
       const ownerUser = ownerMap[f.owner];
       const ownerName = ownerUser ? [ownerUser.fname, ownerUser.lname].filter(Boolean).join(' ') : '';
-      return {
+
+      let count;
+      if (f.isDirectory) {
+        const childPath = f.path ? `${f.path}/${f.name}` : f.name;
+        count = await WorkspaceFile.countDocuments({ owner: f.owner, path: childPath, isTrashed: { $ne: true } });
+      }
+
+      result.push({
         _id: f._id,
         name: f.name,
         url: f.isDirectory ? null : `https://${host}/api/stuff/workspace/file/${encodeURIComponent(urlPath)}`,
         createdAt: f.updatedAt || f.createdAt,
         size: f.size || 0,
-        isDirectory: false, // Toujours afficher comme fichier dans l'espace partagé (pas de navigation)
+        isDirectory: f.isDirectory || false,
         owner: f.owner,
         ownerName,
         permission: share?.permission || 'view',
         tags: f.tags || [],
         duration: f.duration || null,
         color: f.color || null,
-        originalIsDirectory: f.isDirectory || false,
-      };
-    });
+        ...(f.isDirectory ? { count } : {}),
+      });
+    }
 
     res.status(200).json(result);
   } catch {
     res.status(500).json({ message: 'Impossible de récupérer les fichiers partagés.' });
+  }
+};
+
+/**
+ * GET /api/stuff/workspace/shared/folder/:id
+ * Navigue dans un dossier partagé — liste son contenu.
+ * Vérifie que l'utilisateur a accès (sharedWith sur le dossier parent).
+ */
+exports.browseSharedFolder = async (req, res) => {
+  const userId = res.locals.userId;
+  const { id } = req.params;
+
+  try {
+    // Vérifier que le dossier est partagé avec cet utilisateur
+    const folder = await WorkspaceFile.findOne({
+      _id: id,
+      isDirectory: true,
+      'sharedWith.userId': userId,
+    });
+    if (!folder) return res.status(403).json({ message: 'Accès non autorisé à ce dossier.' });
+
+    const host = getHost();
+    const folderPath = folder.path ? `${folder.path}/${folder.name}` : folder.name;
+    const permission = folder.sharedWith.find(s => s.userId === userId)?.permission || 'view';
+
+    // Lister le contenu du dossier (fichiers et sous-dossiers du owner)
+    const children = await WorkspaceFile.find({
+      owner: folder.owner,
+      path: folderPath,
+      isTrashed: { $ne: true },
+    }).lean();
+
+    const result = [];
+    for (const f of children) {
+      const urlPath = [f.owner, folderPath, f.name].filter(Boolean).join('/');
+
+      let count;
+      if (f.isDirectory) {
+        const childPath = `${folderPath}/${f.name}`;
+        count = await WorkspaceFile.countDocuments({ owner: f.owner, path: childPath, isTrashed: { $ne: true } });
+
+        // Propager le sharedWith sur les sous-dossiers pour la navigation
+        const alreadyShared = f.sharedWith?.find(s => s.userId === userId);
+        if (!alreadyShared) {
+          await WorkspaceFile.findByIdAndUpdate(f._id, {
+            $push: { sharedWith: { userId, permission } },
+          });
+        }
+      }
+
+      result.push({
+        _id: f._id,
+        name: f.name,
+        url: f.isDirectory ? null : `https://${host}/api/stuff/workspace/file/${encodeURIComponent(urlPath)}`,
+        createdAt: f.updatedAt || f.createdAt,
+        size: f.size || 0,
+        isDirectory: f.isDirectory || false,
+        owner: folder.owner,
+        permission,
+        color: f.color || null,
+        duration: f.duration || null,
+        tags: f.tags || [],
+        ...(f.isDirectory ? { count } : {}),
+      });
+    }
+
+    result.sort((a, b) => {
+      if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(200).json(result);
+  } catch (err) {
+    console.error('[share.browseSharedFolder]', err);
+    res.status(500).json({ message: 'Impossible de lister le contenu du dossier.' });
   }
 };
 

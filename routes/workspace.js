@@ -37,6 +37,7 @@ router.get('/activity', workCtrl.getActivity);
 
 // ── Partage ─────────────────────────────────────────────────────────────
 router.get('/users/list', workCtrl.listUsers);
+router.get('/shared/folder/:id', workCtrl.browseSharedFolder);
 router.get('/shared', workCtrl.getSharedWithMe);
 router.get('/share/invitations', workCtrl.getInvitations);
 router.get('/share/sent', workCtrl.getSentInvitations);

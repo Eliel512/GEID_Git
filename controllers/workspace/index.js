@@ -13,7 +13,7 @@ const { moveFile, copyFile } = require('./move');
 const { getRecent, getRecentTags } = require('./recent');
 const { getQuota } = require('./quota');
 const { getActivity } = require('./activity');
-const { shareWithUser, createShareLink, revokeShare, getSharedWithMe, getInvitations, acceptInvitation, rejectInvitation, getSentInvitations } = require('./share');
+const { shareWithUser, createShareLink, revokeShare, getSharedWithMe, browseSharedFolder, getInvitations, acceptInvitation, rejectInvitation, getSentInvitations } = require('./share');
 const { serveFile } = require('./serveFile');
 const { listUsers } = require('./listUsers');
 const { serveThumbnail } = require('./serveThumbnail');
@@ -52,6 +52,7 @@ module.exports = {
   createShareLink,
   revokeShare,
   getSharedWithMe,
+  browseSharedFolder,
   getInvitations,
   acceptInvitation,
   rejectInvitation,
