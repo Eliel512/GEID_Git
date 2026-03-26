@@ -12,8 +12,21 @@ exports.serveFile = async (req, res) => {
   }
 
   const parts = filePath.split('/');
-  if (parts[0] !== userId) {
-    return res.status(403).json({ message: 'Accès non autorisé.' });
+  const fileOwnerId = parts[0];
+
+  // Vérifier l'accès : soit le propriétaire, soit un fichier partagé
+  if (fileOwnerId !== userId) {
+    const fileName = paths.basename(filePath);
+    const subPath = parts.slice(1, -1).join('/');
+    const shared = await WorkspaceFile.findOne({
+      owner: fileOwnerId,
+      path: subPath,
+      name: fileName,
+      'sharedWith.userId': userId,
+    });
+    if (!shared) {
+      return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
   }
 
   const relPath = paths.join('workspace', filePath);
@@ -29,7 +42,7 @@ exports.serveFile = async (req, res) => {
     const fileName = paths.basename(filePath);
     const subPath = parts.slice(1, -1).join('/');
     WorkspaceFile.findOneAndUpdate(
-      { owner: userId, path: subPath, name: fileName },
+      { owner: fileOwnerId, path: subPath, name: fileName },
       { lastAccessedAt: new Date() }
     ).catch(() => {});
   } catch {

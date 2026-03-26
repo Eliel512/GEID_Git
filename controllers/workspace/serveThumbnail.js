@@ -15,7 +15,14 @@ exports.serveThumbnail = async (req, res) => {
 	if (!filePath) return res.status(400).json({ message: 'Chemin invalide.' });
 
 	const parts = filePath.split('/');
-	if (parts[0] !== userId) return res.status(403).json({ message: 'Accès non autorisé.' });
+	if (parts[0] !== userId) {
+		// Vérifier si le fichier est partagé avec cet utilisateur
+		const WorkspaceFile = require('../../models/workspace/workspaceFile.model');
+		const fileName = require('path').basename(filePath);
+		const subPath = parts.slice(1, -1).join('/');
+		const shared = await WorkspaceFile.findOne({ owner: parts[0], path: subPath, name: fileName, 'sharedWith.userId': userId });
+		if (!shared) return res.status(403).json({ message: 'Accès non autorisé.' });
+	}
 
 	if (!isSupported(filePath)) return res.status(204).end();
 
