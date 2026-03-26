@@ -1,111 +1,152 @@
 /**
- * thumbnail.js — Génération de miniatures à la demande pour les fichiers workspace et archives.
+ * thumbnail.js — Génération et cache de miniatures via MinIO.
+ *
+ * Stockage : bucket MinIO "thumbnails" (pas de fichiers locaux).
  *
  * Stratégie :
- *   1. Images (jpg, png, webp, gif, bmp, tiff) → redimensionnement via sharp (200x200)
- *   2. PDF → première page convertie en image via sharp (si le fichier est un buffer PDF)
- *   3. Autres → retourne null (le frontend affiche l'icône par défaut)
- *
- * Cache :
- *   - Miniatures stockées dans un dossier `thumbnails/` local
- *   - Clé de cache : hash MD5 du chemin + taille du fichier
- *   - Si le cache existe, il est servi directement
+ *   1. Vérifier si la miniature existe dans MinIO (cache)
+ *   2. Si non : générer via sharp (images) ou micro-service Python (PDF/Office)
+ *   3. Stocker dans MinIO et retourner
  */
 
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
+const storage = require('./storage');
 
-const THUMB_DIR = path.join(__dirname, '..', 'thumbnails');
-const THUMB_SIZE = 200; // px
 const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'tif', 'avif']);
+const PDF_EXTS = new Set(['pdf']);
+const OFFICE_EXTS = new Set(['docx', 'xlsx', 'pptx', 'doc', 'xls', 'ppt', 'odt', 'ods', 'odp', 'rtf']);
+const ALL_SUPPORTED = new Set([...IMAGE_EXTS, ...PDF_EXTS, ...OFFICE_EXTS]);
 
-// Crée le dossier thumbnails au démarrage
-try { fs.mkdirSync(THUMB_DIR, { recursive: true }); } catch { /* ignore */ }
+const THUMB_SIZE = 200;
+const THUMB_BUCKET = 'thumbnails';
+const THUMB_SERVICE_URL = process.env.THUMB_SERVICE_URL || 'http://geid-thumbgen:9090';
 
-/**
- * Génère une clé de cache unique pour un fichier.
- */
-function cacheKey(filePath, stat) {
-	const hash = crypto.createHash('md5')
-		.update(`${filePath}:${stat?.size ?? 0}:${stat?.mtimeMs ?? 0}`)
-		.digest('hex');
-	return hash + '.webp';
-}
-
-/**
- * Retourne l'extension en minuscule d'un nom de fichier.
- */
 function getExt(filename) {
 	return (filename || '').split('.').pop()?.toLowerCase() || '';
 }
 
+function thumbKey(filePath, fileSize) {
+	const hash = crypto.createHash('md5').update(`${filePath}:${fileSize || 0}`).digest('hex');
+	return `${hash}.webp`;
+}
+
 /**
- * Génère ou retourne la miniature d'un fichier.
+ * Vérifie si un format est supporté pour la génération de miniatures.
+ */
+function isSupported(filename) {
+	return ALL_SUPPORTED.has(getExt(filename));
+}
+
+/**
+ * Récupère ou génère une miniature.
  *
- * @param {string} absolutePath — chemin absolu du fichier source
- * @returns {Promise<{ buffer: Buffer, contentType: string } | null>}
- *          — le buffer de la miniature ou null si pas supporté
+ * @param {Buffer} fileBuffer — contenu du fichier source
+ * @param {string} filename — nom du fichier (pour déterminer le type)
+ * @param {string} cacheId — identifiant unique pour le cache (ex: chemin MinIO)
+ * @returns {Promise<Buffer|null>} — buffer WebP ou null
  */
-async function generateThumbnail(absolutePath) {
-	let sharp;
-	try { sharp = require('sharp'); } catch {
-		return null; // sharp non installé — pas de thumbnail
+async function getThumbnail(fileBuffer, filename, cacheId) {
+	const ext = getExt(filename);
+	if (!ALL_SUPPORTED.has(ext)) return null;
+
+	const key = thumbKey(cacheId || filename, fileBuffer?.length);
+
+	// 1. Vérifier le cache MinIO
+	if (storage.MINIO_ENABLED) {
+		try {
+			const cached = await storage.getFileBuffer(`${THUMB_BUCKET}/${key}`);
+			if (cached) return cached;
+		} catch { /* pas en cache */ }
 	}
 
-	const ext = getExt(absolutePath);
-	if (!IMAGE_EXTS.has(ext)) return null; // type non supporté
+	// 2. Générer la miniature
+	let thumbBuffer = null;
 
-	// Vérifier que le fichier existe
-	let stat;
-	try { stat = fs.statSync(absolutePath); } catch { return null; }
-
-	// Vérifier le cache
-	const thumbName = cacheKey(absolutePath, stat);
-	const thumbPath = path.join(THUMB_DIR, thumbName);
-
-	if (fs.existsSync(thumbPath)) {
-		return { buffer: fs.readFileSync(thumbPath), contentType: 'image/webp' };
+	if (IMAGE_EXTS.has(ext)) {
+		// Images : sharp directement
+		thumbBuffer = await generateImageThumb(fileBuffer);
+	} else if (PDF_EXTS.has(ext) || OFFICE_EXTS.has(ext)) {
+		// PDF/Office : appeler le micro-service Python
+		thumbBuffer = await callThumbService(fileBuffer, filename);
 	}
 
-	// Générer la miniature
+	if (!thumbBuffer) return null;
+
+	// 3. Stocker dans MinIO
+	if (storage.MINIO_ENABLED) {
+		try {
+			await storage.uploadFile(`${THUMB_BUCKET}/${key}`, thumbBuffer, 'image/webp');
+		} catch (err) {
+			console.error('[thumbnail:cache]', err.message);
+		}
+	}
+
+	return thumbBuffer;
+}
+
+/**
+ * Génère une miniature d'image avec sharp.
+ */
+async function generateImageThumb(buffer) {
 	try {
-		const buffer = await sharp(absolutePath)
+		const sharp = require('sharp');
+		return await sharp(buffer)
 			.resize(THUMB_SIZE, THUMB_SIZE, { fit: 'cover', position: 'centre' })
 			.webp({ quality: 75 })
 			.toBuffer();
-
-		// Sauvegarder en cache
-		fs.writeFileSync(thumbPath, buffer);
-		return { buffer, contentType: 'image/webp' };
 	} catch (err) {
-		console.error('[thumbnail]', err.message);
+		console.error('[thumbnail:sharp]', err.message);
 		return null;
 	}
 }
 
 /**
- * Génère une miniature depuis un buffer (pour les fichiers stockés dans MinIO).
+ * Appelle le micro-service Python pour PDF/Office → miniature.
  */
-async function generateThumbnailFromBuffer(fileBuffer, filename) {
-	let sharp;
-	try { sharp = require('sharp'); } catch { return null; }
-
-	const ext = getExt(filename);
-	if (!IMAGE_EXTS.has(ext)) return null;
-
+async function callThumbService(fileBuffer, filename) {
 	try {
-		const buffer = await sharp(fileBuffer)
-			.resize(THUMB_SIZE, THUMB_SIZE, { fit: 'cover', position: 'centre' })
-			.webp({ quality: 75 })
-			.toBuffer();
-		return { buffer, contentType: 'image/webp' };
+		const FormData = require('form-data') || globalThis.FormData;
+		// Node 18 n'a pas fetch natif avec FormData multipart — utilisons http
+		const http = require('http');
+		const url = new URL(`${THUMB_SERVICE_URL}/generate`);
+
+		return new Promise((resolve) => {
+			const boundary = '----ThumbBoundary' + Date.now();
+			const header = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
+			const fieldPart = `\r\n--${boundary}\r\nContent-Disposition: form-data; name="filename"\r\n\r\n${filename}\r\n--${boundary}--\r\n`;
+			const body = Buffer.concat([Buffer.from(header), fileBuffer, Buffer.from(fieldPart)]);
+
+			const req = http.request({
+				hostname: url.hostname,
+				port: url.port,
+				path: url.pathname,
+				method: 'POST',
+				headers: {
+					'Content-Type': `multipart/form-data; boundary=${boundary}`,
+					'Content-Length': body.length,
+				},
+				timeout: 30000,
+			}, (res) => {
+				if (res.statusCode !== 200) {
+					resolve(null);
+					return;
+				}
+				const chunks = [];
+				res.on('data', (c) => chunks.push(c));
+				res.on('end', () => resolve(Buffer.concat(chunks)));
+			});
+
+			req.on('error', () => resolve(null));
+			req.on('timeout', () => { req.destroy(); resolve(null); });
+			req.write(body);
+			req.end();
+		});
 	} catch (err) {
-		console.error('[thumbnail:buffer]', err.message);
+		console.error('[thumbnail:service]', err.message);
 		return null;
 	}
 }
 
-module.exports = { generateThumbnail, generateThumbnailFromBuffer, getExt, IMAGE_EXTS };
+module.exports = { getThumbnail, isSupported, getExt, IMAGE_EXTS, PDF_EXTS, OFFICE_EXTS, ALL_SUPPORTED };

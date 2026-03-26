@@ -50,6 +50,7 @@ const BUCKET_MAP = [
     { prefix: 'profils/', bucket: 'profils' },
     { prefix: 'salon/', bucket: 'salon' },
     { prefix: 'ressources/', bucket: 'ressources' },
+    { prefix: 'thumbnails/', bucket: 'thumbnails' },
 ];
 
 /**
@@ -350,6 +351,21 @@ async function renameDirPrefix(oldPrefix, newPrefix) {
     }
 }
 
+/**
+ * Lit un fichier entier depuis MinIO et retourne un Buffer.
+ */
+async function getFileBuffer(relativePath) {
+    if (!MINIO_ENABLED) return null;
+    const resolved = resolveBucketKey(relativePath);
+    if (!resolved) return null;
+    try {
+        const stream = await minioClient.getObject(resolved.bucket, resolved.key);
+        const chunks = [];
+        for await (const chunk of stream) chunks.push(chunk);
+        return Buffer.concat(chunks);
+    } catch { return null; }
+}
+
 // ── Export ───────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -367,5 +383,6 @@ module.exports = {
     renameDirPrefix,
     listFiles,
     resolveBucketKey,
+    getFileBuffer,
     MINIO_ENABLED,
 };

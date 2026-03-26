@@ -1,21 +1,16 @@
 /**
- * serveThumbnail — Sert une miniature (200x200 webp) pour un fichier workspace.
+ * serveThumbnail — Miniature d'un fichier workspace via MinIO.
  *
- * GET /api/stuff/workspace/thumbnail/:userId/category/file.jpg
+ * GET /api/stuff/workspace/thumbnail/:userId/category/file.ext
  *
- * - Vérifie que le fichier appartient à l'utilisateur
- * - Génère la miniature si pas en cache (via sharp)
- * - Sert depuis le cache si déjà générée
- * - Retourne 204 si le type n'est pas supporté (le frontend affiche l'icône par défaut)
+ * Stockage uniquement MinIO — pas de fichiers locaux.
  */
 
 'use strict';
 
 const paths = require('path');
-const fs = require('fs');
 const storage = require('../../tools/storage');
-const { generateThumbnail, generateThumbnailFromBuffer, IMAGE_EXTS, getExt } = require('../../tools/thumbnail');
-const { WORKSPACE_BASE, safePath } = require('./utils');
+const { getThumbnail, isSupported } = require('../../tools/thumbnail');
 
 exports.serveThumbnail = async (req, res) => {
 	const userId = res.locals.userId;
@@ -23,46 +18,45 @@ exports.serveThumbnail = async (req, res) => {
 
 	if (!filePath) return res.status(400).json({ message: 'Chemin invalide.' });
 
-	// Vérifier que le fichier appartient à cet utilisateur
 	const parts = filePath.split('/');
 	if (parts[0] !== userId) return res.status(403).json({ message: 'Accès non autorisé.' });
 
-	const ext = getExt(filePath);
-	if (!IMAGE_EXTS.has(ext)) {
-		// Type non supporté — le frontend affiche l'icône par défaut
-		return res.status(204).end();
-	}
+	if (!isSupported(filePath)) return res.status(204).end();
 
-	// Cache headers — miniatures rarement changent
-	res.setHeader('Cache-Control', 'public, max-age=86400'); // 24h
+	res.setHeader('Cache-Control', 'public, max-age=86400');
 	res.setHeader('Content-Type', 'image/webp');
 
 	try {
 		const relPath = paths.join('workspace', filePath);
-		const absPath = safePath(WORKSPACE_BASE, filePath);
 
-		// Essayer depuis le filesystem (plus rapide pour le thumbnail)
-		if (absPath && fs.existsSync(absPath)) {
-			const thumb = await generateThumbnail(absPath);
-			if (thumb) return res.end(thumb.buffer);
-		}
-
-		// Essayer depuis MinIO
+		// Lire le fichier source depuis MinIO (ou filesystem en fallback)
+		let fileBuffer;
 		if (storage.MINIO_ENABLED) {
 			try {
 				const chunks = [];
 				const stream = await storage.getFileStream(relPath);
 				for await (const chunk of stream) chunks.push(chunk);
-				const fileBuffer = Buffer.concat(chunks);
-				const thumb = await generateThumbnailFromBuffer(fileBuffer, filePath);
-				if (thumb) return res.end(thumb.buffer);
-			} catch { /* MinIO error — fallback */ }
+				fileBuffer = Buffer.concat(chunks);
+			} catch { /* MinIO fail — try fs */ }
 		}
 
-		// Pas de thumbnail possible
-		return res.status(204).end();
+		if (!fileBuffer) {
+			const fs = require('fs');
+			const { WORKSPACE_BASE, safePath } = require('./utils');
+			const absPath = safePath(WORKSPACE_BASE, filePath);
+			if (absPath && fs.existsSync(absPath)) {
+				fileBuffer = fs.readFileSync(absPath);
+			}
+		}
+
+		if (!fileBuffer) return res.status(204).end();
+
+		const thumb = await getThumbnail(fileBuffer, paths.basename(filePath), relPath);
+		if (thumb) return res.end(thumb);
+
+		res.status(204).end();
 	} catch (err) {
 		console.error('[serveThumbnail]', err.message);
-		return res.status(204).end();
+		res.status(204).end();
 	}
 };
