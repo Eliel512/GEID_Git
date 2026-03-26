@@ -1,36 +1,13 @@
-const Folder = require('../../models/archives/folder.model');
-const Doc = require('../../models/archives/doc.model');
-
+/**
+ * Middleware archives/postOne — Validation basique avant archivage.
+ * Le folder est géré par le controller (auto-créé si absent).
+ */
 module.exports = (req, res, next) => {
-    Folder.findOne({ name: req.body.folder })
-        .then(async folder => {
-            if(!req.body.folder){
-                return res.status(400).json({ message: 'La cle \'folder\' est vide' });
-            }
-            if(!folder){
-                // let docDesignation;
-                // try{
-                //     docDesignation = await Doc.findOne({ _id: req.body.doc });
-                //     docDesignation = docDesignation.designation;
-                // }catch(error){
-                //     console.log(error);
-                //     return res.status(500).json({ message: 'Une erreur est survenue' })
-                // }
-                const newFolder = Folder({
-                    name: req.body.folder,
-                    description: req.body.description
-                });
-                try{
-                    await newFolder.save();
-                }catch(error){
-                    console.log(error);
-                    return res.status(500).json({ message: 'Une erreur est survenue' });
-                }
-            }
-            next();
-        })
-        .catch(error => {
-            console.log(error);
-            return res.status(500).json({ message: 'Une erreur est survenue' });
-        });
+    if (!req.body.doc) {
+        return res.status(400).json({ message: 'Le champ "doc" (identifiant du fichier) est requis.' });
+    }
+    if (!req.body.designation) {
+        return res.status(400).json({ message: 'Le champ "designation" est requis.' });
+    }
+    next();
 };
