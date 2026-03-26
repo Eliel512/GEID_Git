@@ -61,8 +61,9 @@ all/
 
 # Statics files directories
 ressources/
-workspace/
+/workspace/
 profils/
+/thumbnails/
 salon/
 
 # Snowpack dependency directory (https://snowpack.dev/)
