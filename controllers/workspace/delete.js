@@ -1,12 +1,11 @@
-const fs = require('fs');
 const paths = require('path');
 const WorkspaceFile = require('../../models/workspace/workspaceFile.model');
 const ActivityLog = require('../../models/workspace/activityLog.model');
 const getHost = require('../getHost').getHost();
 const storage = require('../../tools/storage');
-const { WORKSPACE_BASE, safePath, listDirectory } = require('./utils');
+const { listFromDB } = require('./utils');
 
-exports.delete = (req, res) => {
+exports.delete = async (req, res) => {
   const userId = res.locals.userId;
   let parsed;
   try {
@@ -14,34 +13,25 @@ exports.delete = (req, res) => {
   } catch {
     return res.status(400).json({ message: 'Paramètre invalide.' });
   }
-  const subPath = parsed["path"];
-  const filename = parsed["filename"];
+  const subPath = typeof parsed['path'] === 'string' ? parsed['path'] : '';
+  const filename = parsed['filename'];
 
-  if (!subPath || !filename || typeof subPath !== 'string' || typeof filename !== 'string') {
+  if (!filename || typeof filename !== 'string') {
     return res.status(400).json({ message: 'Paramètre invalide.' });
   }
 
-  const targetDir  = safePath(WORKSPACE_BASE, userId, subPath);
-  const targetFile = targetDir && safePath(WORKSPACE_BASE, userId, subPath, filename);
-  if (!targetDir || !targetFile) {
-    return res.status(400).json({ message: 'Chemin non autorisé.' });
-  }
-
-  fs.unlink(targetFile, async (err) => {
-    if (err) {
-      return res.status(500).json({ message: 'Une erreur est survenue' });
-    }
-
-    // Dual-write: delete from MinIO
-    const delRelPath = paths.join('workspace', userId, subPath, filename);
-    storage.deleteFile(delRelPath).catch(err2 => {
-      console.error('[MinIO delete] workspace.delete:', err2.message);
+  try {
+    // Delete from MinIO
+    const parts = ['workspace', userId, subPath, filename].filter(Boolean);
+    const relPath = parts.join('/');
+    storage.deleteFile(relPath).catch(err => {
+      console.error('[MinIO delete] workspace.delete:', err.message);
     });
 
-    // Mark as trashed in WorkspaceFile (soft delete) or remove
+    // Remove from MongoDB
     await WorkspaceFile.findOneAndDelete(
       { owner: userId, path: subPath, name: filename }
-    ).catch(() => {});
+    );
 
     // Activity log
     new ActivityLog({
@@ -57,11 +47,10 @@ exports.delete = (req, res) => {
       io.emit('workspace:file-deleted', { userId, fileName: filename, path: subPath });
     }
 
-    try {
-      const result = await listDirectory(targetDir, userId, subPath, getHost);
-      res.status(200).json(result);
-    } catch {
-      res.status(200).json([]);
-    }
-  });
+    const result = await listFromDB(userId, subPath, getHost);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('[workspace.delete]', error);
+    res.status(500).json({ message: 'Erreur lors de la suppression du fichier.' });
+  }
 };

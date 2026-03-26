@@ -1,7 +1,8 @@
 const paths = require('path');
 const WorkspaceFile = require('../../models/workspace/workspaceFile.model');
 const ActivityLog = require('../../models/workspace/activityLog.model');
-const { WORKSPACE_BASE, safePath, listDirectory } = require('./utils');
+const getHost = require('../getHost').getHost();
+const { listFromDB } = require('./utils');
 
 exports.create = async (req, res) => {
   const userId = res.locals.userId;
@@ -9,9 +10,10 @@ exports.create = async (req, res) => {
     return res.status(400).json({ message: 'Aucun fichier fourni.' });
   }
 
-  const { path: subPath } = req.body;
+  const subPath = req.body.path || '';
   const filename = req.file.filename;
-  const contentRelPath = paths.join('workspace', userId, subPath, filename);
+  const parts = ['workspace', userId, subPath, filename].filter(Boolean);
+  const contentRelPath = parts.join('/');
 
   try {
     // Create WorkspaceFile record
@@ -36,7 +38,7 @@ exports.create = async (req, res) => {
     }).save().catch(() => {});
 
     // Return updated directory listing
-    const result = await listDirectory(userId, subPath);
+    const result = await listFromDB(userId, subPath, getHost);
     res.status(201).json(result);
   } catch (error) {
     console.error('[workspace.create]', error);

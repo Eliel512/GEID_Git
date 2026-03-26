@@ -1,38 +1,35 @@
 const multer = require('multer');
-const fs = require('fs');
 const mime = require('mime-types');
-const pathModule = require('path');
-const minioStorage = require('../tools/storage');
+const storage = require('../tools/storage');
 
-const diskStorage = multer.diskStorage({
-  destination: (req, file, callback) => {
-    const path = "workspace/"+req.body.userId+"/"+req.body.path;
-    fs.mkdirSync(path, { recursive: true });
-    callback(null, path);
-  },
-  filename: (req, file, callback) => {
-    const name = req.body.filename/*.split(' ').join('_')*/;
-    const extension = mime.extension(file.mimetype);
-    if(!extension){
-      throw 'Invalid file type';
-    }
-    /* + '.' + extension*/
-    callback(null, name + '.' + extension);
-  }
-});
+const memStorage = multer.memoryStorage();
+const upload = multer({ storage: memStorage }).single('file');
 
-const upload = multer({storage: diskStorage}).single('file');
-
-// Wrap multer to also upload to MinIO after disk write
 module.exports = (req, res, next) => {
-    upload(req, res, (err) => {
-        if (err) return next(err);
-        if (req.file) {
-            const relPath = pathModule.join(req.file.destination, req.file.filename);
-            minioStorage.uploadFileFromDisk(relPath, req.file.path).catch(err2 => {
-                console.error('[MinIO upload] multer-work:', err2.message);
-            });
-        }
-        next();
-    });
+  upload(req, res, async (err) => {
+    if (err) return next(err);
+    if (!req.file) return next();
+
+    const name = req.body.filename;
+    const extension = mime.extension(req.file.mimetype);
+    if (!extension) {
+      return res.status(400).json({ message: 'Type de fichier non reconnu.' });
+    }
+
+    const filename = name + '.' + extension;
+    const subPath = req.body.path || '';
+    const parts = ['workspace', req.body.userId, subPath, filename].filter(Boolean);
+    const relativePath = parts.join('/');
+
+    // Set filename on req.file since memoryStorage doesn't set it
+    req.file.filename = filename;
+
+    try {
+      await storage.uploadFile(relativePath, req.file.buffer);
+    } catch (err2) {
+      console.error('[MinIO upload] multer-work:', err2.message);
+    }
+
+    next();
+  });
 };
