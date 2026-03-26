@@ -10,6 +10,7 @@ const workspaceFileSchema = new Schema({
   size:         { type: Number, default: 0 },
   mimeType:     { type: String },
   contentUrl:   { type: String },
+  duration:     { type: String },
 
   // Drive features
   isFavorite:   { type: Boolean, default: false, index: true },

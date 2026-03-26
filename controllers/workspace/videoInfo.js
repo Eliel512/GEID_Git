@@ -7,6 +7,7 @@
 const paths = require('path');
 const http = require('http');
 const storage = require('../../tools/storage');
+const WorkspaceFile = require('../../models/workspace/workspaceFile.model');
 
 const THUMB_SERVICE = process.env.THUMB_SERVICE_URL || 'http://geid-thumbgen:9090';
 
@@ -53,7 +54,17 @@ exports.getVideoInfo = async (req, res) => {
 			proxyRes.on('data', (c) => chunks.push(c));
 			proxyRes.on('end', () => {
 				try {
-					res.json(JSON.parse(Buffer.concat(chunks).toString()));
+					const info = JSON.parse(Buffer.concat(chunks).toString());
+					// Sauvegarder la durée en DB si pas encore fait
+					if (info.duration) {
+						const fname = paths.basename(filePath);
+						const fpath = filePath.split('/').slice(1, -1).join('/');
+						WorkspaceFile.findOneAndUpdate(
+							{ owner: userId, path: fpath, name: fname, duration: { $in: [null, undefined] } },
+							{ duration: info.duration }
+						).catch(() => {});
+					}
+					res.json(info);
 				} catch {
 					res.status(204).end();
 				}

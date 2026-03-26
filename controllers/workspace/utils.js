@@ -60,6 +60,7 @@ async function listFromDB(userId, subPath, getHost) {
       isDirectory: file.isDirectory || false,
       color: file.color || null,
       tags: file.tags || [],
+      duration: file.duration || null,
       doc,
       ...(file.isDirectory ? { count } : {}),
     });
