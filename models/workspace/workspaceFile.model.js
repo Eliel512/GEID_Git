@@ -16,6 +16,8 @@ const workspaceFileSchema = new Schema({
   isFavorite:   { type: Boolean, default: false, index: true },
   isTrashed:    { type: Boolean, default: false, index: true },
   trashedAt:    { type: Date },
+  trashContentUrl: { type: String },
+  originalSize: { type: Number },
   tags:         { type: [String], default: [] },
   color:        { type: String },
 

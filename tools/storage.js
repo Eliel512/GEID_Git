@@ -46,6 +46,7 @@ if (MINIO_ENABLED) {
 const BUCKET_MAP = [
     { prefix: 'ARCHIVES/', bucket: 'archives' },
     { prefix: 'archives/', bucket: 'archives' },
+    { prefix: 'workspace-trash/', bucket: 'workspace-trash' },
     { prefix: 'workspace/', bucket: 'workspace' },
     { prefix: 'profils/', bucket: 'profils' },
     { prefix: 'salon/', bucket: 'salon' },
