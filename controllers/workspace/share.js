@@ -302,6 +302,7 @@ exports.getSharedWithMe = async (req, res) => {
     const files = await WorkspaceFile.find({
       'sharedWith.userId': userId,
       isTrashed: { $ne: true },
+      isDirectory: false, // N'afficher que les fichiers — les dossiers partagés incluent déjà leurs enfants
     }).sort({ updatedAt: -1 }).lean();
 
     const host = getHost();
