@@ -1,7 +1,3 @@
+# https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Allow: /
-Disallow: /api/
-Disallow: /ARCHIVES/
-Disallow: /workspace/
-
-Sitemap: https://geidbudget.com/apps/archives/sitemap.xml
+Disallow:
