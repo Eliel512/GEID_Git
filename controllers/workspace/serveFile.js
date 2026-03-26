@@ -1,6 +1,7 @@
 const paths = require('path');
 const storage = require('../../tools/storage');
 const mime = require('mime-types');
+const WorkspaceFile = require('../../models/workspace/workspaceFile.model');
 
 exports.serveFile = async (req, res) => {
   const userId = res.locals.userId;
@@ -23,6 +24,14 @@ exports.serveFile = async (req, res) => {
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Disposition', `inline; filename="${paths.basename(filePath)}"`);
     stream.pipe(res);
+
+    // Marquer comme récent (fire-and-forget)
+    const fileName = paths.basename(filePath);
+    const subPath = parts.slice(1, -1).join('/');
+    WorkspaceFile.findOneAndUpdate(
+      { owner: userId, path: subPath, name: fileName },
+      { lastAccessedAt: new Date() }
+    ).catch(() => {});
   } catch {
     res.status(404).json({ message: 'Fichier introuvable.' });
   }

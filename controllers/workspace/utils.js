@@ -45,9 +45,6 @@ async function listFromDB(userId, subPath, getHost) {
         'workspace', userId, normalizedPath, file.name,
       ].filter(Boolean).join('/');
       doc = await Doc.findOne({ owner: userId, contentUrl }).lean();
-
-      WorkspaceFile.findByIdAndUpdate(file._id, { lastAccessedAt: new Date() })
-        .catch(() => {});
     }
 
     const urlPath = [userId, normalizedPath, file.name].filter(Boolean).join('/');
