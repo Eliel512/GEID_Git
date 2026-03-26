@@ -1,16 +1,12 @@
 /**
- * videoInfo — Retourne les métadonnées d'une vidéo workspace via le micro-service Python.
- *
- * GET /api/stuff/workspace/video-info/:userId/path/to/video.mp4
+ * videoInfo — Métadonnées vidéo via micro-service Python. MinIO uniquement.
  */
 
 'use strict';
 
 const paths = require('path');
-const fs = require('fs');
 const http = require('http');
 const storage = require('../../tools/storage');
-const { WORKSPACE_BASE, safePath } = require('./utils');
 
 const THUMB_SERVICE = process.env.THUMB_SERVICE_URL || 'http://geid-thumbgen:9090';
 
@@ -24,28 +20,16 @@ exports.getVideoInfo = async (req, res) => {
 
 	try {
 		const relPath = paths.join('workspace', filePath);
-		let fileBuffer;
 
-		// Lire depuis MinIO ou filesystem
-		if (storage.MINIO_ENABLED) {
-			try {
-				const chunks = [];
-				const stream = await storage.getFileStream(relPath);
-				for await (const chunk of stream) chunks.push(chunk);
-				fileBuffer = Buffer.concat(chunks);
-			} catch { /* fallback fs */ }
+		const chunks = [];
+		const stream = await storage.getFileStream(relPath);
+		for await (const chunk of stream) chunks.push(chunk);
+		const fileBuffer = Buffer.concat(chunks);
+
+		if (!fileBuffer || fileBuffer.length === 0) {
+			return res.status(404).json({ message: 'Fichier introuvable.' });
 		}
 
-		if (!fileBuffer) {
-			const absPath = safePath(WORKSPACE_BASE, filePath);
-			if (absPath && fs.existsSync(absPath)) {
-				fileBuffer = fs.readFileSync(absPath);
-			}
-		}
-
-		if (!fileBuffer) return res.status(404).json({ message: 'Fichier introuvable.' });
-
-		// Appeler le micro-service Python /video-info
 		const filename = paths.basename(filePath);
 		const boundary = '----VIBoundary' + Date.now();
 		const header = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
@@ -64,15 +48,12 @@ exports.getVideoInfo = async (req, res) => {
 			},
 			timeout: 30000,
 		}, (proxyRes) => {
-			if (proxyRes.statusCode !== 200) {
-				return res.status(204).end();
-			}
+			if (proxyRes.statusCode !== 200) return res.status(204).end();
 			const chunks = [];
 			proxyRes.on('data', (c) => chunks.push(c));
 			proxyRes.on('end', () => {
 				try {
-					const info = JSON.parse(Buffer.concat(chunks).toString());
-					res.json(info);
+					res.json(JSON.parse(Buffer.concat(chunks).toString()));
 				} catch {
 					res.status(204).end();
 				}
