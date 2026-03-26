@@ -65,6 +65,28 @@ exports.shareWithUser = async (req, res) => {
     });
     await invitation.save();
 
+    // Si c'est un dossier, partager aussi tous les fichiers dedans (récursif)
+    if (file.isDirectory) {
+      const { escapeRegex } = require('./utils');
+      const folderPath = file.path ? `${file.path}/${file.name}` : file.name;
+      const children = await WorkspaceFile.find({
+        owner: userId,
+        isTrashed: { $ne: true },
+        isDirectory: false,
+        $or: [
+          { path: folderPath },
+          { path: { $regex: `^${escapeRegex(folderPath)}/` } },
+        ],
+      });
+      for (const child of children) {
+        const alreadyShared = child.sharedWith?.find(s => s.userId === targetId);
+        if (!alreadyShared) {
+          child.sharedWith.push({ userId: targetId, permission: permission || 'view' });
+          await child.save();
+        }
+      }
+    }
+
     // Activity log
     new ActivityLog({
       userId,
@@ -171,13 +193,35 @@ exports.acceptInvitation = async (req, res) => {
     const invitation = await ShareInvitation.findOne({ _id: id, to: userId, status: 'pending' });
     if (!invitation) return res.status(404).json({ message: 'Invitation introuvable.' });
 
-    // Ajouter dans sharedWith du fichier
+    // Ajouter dans sharedWith du fichier/dossier
     const file = await WorkspaceFile.findById(invitation.fileId);
     if (file) {
       const existing = file.sharedWith.find(s => s.userId === userId);
       if (!existing) {
         file.sharedWith.push({ userId, permission: invitation.permission });
         await file.save();
+      }
+
+      // Si c'est un dossier, accepter aussi tous les fichiers dedans
+      if (file.isDirectory) {
+        const { escapeRegex } = require('./utils');
+        const folderPath = file.path ? `${file.path}/${file.name}` : file.name;
+        const children = await WorkspaceFile.find({
+          owner: file.owner,
+          isTrashed: { $ne: true },
+          isDirectory: false,
+          $or: [
+            { path: folderPath },
+            { path: { $regex: `^${escapeRegex(folderPath)}/` } },
+          ],
+        });
+        for (const child of children) {
+          const alreadyShared = child.sharedWith?.find(s => s.userId === userId);
+          if (!alreadyShared) {
+            child.sharedWith.push({ userId, permission: invitation.permission });
+            await child.save();
+          }
+        }
       }
     }
 
@@ -261,20 +305,31 @@ exports.getSharedWithMe = async (req, res) => {
     }).sort({ updatedAt: -1 }).lean();
 
     const host = getHost();
+
+    // Enrichir avec le nom du propriétaire
+    const ownerIds = [...new Set(files.map(f => f.owner))];
+    const owners = await User.find({ _id: { $in: ownerIds } }, 'fname lname email').lean();
+    const ownerMap = Object.fromEntries(owners.map(u => [u._id.toString(), u]));
+
     const result = files.map(f => {
       const share = f.sharedWith.find(s => s.userId === userId);
       const urlPath = [f.owner, f.path, f.name].filter(Boolean).join('/');
+      const ownerUser = ownerMap[f.owner];
+      const ownerName = ownerUser ? [ownerUser.fname, ownerUser.lname].filter(Boolean).join(' ') : '';
       return {
         _id: f._id,
         name: f.name,
         url: f.isDirectory ? null : `https://${host}/api/stuff/workspace/file/${encodeURIComponent(urlPath)}`,
         createdAt: f.updatedAt || f.createdAt,
         size: f.size || 0,
-        isDirectory: f.isDirectory || false,
+        isDirectory: false, // Toujours afficher comme fichier dans l'espace partagé (pas de navigation)
         owner: f.owner,
+        ownerName,
         permission: share?.permission || 'view',
         tags: f.tags || [],
         duration: f.duration || null,
+        color: f.color || null,
+        originalIsDirectory: f.isDirectory || false,
       };
     });
 
