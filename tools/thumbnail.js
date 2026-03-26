@@ -68,8 +68,8 @@ async function getThumbnail(fileBuffer, filename, cacheId) {
 	if (IMAGE_EXTS.has(ext)) {
 		// Images : sharp directement
 		thumbBuffer = await generateImageThumb(fileBuffer);
-	} else if (PDF_EXTS.has(ext) || OFFICE_EXTS.has(ext)) {
-		// PDF/Office : appeler le micro-service Python
+	} else if (PDF_EXTS.has(ext) || OFFICE_EXTS.has(ext) || TEXT_EXTS.has(ext)) {
+		// PDF/Office/Texte : appeler le micro-service Python
 		thumbBuffer = await callThumbService(fileBuffer, filename);
 	}
 
