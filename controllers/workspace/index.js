@@ -14,6 +14,7 @@ const { getActivity } = require('./activity');
 const { shareWithUser, createShareLink, revokeShare, getSharedWithMe } = require('./share');
 const { serveFile } = require('./serveFile');
 const { serveThumbnail } = require('./serveThumbnail');
+const { getVideoInfo } = require('./videoInfo');
 
 module.exports = {
   // Existing (refactored)
@@ -47,4 +48,5 @@ module.exports = {
   getSharedWithMe,
   serveFile,
   serveThumbnail,
+  getVideoInfo,
 };

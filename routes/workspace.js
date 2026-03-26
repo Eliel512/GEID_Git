@@ -48,6 +48,9 @@ router.delete('/folder/:data', workCtrl.deleteFolder);
 // ── Miniature (thumbnail) ──────────────────────────────────────────────────────
 router.get('/thumbnail/*', workCtrl.serveThumbnail);
 
+// ── Informations vidéo (durée, résolution, codec) ─────────────────────────────
+router.get('/video-info/*', workCtrl.getVideoInfo);
+
 // ── Téléchargement authentifié ────────────────────────────────────────────────
 router.get('/file/*', workCtrl.serveFile);
 
