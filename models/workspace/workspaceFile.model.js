@@ -4,7 +4,7 @@ const { Schema } = mongoose;
 const workspaceFileSchema = new Schema({
   name:         { type: String, required: true },
   owner:        { type: String, required: true, index: true },
-  path:         { type: String, required: true },
+  path:         { type: String, default: '' },
   isDirectory:  { type: Boolean, default: false },
   format:       { type: String },
   size:         { type: Number, default: 0 },
