@@ -1,12 +1,11 @@
 const Archive = require('../../models/archives/archive.model');
 const Doc = require('../../models/archives/doc.model');
+const WorkspaceFile = require('../../models/workspace/workspaceFile.model');
 const Profil = require('../../models/archives/profil.model');
 const Folder = require('../../models/archives/folder.model');
 const Role = require('../../models/users/role.model');
 const User = require('../../models/users/user.model');
-const fs = require('fs');
 const path = require('path');
-const getPath = require('../../tools/getRoleUrl');
 const storage = require('../../tools/storage');
 
 /** Normalise un nom de dossier : majuscules, sans accents */
@@ -16,101 +15,90 @@ function normalizeFolder(name) {
         .toUpperCase().trim();
 }
 
-module.exports = (req, res, next) => {
-    Doc.findOne({ _id: req.body.doc })
-        .then(async doc => {
-            const docId = doc._id;
-            const mainDir = path.dirname(require.main.filename);
-            delete doc._id;
-            let defaultProfil, folder, userRole;
-            try{
-                let userRoleName = await User.findOne({
-                    _id: res.locals.userId
-                }, { "grade.role": 1 });
-                userRoleName = userRoleName.grade.role;
-                defaultProfil = await Profil.findOne({
-                    name: 'default'
-                }, { _id: 1 });
-                userRole = await Role.findOne({
-                    name: userRoleName
-                }, { _id: 1, name: 1 });
+module.exports = async (req, res) => {
+    try {
+        const docId = req.body.doc;
 
-                // Déterminer le nom du dossier : fourni par l'utilisateur OU déduit du type
-                const folderName = normalizeFolder(
-                    req.body.folder || req.body.type?.type || 'DIVERS'
-                );
-                folder = await Folder.findOne({ name: folderName }, { _id: 1 });
-                if (!folder) {
-                    folder = new Folder({ name: folderName, description: folderName });
-                    await folder.save();
-                }
-            }catch(error){
-                console.log(error);
-                return res.status(500).json({ message: 'Une erreur est survenue' })
-            }
-            const fileUrl = await getPath(userRole.name);
-            if (!fileUrl) {
-                return res.status(500).json({ message: 'Une erreur est survenue' });
-            }
-            try {
-                fs.mkdirSync(
-                    path.join(mainDir, 'ARCHIVES', fileUrl),
-                    { recursive: true }
-                );
-            } catch (error) {
-                if (error.code !== 'EEXIST') {
-                    console.log(error);
-                    return res.status(500).json({ message: 'Une erreur est survenue' });
-                }
-            }
-            try{
-                fs.copyFileSync(
-                    path.join(mainDir, doc.contentUrl),
-                    path.join(mainDir, 'ARCHIVES', fileUrl, path.basename(doc.contentUrl)),
-                    fs.constants.COPYFILE_EXCL
-                );
-            }catch(error){
-                if (error.code === 'EEXIST') {
-                    return res.status(409).json({
-                        message: 'Le fichier a déja été envoyé, renommez-le s\'il s\'agit d\'une autre version'
-                    });
-                }
-                console.log(error);
-                return res.status(500).json({ message: 'Une erreur est survenue' });
-            }
-            // Dual-write: replicate to MinIO
-            const archiveRelPath = path.join('ARCHIVES', fileUrl, path.basename(doc.contentUrl));
-            try {
-                await storage.uploadFileFromDisk(archiveRelPath, path.join(mainDir, archiveRelPath));
-            } catch (err) {
-                console.error('[MinIO upload] postOne:', err.message);
-            }
-            // Normalise subType/subtype (les deux apps envoient des noms différents)
-            const rawType = req.body.type || {};
-            const subtype = rawType.subType || rawType.subtype || undefined;
-            const newArchive = new Archive({
-                ...doc,
-                ...req.body,
-                type: {
-                    type: rawType.type,
-                    subtype,
-                    profil: defaultProfil._id
-                },
-                folder: folder._id,
-                administrativeUnit: userRole._id,
-                fileUrl: path.join('ARCHIVES', fileUrl, path.basename(doc.contentUrl))
-            });
-            newArchive.save()
-                .then(() => {
-                    return res.status(201).json(newArchive);
-                })
-                .catch(error => {
-                    console.log(error);
-                    return res.status(500).json({ message: 'Une erreur est survenue' });
+        // Chercher d'abord dans Doc (ancien système), puis dans WorkspaceFile (nouveau)
+        let sourceFile = await Doc.findOne({ _id: docId }).lean();
+        if (!sourceFile) {
+            sourceFile = await WorkspaceFile.findOne({ _id: docId }).lean();
+        }
+        if (!sourceFile || !sourceFile.contentUrl) {
+            return res.status(404).json({ message: 'Fichier source introuvable.' });
+        }
+
+        const contentUrl = sourceFile.contentUrl;
+
+        // Récupérer le rôle de l'utilisateur
+        const user = await User.findById(res.locals.userId, 'grade.role');
+        if (!user?.grade?.role) return res.status(500).json({ message: 'Rôle utilisateur introuvable.' });
+
+        const userRole = await Role.findOne({ name: user.grade.role }, '_id name');
+        if (!userRole) return res.status(500).json({ message: 'Rôle introuvable.' });
+
+        const defaultProfil = await Profil.findOne({ name: 'default' }, '_id');
+        if (!defaultProfil) return res.status(500).json({ message: 'Profil par défaut introuvable.' });
+
+        // Dossier d'archivage
+        const folderName = normalizeFolder(req.body.folder || req.body.type?.type || 'DIVERS');
+        let folder = await Folder.findOne({ name: folderName }, '_id');
+        if (!folder) {
+            folder = new Folder({ name: folderName, description: folderName });
+            await folder.save();
+        }
+
+        // Chemin de destination dans ARCHIVES
+        const getPath = require('../../tools/getRoleUrl');
+        const fileUrl = await getPath(userRole.name);
+        if (!fileUrl) return res.status(500).json({ message: 'Chemin d\'archivage introuvable.' });
+
+        const fileName = path.basename(contentUrl);
+        const archiveRelPath = path.join('ARCHIVES', fileUrl, fileName).replace(/\\/g, '/');
+
+        // Copier le fichier depuis MinIO (source) vers MinIO (archives)
+        try {
+            const stream = await storage.getFileStream(contentUrl);
+            const chunks = [];
+            for await (const chunk of stream) chunks.push(chunk);
+            const buffer = Buffer.concat(chunks);
+
+            // Vérifier si le fichier existe déjà dans archives
+            const exists = await storage.fileExists(archiveRelPath);
+            if (exists) {
+                return res.status(409).json({
+                    message: 'Ce fichier a déjà été archivé. Renommez-le s\'il s\'agit d\'une autre version.'
                 });
-        })
-        .catch(error => {
-            console.log(error);
-            res.status(500).json({ message: 'Une erreur est survenue' });
+            }
+
+            await storage.uploadFile(archiveRelPath, buffer);
+        } catch (err) {
+            console.error('[postOne] Copie MinIO:', err.message);
+            return res.status(500).json({ message: 'Impossible de copier le fichier vers les archives.' });
+        }
+
+        // Normalise subType
+        const rawType = req.body.type || {};
+        const subtype = rawType.subType || rawType.subtype || undefined;
+
+        const newArchive = new Archive({
+            designation: req.body.designation,
+            description: req.body.description,
+            type: {
+                type: rawType.type,
+                subtype,
+                profil: defaultProfil._id,
+            },
+            folder: folder._id,
+            administrativeUnit: userRole._id,
+            fileUrl: archiveRelPath,
+            tags: req.body.tags || [],
         });
+
+        await newArchive.save();
+        res.status(201).json(newArchive);
+    } catch (error) {
+        console.error('[postOne]', error);
+        res.status(500).json({ message: 'Une erreur est survenue lors de l\'archivage.' });
+    }
 };

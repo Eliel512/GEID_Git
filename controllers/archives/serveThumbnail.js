@@ -1,8 +1,5 @@
 /**
- * serveThumbnail — Miniature d'un fichier archive via MinIO.
- *
- * GET /api/stuff/archives/thumbnail/:id
- * Stockage uniquement MinIO.
+ * serveThumbnail — Miniature d'un fichier archive via MinIO uniquement.
  */
 
 'use strict';
@@ -22,27 +19,12 @@ module.exports = async (req, res) => {
 		res.setHeader('Cache-Control', 'public, max-age=86400');
 		res.setHeader('Content-Type', 'image/webp');
 
-		// Lire le fichier source
-		let fileBuffer;
-		if (storage.MINIO_ENABLED) {
-			try {
-				const chunks = [];
-				const stream = await storage.getFileStream(archive.fileUrl);
-				for await (const chunk of stream) chunks.push(chunk);
-				fileBuffer = Buffer.concat(chunks);
-			} catch { /* MinIO fail */ }
-		}
+		const chunks = [];
+		const stream = await storage.getFileStream(archive.fileUrl);
+		for await (const chunk of stream) chunks.push(chunk);
+		const fileBuffer = Buffer.concat(chunks);
 
-		if (!fileBuffer) {
-			const fs = require('fs');
-			const mainDir = path.dirname(require.main.filename);
-			const absPath = path.join(mainDir, archive.fileUrl);
-			if (fs.existsSync(absPath)) {
-				fileBuffer = fs.readFileSync(absPath);
-			}
-		}
-
-		if (!fileBuffer) return res.status(204).end();
+		if (!fileBuffer || fileBuffer.length === 0) return res.status(204).end();
 
 		const quality = req.query.quality || 'medium';
 		const thumb = await getThumbnail(fileBuffer, path.basename(archive.fileUrl), archive.fileUrl, quality);
