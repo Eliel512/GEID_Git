@@ -16,6 +16,7 @@ exports.getAll = async (req, res) => {
 
   try {
     const result = await listFromDB(userId, subPath, getHost);
+    res.setHeader('Cache-Control', 'no-store');
     res.status(200).json(result);
   } catch (error) {
     console.error('[workspace.getAll]', error);
