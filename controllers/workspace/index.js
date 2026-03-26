@@ -3,6 +3,7 @@ const { create } = require('./create');
 const { modify } = require('./modify');
 const { delete: deleteFile } = require('./delete');
 const { createFolder, deleteFolder, renameFolder } = require('./folder');
+const { createFolderTree } = require('./folderTree');
 const { getFavorites, toggleFavorite } = require('./favorites');
 const { getTrash, moveToTrash, restoreFromTrash, permanentDelete, emptyTrash } = require('./trash');
 const { updateTags, getAllTags } = require('./tags');
@@ -23,6 +24,7 @@ module.exports = {
   modify,
   delete: deleteFile,
   createFolder,
+  createFolderTree,
   deleteFolder,
   renameFolder,
 

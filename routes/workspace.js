@@ -41,6 +41,7 @@ router.post('/share/link', workCtrl.createShareLink);
 router.delete('/share/:id', workCtrl.revokeShare);
 
 // ── Dossiers (routes spécifiques avant /:data) ──────────────────────────────
+router.post('/folder/tree', workCtrl.createFolderTree);
 router.post('/folder', workCtrl.createFolder);
 router.put('/folder', workCtrl.renameFolder);
 router.delete('/folder/:data', workCtrl.deleteFolder);
