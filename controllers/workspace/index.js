@@ -9,7 +9,7 @@ const { getTrash, moveToTrash, restoreFromTrash, permanentDelete, emptyTrash } =
 const { updateTags, getAllTags } = require('./tags');
 const { search } = require('./search');
 const { moveFile, copyFile } = require('./move');
-const { getRecent } = require('./recent');
+const { getRecent, getRecentTags } = require('./recent');
 const { getQuota } = require('./quota');
 const { getActivity } = require('./activity');
 const { shareWithUser, createShareLink, revokeShare, getSharedWithMe } = require('./share');
@@ -42,6 +42,7 @@ module.exports = {
   moveFile,
   copyFile,
   getRecent,
+  getRecentTags,
   getQuota,
   getActivity,
   shareWithUser,

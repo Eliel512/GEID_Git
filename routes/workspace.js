@@ -7,6 +7,7 @@ const multer = require('../middleware/multer-work');
 router.get('/search', workCtrl.search);
 
 // ── Récents ─────────────────────────────────────────────────────────────────
+router.get('/recent/tags', workCtrl.getRecentTags);
 router.get('/recent', workCtrl.getRecent);
 
 // ── Favoris ─────────────────────────────────────────────────────────────────
