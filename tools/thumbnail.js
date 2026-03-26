@@ -22,6 +22,11 @@ const VIDEO_EXTS = new Set(['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv', 'wmv', 'm
 const ALL_SUPPORTED = new Set([...IMAGE_EXTS, ...PDF_EXTS, ...OFFICE_EXTS, ...TEXT_EXTS, ...VIDEO_EXTS]);
 
 const THUMB_SIZE = 200;
+const QUALITY_MAP = {
+	low:    { size: 100, quality: 30 },
+	medium: { size: 200, quality: 60 },
+	high:   { size: 400, quality: 85 },
+};
 const THUMB_BUCKET = 'thumbnails';
 const THUMB_SERVICE_URL = process.env.THUMB_SERVICE_URL || 'http://geid-thumbgen:9090';
 
@@ -29,8 +34,9 @@ function getExt(filename) {
 	return (filename || '').split('.').pop()?.toLowerCase() || '';
 }
 
-function thumbKey(filePath, fileSize) {
-	const hash = crypto.createHash('md5').update(`${filePath}:${fileSize || 0}`).digest('hex');
+function thumbKey(filePath, fileSize, quality) {
+	const suffix = quality && quality !== 'medium' ? `:${quality}` : '';
+	const hash = crypto.createHash('md5').update(`${filePath}:${fileSize || 0}${suffix}`).digest('hex');
 	return `${hash}.webp`;
 }
 
@@ -47,13 +53,16 @@ function isSupported(filename) {
  * @param {Buffer} fileBuffer — contenu du fichier source
  * @param {string} filename — nom du fichier (pour déterminer le type)
  * @param {string} cacheId — identifiant unique pour le cache (ex: chemin MinIO)
+ * @param {'low'|'medium'|'high'} [quality='medium'] — qualité de la miniature
  * @returns {Promise<Buffer|null>} — buffer WebP ou null
  */
-async function getThumbnail(fileBuffer, filename, cacheId) {
+async function getThumbnail(fileBuffer, filename, cacheId, quality) {
 	const ext = getExt(filename);
 	if (!ALL_SUPPORTED.has(ext)) return null;
 
-	const key = thumbKey(cacheId || filename, fileBuffer?.length);
+	const q = QUALITY_MAP[quality] ? quality : 'medium';
+	const { size, quality: webpQuality } = QUALITY_MAP[q];
+	const key = thumbKey(cacheId || filename, fileBuffer?.length, q);
 
 	// 1. Vérifier le cache MinIO
 	if (storage.MINIO_ENABLED) {
@@ -68,10 +77,10 @@ async function getThumbnail(fileBuffer, filename, cacheId) {
 
 	if (IMAGE_EXTS.has(ext)) {
 		// Images : sharp directement
-		thumbBuffer = await generateImageThumb(fileBuffer);
+		thumbBuffer = await generateImageThumb(fileBuffer, size, webpQuality);
 	} else if (PDF_EXTS.has(ext) || OFFICE_EXTS.has(ext) || TEXT_EXTS.has(ext) || VIDEO_EXTS.has(ext)) {
 		// PDF/Office/Texte : appeler le micro-service Python
-		thumbBuffer = await callThumbService(fileBuffer, filename);
+		thumbBuffer = await callThumbService(fileBuffer, filename, q);
 	}
 
 	if (!thumbBuffer) return null;
@@ -91,12 +100,12 @@ async function getThumbnail(fileBuffer, filename, cacheId) {
 /**
  * Génère une miniature d'image avec sharp.
  */
-async function generateImageThumb(buffer) {
+async function generateImageThumb(buffer, size = THUMB_SIZE, webpQuality = 60) {
 	try {
 		const sharp = require('sharp');
 		return await sharp(buffer)
-			.resize(THUMB_SIZE, THUMB_SIZE, { fit: 'cover', position: 'centre' })
-			.webp({ quality: 75 })
+			.resize(size, size, { fit: 'cover', position: 'centre' })
+			.webp({ quality: webpQuality })
 			.toBuffer();
 	} catch (err) {
 		console.error('[thumbnail:sharp]', err.message);
@@ -107,7 +116,7 @@ async function generateImageThumb(buffer) {
 /**
  * Appelle le micro-service Python pour PDF/Office → miniature.
  */
-async function callThumbService(fileBuffer, filename) {
+async function callThumbService(fileBuffer, filename, quality) {
 	try {
 		const FormData = require('form-data') || globalThis.FormData;
 		// Node 18 n'a pas fetch natif avec FormData multipart — utilisons http
@@ -117,8 +126,9 @@ async function callThumbService(fileBuffer, filename) {
 		return new Promise((resolve) => {
 			const boundary = '----ThumbBoundary' + Date.now();
 			const header = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
+			const qualityField = `\r\n--${boundary}\r\nContent-Disposition: form-data; name="quality"\r\n\r\n${quality || 'medium'}`;
 			const fieldPart = `\r\n--${boundary}\r\nContent-Disposition: form-data; name="filename"\r\n\r\n${filename}\r\n--${boundary}--\r\n`;
-			const body = Buffer.concat([Buffer.from(header), fileBuffer, Buffer.from(fieldPart)]);
+			const body = Buffer.concat([Buffer.from(header), fileBuffer, Buffer.from(qualityField), Buffer.from(fieldPart)]);
 
 			const req = http.request({
 				hostname: url.hostname,

@@ -28,9 +28,9 @@ OFFICE_EXTS = {'.docx', '.xlsx', '.pptx', '.doc', '.xls', '.ppt', '.odt', '.ods'
 TEXT_EXTS = {'.txt', '.md', '.csv', '.log', '.json', '.xml', '.html', '.css', '.js', '.ts', '.py', '.sh', '.yml', '.yaml', '.ini', '.cfg', '.conf', '.env'}
 VIDEO_EXTS = {'.mp4', '.webm', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.mpg', '.mpeg', '.mxf', '.qt', '.asf'}
 
-def make_thumbnail(img: Image.Image) -> bytes:
+def make_thumbnail(img: Image.Image, size=THUMB_SIZE, quality=80) -> bytes:
     """Redimensionne et convertit en WebP."""
-    img.thumbnail(THUMB_SIZE, Image.LANCZOS)
+    img.thumbnail(size, Image.LANCZOS)
     # Fond blanc pour les images transparentes
     if img.mode in ('RGBA', 'LA', 'P'):
         bg = Image.new('RGB', img.size, (255, 255, 255))
@@ -41,27 +41,27 @@ def make_thumbnail(img: Image.Image) -> bytes:
     elif img.mode != 'RGB':
         img = img.convert('RGB')
     buf = io.BytesIO()
-    img.save(buf, format='WEBP', quality=80)
+    img.save(buf, format='WEBP', quality=quality)
     buf.seek(0)
     return buf.getvalue()
 
 
-def thumbnail_from_image(file_bytes: bytes) -> bytes:
+def thumbnail_from_image(file_bytes: bytes, size=THUMB_SIZE, quality=80) -> bytes:
     """Miniature depuis une image."""
     img = Image.open(io.BytesIO(file_bytes))
-    return make_thumbnail(img)
+    return make_thumbnail(img, size=size, quality=quality)
 
 
-def thumbnail_from_pdf(file_bytes: bytes) -> bytes:
+def thumbnail_from_pdf(file_bytes: bytes, size=THUMB_SIZE, quality=80) -> bytes:
     """Miniature depuis la première page d'un PDF."""
     from pdf2image import convert_from_bytes
     images = convert_from_bytes(file_bytes, first_page=1, last_page=1, dpi=150, fmt='png')
     if not images:
         raise ValueError("Impossible de convertir le PDF")
-    return make_thumbnail(images[0])
+    return make_thumbnail(images[0], size=size, quality=quality)
 
 
-def thumbnail_from_office(file_bytes: bytes, ext: str) -> bytes:
+def thumbnail_from_office(file_bytes: bytes, ext: str, size=THUMB_SIZE, quality=80) -> bytes:
     """Convertit un document Office en PDF via LibreOffice, puis génère la miniature."""
     with tempfile.TemporaryDirectory() as tmpdir:
         input_path = Path(tmpdir) / f"input{ext}"
@@ -83,10 +83,10 @@ def thumbnail_from_office(file_bytes: bytes, ext: str) -> bytes:
                 raise ValueError("Aucun PDF généré par LibreOffice")
             pdf_path = pdfs[0]
 
-        return thumbnail_from_pdf(pdf_path.read_bytes())
+        return thumbnail_from_pdf(pdf_path.read_bytes(), size=size, quality=quality)
 
 
-def thumbnail_from_text(file_bytes: bytes) -> bytes:
+def thumbnail_from_text(file_bytes: bytes, size=THUMB_SIZE, quality=80) -> bytes:
     """Miniature d'un fichier texte — dessine les premières lignes sur fond blanc."""
     from PIL import ImageDraw, ImageFont
 
@@ -127,10 +127,10 @@ def thumbnail_from_text(file_bytes: bytes) -> bytes:
         y += 11
 
     # Redimensionner en thumbnail
-    return make_thumbnail(img)
+    return make_thumbnail(img, size=size, quality=quality)
 
 
-def thumbnail_from_video(file_bytes: bytes, ext: str) -> bytes:
+def thumbnail_from_video(file_bytes: bytes, ext: str, size=THUMB_SIZE, quality=80) -> bytes:
     """Extrait une frame représentative d'une vidéo via ffmpeg."""
     with tempfile.TemporaryDirectory() as tmpdir:
         input_path = Path(tmpdir) / f"input{ext}"
@@ -178,7 +178,7 @@ def thumbnail_from_video(file_bytes: bytes, ext: str) -> bytes:
             raise ValueError("Impossible d'extraire une image de la vidéo")
 
         img = Image.open(output_path)
-        return make_thumbnail(img)
+        return make_thumbnail(img, size=size, quality=quality)
 
 
 def get_video_info(file_bytes: bytes, ext: str) -> dict:
@@ -251,16 +251,21 @@ def generate():
     try:
         file_bytes = file.read()
 
+        # Qualité adaptative : low, medium (défaut), high
+        quality_param = request.form.get('quality', 'medium')
+        quality_map = {'low': (30, (100, 100)), 'medium': (60, (200, 200)), 'high': (85, (400, 400))}
+        q, sz = quality_map.get(quality_param, (60, (200, 200)))
+
         if ext in IMAGE_EXTS:
-            thumb = thumbnail_from_image(file_bytes)
+            thumb = thumbnail_from_image(file_bytes, size=sz, quality=q)
         elif ext in PDF_EXTS:
-            thumb = thumbnail_from_pdf(file_bytes)
+            thumb = thumbnail_from_pdf(file_bytes, size=sz, quality=q)
         elif ext in OFFICE_EXTS:
-            thumb = thumbnail_from_office(file_bytes, ext)
+            thumb = thumbnail_from_office(file_bytes, ext, size=sz, quality=q)
         elif ext in TEXT_EXTS:
-            thumb = thumbnail_from_text(file_bytes)
+            thumb = thumbnail_from_text(file_bytes, size=sz, quality=q)
         elif ext in VIDEO_EXTS:
-            thumb = thumbnail_from_video(file_bytes, ext)
+            thumb = thumbnail_from_video(file_bytes, ext, size=sz, quality=q)
         else:
             return jsonify(error=f'Format non supporté: {ext}'), 415
 

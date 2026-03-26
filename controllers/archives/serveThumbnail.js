@@ -44,7 +44,8 @@ module.exports = async (req, res) => {
 
 		if (!fileBuffer) return res.status(204).end();
 
-		const thumb = await getThumbnail(fileBuffer, path.basename(archive.fileUrl), archive.fileUrl);
+		const quality = req.query.quality || 'medium';
+		const thumb = await getThumbnail(fileBuffer, path.basename(archive.fileUrl), archive.fileUrl, quality);
 		if (thumb) return res.end(thumb);
 
 		res.status(204).end();

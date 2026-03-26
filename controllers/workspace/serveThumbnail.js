@@ -51,7 +51,8 @@ exports.serveThumbnail = async (req, res) => {
 
 		if (!fileBuffer) return res.status(204).end();
 
-		const thumb = await getThumbnail(fileBuffer, paths.basename(filePath), relPath);
+		const quality = req.query.quality || 'medium';
+		const thumb = await getThumbnail(fileBuffer, paths.basename(filePath), relPath, quality);
 		if (thumb) return res.end(thumb);
 
 		res.status(204).end();
