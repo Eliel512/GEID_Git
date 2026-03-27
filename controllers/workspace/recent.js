@@ -25,10 +25,13 @@ exports.getRecent = async (req, res) => {
       const urlPath = [userId, f.path, f.name].filter(Boolean).join('/');
       return {
         name: f.name,
-        url: `https://${getHost}/api/stuff/workspace/file/${encodeURIComponent(urlPath)}`,
+        url: `https://${getHost}/api/stuff/workspace/file/${urlPath}`,
+        contentUrl: f.contentUrl || '',
         createdAt: f.updatedAt || f.createdAt,
         lastAccessedAt: f.lastAccessedAt,
         size: f.size || 0,
+        format: f.format || '',
+        mimeType: f.mimeType || '',
         isDirectory: false,
         currentPath: f.path || '',
         tags: f.tags || [],
