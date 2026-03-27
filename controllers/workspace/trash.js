@@ -1,20 +1,3 @@
-/**
- * trash.js — Corbeille workspace.
- *
- * Quand un fichier est mis en corbeille :
- * 1. Le fichier original dans MinIO est compressé (gzip) et déplacé vers workspace-trash/
- * 2. Le fichier original dans workspace/ est supprimé
- * 3. Les métadonnées restent intactes en MongoDB pour permettre la restauration
- *
- * Quand un fichier est restauré :
- * 1. Le fichier compressé est décompressé et remis dans workspace/
- * 2. Le fichier compressé dans workspace-trash/ est supprimé
- *
- * Quand un fichier est supprimé définitivement :
- * 1. Le fichier compressé dans workspace-trash/ est supprimé
- * 2. L'entrée MongoDB est supprimée
- */
-
 const zlib = require('zlib');
 const { promisify } = require('util');
 const gzip = promisify(zlib.gzip);
@@ -22,14 +5,62 @@ const gunzip = promisify(zlib.gunzip);
 const WorkspaceFile = require('../../models/workspace/workspaceFile.model');
 const ActivityLog = require('../../models/workspace/activityLog.model');
 const storage = require('../../tools/storage');
+const { escapeRegex } = require('./utils');
+
+/** Compresse un fichier dans workspace-trash/ et supprime l'original */
+async function compressToTrash(file) {
+  if (file.isDirectory || !file.contentUrl) return;
+  try {
+    const stream = await storage.getFileStream(file.contentUrl);
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    const buffer = Buffer.concat(chunks);
+    const compressed = await gzip(buffer);
+    const trashPath = file.contentUrl.replace('workspace/', 'workspace-trash/') + '.gz';
+    await storage.uploadFile(trashPath, compressed);
+    await storage.deleteFile(file.contentUrl);
+    file.trashContentUrl = trashPath;
+    file.originalSize = buffer.length;
+  } catch (err) {
+    console.error('[trash.compress]', file.name, err.message);
+  }
+}
+
+/** Décompresse un fichier depuis workspace-trash/ et restaure l'original */
+async function restoreFromTrashStorage(file) {
+  if (file.isDirectory || !file.trashContentUrl) return;
+  try {
+    const stream = await storage.getFileStream(file.trashContentUrl);
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    const original = await gunzip(Buffer.concat(chunks));
+    await storage.uploadFile(file.contentUrl, original);
+    await storage.deleteFile(file.trashContentUrl);
+    file.trashContentUrl = undefined;
+    file.originalSize = undefined;
+  } catch (err) {
+    console.error('[trash.restore]', file.name, err.message);
+  }
+}
+
+/** Récupère un dossier + tous ses enfants (récursif) */
+async function getFolderChildren(userId, file) {
+  if (!file.isDirectory) return [];
+  const folderPath = file.path ? `${file.path}/${file.name}` : file.name;
+  return WorkspaceFile.find({
+    owner: userId,
+    $or: [
+      { path: folderPath },
+      { path: { $regex: `^${escapeRegex(folderPath)}/` } },
+    ],
+  });
+}
 
 exports.getTrash = async (req, res) => {
   const userId = res.locals.userId;
   try {
-    const files = await WorkspaceFile.find({
-      owner: userId,
-      isTrashed: true,
-    }).sort({ trashedAt: -1 }).lean();
+    const files = await WorkspaceFile.find({ owner: userId, isTrashed: true })
+      .sort({ trashedAt: -1 }).lean();
     res.status(200).json(files);
   } catch {
     res.status(500).json({ message: 'Impossible de récupérer la corbeille.' });
@@ -43,49 +74,33 @@ exports.moveToTrash = async (req, res) => {
     const file = await WorkspaceFile.findOne({ _id: id, owner: userId });
     if (!file) return res.status(404).json({ message: 'Fichier introuvable.' });
 
-    // Pour les fichiers (pas dossiers) : comprimer et déplacer vers workspace-trash/
-    if (!file.isDirectory && file.contentUrl) {
-      try {
-        // Lire le fichier original depuis MinIO
-        const stream = await storage.getFileStream(file.contentUrl);
-        const chunks = [];
-        for await (const chunk of stream) chunks.push(chunk);
-        const originalBuffer = Buffer.concat(chunks);
-
-        // Compresser avec gzip
-        const compressed = await gzip(originalBuffer);
-
-        // Stocker le compressé dans workspace-trash/
-        const trashPath = file.contentUrl.replace('workspace/', 'workspace-trash/') + '.gz';
-        await storage.uploadFile(trashPath, compressed);
-
-        // Supprimer l'original de workspace/
-        await storage.deleteFile(file.contentUrl);
-
-        // Sauvegarder les métadonnées
-        file.trashContentUrl = trashPath;
-        file.originalSize = originalBuffer.length;
-      } catch (err) {
-        // Si la compression échoue, on met quand même en corbeille (soft delete)
-        console.error('[trash.compress]', err.message);
+    if (file.isDirectory) {
+      // Dossier : mettre en corbeille le dossier + tous ses enfants
+      const children = await getFolderChildren(userId, file);
+      for (const child of children) {
+        if (!child.isTrashed) {
+          await compressToTrash(child);
+          child.isTrashed = true;
+          child.trashedAt = new Date();
+          await child.save();
+        }
       }
+    } else {
+      // Fichier : comprimer dans workspace-trash/
+      await compressToTrash(file);
     }
 
     file.isTrashed = true;
     file.trashedAt = new Date();
     await file.save();
 
-    new ActivityLog({
-      userId,
-      action: 'trash',
-      targetId: file._id,
-      targetName: file.name,
-    }).save().catch(() => {});
+    new ActivityLog({ userId, action: 'trash', targetId: file._id, targetName: file.name })
+      .save().catch(() => {});
 
-    res.status(200).json({ message: 'Fichier déplacé dans la corbeille.' });
+    res.status(200).json({ message: file.isDirectory ? 'Dossier déplacé dans la corbeille.' : 'Fichier déplacé dans la corbeille.' });
   } catch (err) {
     console.error('[trash.moveToTrash]', err);
-    res.status(500).json({ message: 'Impossible de déplacer le fichier dans la corbeille.' });
+    res.status(500).json({ message: 'Impossible de déplacer dans la corbeille.' });
   }
 };
 
@@ -96,26 +111,21 @@ exports.restoreFromTrash = async (req, res) => {
     const file = await WorkspaceFile.findOne({ _id: id, owner: userId, isTrashed: true });
     if (!file) return res.status(404).json({ message: 'Fichier introuvable dans la corbeille.' });
 
-    // Pour les fichiers : décompresser et remettre en place
-    if (!file.isDirectory && file.trashContentUrl) {
-      try {
-        // Lire le fichier compressé depuis workspace-trash/
-        const stream = await storage.getFileStream(file.trashContentUrl);
-        const chunks = [];
-        for await (const chunk of stream) chunks.push(chunk);
-        const compressed = Buffer.concat(chunks);
-
-        // Décompresser
-        const original = await gunzip(compressed);
-
-        // Remettre dans workspace/
-        await storage.uploadFile(file.contentUrl, original);
-
-        // Supprimer le compressé
-        await storage.deleteFile(file.trashContentUrl);
-      } catch (err) {
-        console.error('[trash.restore]', err.message);
+    if (file.isDirectory) {
+      // Dossier : restaurer le dossier + tous ses enfants
+      const children = await getFolderChildren(userId, file);
+      for (const child of children) {
+        if (child.isTrashed) {
+          await restoreFromTrashStorage(child);
+          child.isTrashed = false;
+          child.trashedAt = undefined;
+          child.trashContentUrl = undefined;
+          child.originalSize = undefined;
+          await child.save();
+        }
       }
+    } else {
+      await restoreFromTrashStorage(file);
     }
 
     file.isTrashed = false;
@@ -124,17 +134,13 @@ exports.restoreFromTrash = async (req, res) => {
     file.originalSize = undefined;
     await file.save();
 
-    new ActivityLog({
-      userId,
-      action: 'restore',
-      targetId: file._id,
-      targetName: file.name,
-    }).save().catch(() => {});
+    new ActivityLog({ userId, action: 'restore', targetId: file._id, targetName: file.name })
+      .save().catch(() => {});
 
-    res.status(200).json({ message: 'Fichier restauré.' });
+    res.status(200).json({ message: file.isDirectory ? 'Dossier restauré.' : 'Fichier restauré.' });
   } catch (err) {
     console.error('[trash.restoreFromTrash]', err);
-    res.status(500).json({ message: 'Impossible de restaurer le fichier.' });
+    res.status(500).json({ message: 'Impossible de restaurer.' });
   }
 };
 
@@ -145,27 +151,27 @@ exports.permanentDelete = async (req, res) => {
     const file = await WorkspaceFile.findOne({ _id: id, owner: userId, isTrashed: true });
     if (!file) return res.status(404).json({ message: 'Fichier introuvable.' });
 
-    // Supprimer le fichier compressé dans workspace-trash/
-    if (file.trashContentUrl) {
-      storage.deleteFile(file.trashContentUrl).catch(() => {});
-    }
-    // Au cas où l'original existe encore (compression échouée)
-    if (file.contentUrl) {
-      storage.deleteFile(file.contentUrl).catch(() => {});
+    if (file.isDirectory) {
+      // Supprimer tous les enfants
+      const children = await getFolderChildren(userId, file);
+      for (const child of children) {
+        if (child.trashContentUrl) storage.deleteFile(child.trashContentUrl).catch(() => {});
+        if (child.contentUrl) storage.deleteFile(child.contentUrl).catch(() => {});
+        await WorkspaceFile.deleteOne({ _id: child._id });
+      }
+    } else {
+      if (file.trashContentUrl) storage.deleteFile(file.trashContentUrl).catch(() => {});
+      if (file.contentUrl) storage.deleteFile(file.contentUrl).catch(() => {});
     }
 
     await WorkspaceFile.deleteOne({ _id: id });
 
-    new ActivityLog({
-      userId,
-      action: 'delete',
-      targetName: file.name,
-      details: { permanent: true },
-    }).save().catch(() => {});
+    new ActivityLog({ userId, action: 'delete', targetName: file.name, details: { permanent: true } })
+      .save().catch(() => {});
 
-    res.status(200).json({ message: 'Fichier supprimé définitivement.' });
+    res.status(200).json({ message: 'Supprimé définitivement.' });
   } catch {
-    res.status(500).json({ message: 'Impossible de supprimer le fichier.' });
+    res.status(500).json({ message: 'Impossible de supprimer.' });
   }
 };
 
@@ -175,22 +181,14 @@ exports.emptyTrash = async (req, res) => {
     const trashedFiles = await WorkspaceFile.find({ owner: userId, isTrashed: true });
 
     for (const file of trashedFiles) {
-      if (file.trashContentUrl) {
-        storage.deleteFile(file.trashContentUrl).catch(() => {});
-      }
-      if (file.contentUrl) {
-        storage.deleteFile(file.contentUrl).catch(() => {});
-      }
+      if (file.trashContentUrl) storage.deleteFile(file.trashContentUrl).catch(() => {});
+      if (file.contentUrl) storage.deleteFile(file.contentUrl).catch(() => {});
     }
 
     await WorkspaceFile.deleteMany({ owner: userId, isTrashed: true });
 
-    new ActivityLog({
-      userId,
-      action: 'delete',
-      targetName: 'corbeille',
-      details: { permanent: true, count: trashedFiles.length },
-    }).save().catch(() => {});
+    new ActivityLog({ userId, action: 'delete', targetName: 'corbeille', details: { permanent: true, count: trashedFiles.length } })
+      .save().catch(() => {});
 
     res.status(200).json({ message: 'Corbeille vidée.', count: trashedFiles.length });
   } catch {
