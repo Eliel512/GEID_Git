@@ -51,13 +51,16 @@ async function listFromDB(userId, subPath, getHost) {
     result.push({
       _id: file._id,
       name: file.name,
-      url: file.isDirectory ? null : `https://${getHost}/api/stuff/workspace/file/${encodeURIComponent(urlPath)}`,
+      url: file.isDirectory ? null : `https://${getHost}/api/stuff/workspace/file/${urlPath}`,
       createdAt: file.updatedAt || file.createdAt,
       size: file.size || 0,
       isDirectory: file.isDirectory || false,
       color: file.color || null,
       tags: file.tags || [],
       duration: file.duration || null,
+      durationSeconds: file.durationSeconds || null,
+      videoWidth: file.videoWidth || null,
+      videoHeight: file.videoHeight || null,
       doc,
       ...(file.isDirectory ? { count } : {}),
     });

@@ -81,8 +81,13 @@ async function extractDuration(fileId, buffer, filename) {
         proxyRes.on('end', async () => {
           try {
             const info = JSON.parse(Buffer.concat(chunks).toString());
-            if (info.duration) {
-              await WorkspaceFile.findByIdAndUpdate(fileId, { duration: info.duration });
+            const update = {};
+            if (info.duration) update.duration = info.duration;
+            if (info.durationSeconds) update.durationSeconds = info.durationSeconds;
+            if (info.width) update.videoWidth = info.width;
+            if (info.height) update.videoHeight = info.height;
+            if (Object.keys(update).length) {
+              await WorkspaceFile.findByIdAndUpdate(fileId, update);
             }
           } catch {}
           resolve();
