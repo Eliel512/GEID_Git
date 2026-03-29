@@ -6,6 +6,7 @@
 
 const paths = require('path');
 const storage = require('../../tools/storage');
+const WorkspaceFile = require('../../models/workspace/workspaceFile.model');
 const { getThumbnail, isSupported } = require('../../tools/thumbnail');
 
 exports.serveThumbnail = async (req, res) => {
@@ -41,7 +42,18 @@ exports.serveThumbnail = async (req, res) => {
 
 		const quality = req.query.quality || 'medium';
 		const thumb = await getThumbnail(fileBuffer, paths.basename(filePath), relPath, quality);
-		if (thumb) return res.end(thumb);
+		if (thumb) {
+			// Marquer comme consulte (fire-and-forget)
+			const parts = filePath.split('/');
+			const fileOwnerId = parts[0];
+			const fileName = paths.basename(filePath);
+			const subPath = parts.slice(1, -1).join('/');
+			WorkspaceFile.findOneAndUpdate(
+				{ owner: fileOwnerId, path: subPath, name: fileName },
+				{ lastAccessedAt: new Date() }
+			).catch(() => {});
+			return res.end(thumb);
+		}
 
 		res.status(204).end();
 	} catch (err) {

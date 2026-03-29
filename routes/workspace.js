@@ -25,6 +25,9 @@ router.delete('/trash/:id', workCtrl.permanentDelete);
 router.get('/tags', workCtrl.getAllTags);
 router.patch('/tags/:id', workCtrl.updateTags);
 
+// ── Marquer comme consulté ────────────────────────────────────────────────
+router.patch('/touch/:id', workCtrl.touchFile);
+
 // ── Déplacer / Copier ───────────────────────────────────────────────────────
 router.post('/move', workCtrl.moveFile);
 router.post('/copy', workCtrl.copyFile);

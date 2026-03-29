@@ -18,6 +18,7 @@ const { serveFile } = require('./serveFile');
 const { listUsers } = require('./listUsers');
 const { serveThumbnail } = require('./serveThumbnail');
 const { getVideoInfo } = require('./videoInfo');
+const { touchFile } = require('./touch');
 
 module.exports = {
   // Existing (refactored)
@@ -61,4 +62,5 @@ module.exports = {
   listUsers,
   serveThumbnail,
   getVideoInfo,
+  touchFile,
 };
