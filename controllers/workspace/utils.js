@@ -61,6 +61,7 @@ async function listFromDB(userId, subPath, getHost) {
       durationSeconds: file.durationSeconds || null,
       videoWidth: file.videoWidth || null,
       videoHeight: file.videoHeight || null,
+      isFavorite: file.isFavorite || false,
       doc,
       ...(file.isDirectory ? { count } : {}),
     });
