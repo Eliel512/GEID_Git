@@ -8,7 +8,7 @@ const { listFromDB } = require('./utils');
 exports.modify = async (req, res) => {
   const userId = res.locals.userId;
   const extension = paths.extname(req.body.oldFilename);
-  const filename = req.body.filename.split(' ').join('_') + extension;
+  const filename = req.body.filename + extension;
   const subPath = req.body.path || '';
 
   try {
