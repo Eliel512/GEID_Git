@@ -85,10 +85,14 @@ async function getThumbnail(fileBuffer, filename, cacheId, quality) {
 
 	if (!thumbBuffer) return null;
 
-	// 3. Stocker dans MinIO
+	// 3. Stocker dans MinIO (double clé : avec taille + sans taille pour accès cache-only)
 	if (storage.MINIO_ENABLED) {
+		const poKey = pathOnlyKey(cacheId || filename, q);
 		try {
-			await storage.uploadFile(`${THUMB_BUCKET}/${key}`, thumbBuffer, 'image/webp');
+			await Promise.all([
+				storage.uploadFile(`${THUMB_BUCKET}/${key}`, thumbBuffer, 'image/webp'),
+				key !== poKey ? storage.uploadFile(`${THUMB_BUCKET}/${poKey}`, thumbBuffer, 'image/webp') : Promise.resolve(),
+			]);
 		} catch (err) {
 			console.error('[thumbnail:cache]', err.message);
 		}
@@ -161,4 +165,23 @@ async function callThumbService(fileBuffer, filename, quality) {
 	}
 }
 
-module.exports = { getThumbnail, isSupported, getExt, IMAGE_EXTS, PDF_EXTS, OFFICE_EXTS, ALL_SUPPORTED };
+/** Clé de cache basée uniquement sur le chemin + qualité (sans taille fichier) */
+function pathOnlyKey(cacheId, quality) {
+	const suffix = quality && quality !== 'medium' ? `:${quality}` : '';
+	return crypto.createHash('md5').update(`${cacheId}${suffix}`).digest('hex') + '.webp';
+}
+
+/**
+ * Vérifie uniquement le cache MinIO sans lire le fichier source.
+ * Utile pour les fichiers en corbeille dont le source est supprimé.
+ */
+async function getCachedThumbnail(cacheId, quality) {
+	if (!storage.MINIO_ENABLED) return null;
+	const q = QUALITY_MAP[quality] ? quality : 'medium';
+	const key = pathOnlyKey(cacheId, q);
+	try {
+		return await storage.getFileBuffer(`${THUMB_BUCKET}/${key}`);
+	} catch { return null; }
+}
+
+module.exports = { getThumbnail, getCachedThumbnail, isSupported, getExt, IMAGE_EXTS, PDF_EXTS, OFFICE_EXTS, ALL_SUPPORTED };

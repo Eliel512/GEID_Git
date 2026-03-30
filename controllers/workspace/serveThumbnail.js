@@ -7,7 +7,7 @@
 const paths = require('path');
 const storage = require('../../tools/storage');
 const WorkspaceFile = require('../../models/workspace/workspaceFile.model');
-const { getThumbnail, isSupported } = require('../../tools/thumbnail');
+const { getThumbnail, getCachedThumbnail, isSupported } = require('../../tools/thumbnail');
 
 exports.serveThumbnail = async (req, res) => {
 	const userId = res.locals.userId;
@@ -45,10 +45,21 @@ exports.serveThumbnail = async (req, res) => {
 	try {
 		const relPath = paths.join('workspace', filePath);
 
-		const chunks = [];
-		const stream = await storage.getFileStream(relPath);
-		for await (const chunk of stream) chunks.push(chunk);
-		const fileBuffer = Buffer.concat(chunks);
+		// 1. Vérifier le cache d'abord (fonctionne même si le fichier original est supprimé/en corbeille)
+		const cached = await getCachedThumbnail(relPath, quality);
+		if (cached) return res.end(cached);
+
+		// 2. Pas en cache → lire le fichier source et générer
+		let fileBuffer;
+		try {
+			const chunks = [];
+			const stream = await storage.getFileStream(relPath);
+			for await (const chunk of stream) chunks.push(chunk);
+			fileBuffer = Buffer.concat(chunks);
+		} catch {
+			// Fichier source absent (en corbeille / supprimé)
+			return res.status(204).end();
+		}
 
 		if (!fileBuffer || fileBuffer.length === 0) return res.status(204).end();
 
