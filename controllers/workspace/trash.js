@@ -59,9 +59,33 @@ async function getFolderChildren(userId, file) {
 exports.getTrash = async (req, res) => {
   const userId = res.locals.userId;
   try {
-    const files = await WorkspaceFile.find({ owner: userId, isTrashed: true })
+    const all = await WorkspaceFile.find({ owner: userId, isTrashed: true })
       .sort({ trashedAt: -1 }).lean();
-    res.status(200).json(files);
+
+    // Ne retourner que les elements de premier niveau :
+    // Un element est de premier niveau si son dossier parent N'EST PAS trashed
+    const trashedPaths = new Set();
+    for (const f of all) {
+      if (f.isDirectory) {
+        const folderPath = f.path ? `${f.path}/${f.name}` : f.name;
+        trashedPaths.add(folderPath);
+      }
+    }
+
+    const topLevel = all.filter((f) => {
+      if (!f.path) return true;
+      return !trashedPaths.has(f.path);
+    });
+
+    // Ajouter count pour les dossiers
+    for (const f of topLevel) {
+      if (f.isDirectory) {
+        const folderPath = f.path ? `${f.path}/${f.name}` : f.name;
+        f.count = all.filter((c) => c.path === folderPath || (c.path && c.path.startsWith(folderPath + '/'))).length;
+      }
+    }
+
+    res.status(200).json(topLevel);
   } catch {
     res.status(500).json({ message: 'Impossible de récupérer la corbeille.' });
   }
