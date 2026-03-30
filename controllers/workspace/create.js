@@ -54,6 +54,18 @@ exports.create = async (req, res) => {
       targetName: filename,
     }).save().catch(() => {});
 
+    // Pour les images : extraire les dimensions en arrière-plan
+    const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'avif']);
+    if (IMAGE_EXTS.has(ext) && req.file.buffer) {
+      try {
+        const sharp = require('sharp');
+        const meta = await sharp(req.file.buffer).metadata();
+        if (meta.width && meta.height) {
+          WorkspaceFile.findByIdAndUpdate(wsFile._id, { imageWidth: meta.width, imageHeight: meta.height }).catch(() => {});
+        }
+      } catch { /* sharp non dispo ou format non supporte */ }
+    }
+
     // Pour les vidéos : extraire la durée en arrière-plan
     if (VIDEO_EXTS.has(ext) && req.file.buffer) {
       extractDuration(wsFile._id, req.file.buffer, filename).catch(() => {});

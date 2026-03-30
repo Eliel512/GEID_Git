@@ -61,6 +61,8 @@ async function listFromDB(userId, subPath, getHost) {
       durationSeconds: file.durationSeconds || null,
       videoWidth: file.videoWidth || null,
       videoHeight: file.videoHeight || null,
+      imageWidth: file.imageWidth || null,
+      imageHeight: file.imageHeight || null,
       isFavorite: file.isFavorite || false,
       format: file.format || null,
       mimeType: file.mimeType || null,

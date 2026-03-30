@@ -14,6 +14,8 @@ const workspaceFileSchema = new Schema({
   durationSeconds: { type: Number },
   videoWidth:   { type: Number },
   videoHeight:  { type: Number },
+  imageWidth:   { type: Number },
+  imageHeight:  { type: Number },
 
   // Metadata formulaire
   designation:  { type: String },
