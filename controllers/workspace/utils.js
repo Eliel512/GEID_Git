@@ -62,6 +62,12 @@ async function listFromDB(userId, subPath, getHost) {
       videoWidth: file.videoWidth || null,
       videoHeight: file.videoHeight || null,
       isFavorite: file.isFavorite || false,
+      format: file.format || null,
+      mimeType: file.mimeType || null,
+      description: file.description || null,
+      designation: file.designation || null,
+      docType: file.docType || null,
+      docSubType: file.docSubType || null,
       doc,
       ...(file.isDirectory ? { count } : {}),
     });

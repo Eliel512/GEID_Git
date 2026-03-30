@@ -40,6 +40,9 @@ exports.create = async (req, res) => {
       contentUrl: contentRelPath,
       tags,
       description: req.body.description || '',
+      designation: req.body.designation || '',
+      docType: req.body.type || '',
+      docSubType: req.body.subType || '',
     });
     await wsFile.save();
 

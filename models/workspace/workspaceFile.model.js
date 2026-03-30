@@ -15,6 +15,11 @@ const workspaceFileSchema = new Schema({
   videoWidth:   { type: Number },
   videoHeight:  { type: Number },
 
+  // Metadata formulaire
+  designation:  { type: String },
+  docType:      { type: String },
+  docSubType:   { type: String },
+
   // Drive features
   isFavorite:   { type: Boolean, default: false, index: true },
   isTrashed:    { type: Boolean, default: false, index: true },
