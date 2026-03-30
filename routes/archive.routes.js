@@ -46,6 +46,8 @@ router.get('/roles',                    usersCtrl.getRoles);
 router.get('/auths',                    usersCtrl.getAuths);
 
 router.get('/thumbnail/:id', checkReadAccess, require('../controllers/archives/serveThumbnail'));  // miniature archive
+router.get('/doc-info/:id', checkReadAccess, require('../controllers/archives/docPages').getDocInfo);   // info pages document
+router.get('/doc-page/:id', checkReadAccess, require('../controllers/archives/docPages').getDocPage);   // page image document
 router.get('/file/:id', checkReadAccess, getFile);    // fichier archive authentifié + vérifié par rôle
 router.get('/manual/pdf', generateManualPdf);       // PDF manuel utilisateur (fallback serveur)
 router.get('/archived', getAllValidateMiddleware, getAllValidate);
