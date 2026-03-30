@@ -40,7 +40,7 @@ exports.createStreamToken = async (req, res) => {
   // Generer un token temporaire (60 secondes)
   const streamToken = jwt.sign(
     { userId, filePath, type: 'stream' },
-    process.env.JWT_KEY || 'token',
+    process.env.TOKEN_KEY || process.env.JWT_KEY || 'token',
     { expiresIn: '60s' }
   );
 

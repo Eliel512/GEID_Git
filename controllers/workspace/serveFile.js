@@ -15,7 +15,7 @@ exports.serveFile = async (req, res) => {
   // Accepter un token temporaire en query param (pour streaming video)
   if (!userId && req.query.token) {
     try {
-      const decoded = jwt.verify(req.query.token, process.env.JWT_KEY || 'token');
+      const decoded = jwt.verify(req.query.token, process.env.TOKEN_KEY || process.env.JWT_KEY || 'token');
       if (decoded.type === 'stream' && decoded.filePath === filePath) {
         userId = decoded.userId;
       } else {
