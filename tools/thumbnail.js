@@ -34,9 +34,10 @@ function getExt(filename) {
 	return (filename || '').split('.').pop()?.toLowerCase() || '';
 }
 
+const THUMB_VERSION = 'v2'; // Incrementer pour invalider le cache
 function thumbKey(filePath, fileSize, quality) {
 	const suffix = quality && quality !== 'medium' ? `:${quality}` : '';
-	const hash = crypto.createHash('md5').update(`${filePath}:${fileSize || 0}${suffix}`).digest('hex');
+	const hash = crypto.createHash('md5').update(`${THUMB_VERSION}:${filePath}:${fileSize || 0}${suffix}`).digest('hex');
 	return `${hash}.webp`;
 }
 
@@ -108,7 +109,7 @@ async function generateImageThumb(buffer, size = THUMB_SIZE, webpQuality = 60) {
 	try {
 		const sharp = require('sharp');
 		return await sharp(buffer)
-			.resize(size, size, { fit: 'cover', position: 'centre' })
+			.resize(size, size, { fit: 'inside', withoutEnlargement: true })
 			.webp({ quality: webpQuality })
 			.toBuffer();
 	} catch (err) {
@@ -168,7 +169,7 @@ async function callThumbService(fileBuffer, filename, quality) {
 /** Clé de cache basée uniquement sur le chemin + qualité (sans taille fichier) */
 function pathOnlyKey(cacheId, quality) {
 	const suffix = quality && quality !== 'medium' ? `:${quality}` : '';
-	return crypto.createHash('md5').update(`${cacheId}${suffix}`).digest('hex') + '.webp';
+	return crypto.createHash('md5').update(`${THUMB_VERSION}:${cacheId}${suffix}`).digest('hex') + '.webp';
 }
 
 /**
