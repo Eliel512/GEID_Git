@@ -71,6 +71,7 @@ exports.serveFile = async (req, res) => {
         'Accept-Ranges': 'bytes',
         'Content-Length': chunkSize,
         'Content-Type': mimeType,
+        'Cache-Control': 'private, max-age=3600',
       });
 
       const stream = await storage.getPartialStream(relPath, start, chunkSize);
@@ -81,6 +82,7 @@ exports.serveFile = async (req, res) => {
       res.setHeader('Content-Type', mimeType);
       res.setHeader('Content-Disposition', `inline; filename="${paths.basename(filePath)}"`);
       res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Cache-Control', 'private, max-age=3600');
       if (fileSize) res.setHeader('Content-Length', fileSize);
 
       const stream = await storage.getFileStream(relPath);
