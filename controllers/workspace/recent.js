@@ -27,7 +27,7 @@ exports.getRecent = async (req, res) => {
         name: f.name,
         url: `https://${getHost}/api/stuff/workspace/file/${urlPath}`,
         contentUrl: f.contentUrl || '',
-        createdAt: f.updatedAt || f.createdAt,
+        createdAt: f.createdAt,
         lastAccessedAt: f.lastAccessedAt,
         size: f.size || 0,
         format: f.format || '',

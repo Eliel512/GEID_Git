@@ -52,7 +52,7 @@ async function listFromDB(userId, subPath, getHost) {
       _id: file._id,
       name: file.name,
       url: file.isDirectory ? null : `https://${getHost}/api/stuff/workspace/file/${urlPath}`,
-      createdAt: file.updatedAt || file.createdAt,
+      createdAt: file.createdAt,
       size: file.size || 0,
       isDirectory: file.isDirectory || false,
       color: file.color || null,
