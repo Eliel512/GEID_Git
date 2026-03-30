@@ -66,6 +66,10 @@ router.get('/thumbnail/*', workCtrl.serveThumbnail);
 // ── Apercu document (Office→PDF) ──────────────────────────────────────────────
 router.get('/preview/*', workCtrl.servePreview);
 
+// ── Lecteur de documents page par page ────────────────────────────────────────
+router.get('/doc-info/*', workCtrl.getDocInfo);
+router.get('/doc-page/*', workCtrl.getDocPage);
+
 // ── Informations vidéo (durée, résolution, codec) ─────────────────────────────
 router.get('/video-info/*', workCtrl.getVideoInfo);
 

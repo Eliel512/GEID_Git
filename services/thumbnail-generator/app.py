@@ -341,6 +341,127 @@ def convert_to_pdf():
         return jsonify(error=str(e)[:200]), 500
 
 
+@app.route('/doc-info', methods=['POST'])
+def doc_info():
+    """
+    POST /doc-info — Retourne le nombre de pages d'un document + texte par page.
+    Input: file (binary), filename (string)
+    Output: { pageCount: N, pages: [{ page: 1, text: "..." }, ...] }
+    """
+    if 'file' not in request.files:
+        return jsonify(error='Aucun fichier reçu'), 400
+
+    file = request.files['file']
+    filename = request.form.get('filename', file.filename or 'document')
+    ext = Path(filename).suffix.lower()
+
+    try:
+        file_bytes = file.read()
+        pdf_bytes = file_bytes
+
+        # Convertir en PDF si c'est un Office
+        if ext in OFFICE_EXTS:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                in_path = os.path.join(tmpdir, f'input{ext}')
+                with open(in_path, 'wb') as f:
+                    f.write(file_bytes)
+                subprocess.run(
+                    ['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', tmpdir, in_path],
+                    timeout=120, capture_output=True
+                )
+                pdfs = list(Path(tmpdir).glob("*.pdf"))
+                if not pdfs:
+                    return jsonify(error='Conversion echouee'), 500
+                pdf_bytes = pdfs[0].read_bytes()
+        elif ext not in PDF_EXTS:
+            return jsonify(error='Format non supporte pour le lecteur de pages'), 415
+
+        # Compter les pages et extraire le texte
+        from pdf2image import pdfinfo_from_bytes
+        info = pdfinfo_from_bytes(pdf_bytes)
+        page_count = info.get('Pages', 0)
+
+        # Extraire le texte page par page avec pdftotext (poppler)
+        pages_text = []
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pdf_path = os.path.join(tmpdir, 'doc.pdf')
+            with open(pdf_path, 'wb') as f:
+                f.write(pdf_bytes)
+            for p in range(1, page_count + 1):
+                txt_path = os.path.join(tmpdir, f'page_{p}.txt')
+                subprocess.run(
+                    ['pdftotext', '-f', str(p), '-l', str(p), pdf_path, txt_path],
+                    capture_output=True, timeout=10
+                )
+                text = ''
+                if os.path.exists(txt_path):
+                    with open(txt_path, 'r', errors='replace') as f:
+                        text = f.read().strip()
+                pages_text.append({ 'page': p, 'text': text })
+
+        return jsonify(pageCount=page_count, pages=pages_text)
+    except Exception as e:
+        app.logger.error(f'doc-info error: {e}')
+        return jsonify(error=str(e)[:200]), 500
+
+
+@app.route('/doc-page', methods=['POST'])
+def doc_page():
+    """
+    POST /doc-page — Retourne une page specifique d'un document en image WebP.
+    Input: file (binary), filename (string), page (int), dpi (int, default 200)
+    Output: image/webp
+    """
+    if 'file' not in request.files:
+        return jsonify(error='Aucun fichier reçu'), 400
+
+    file = request.files['file']
+    filename = request.form.get('filename', file.filename or 'document')
+    ext = Path(filename).suffix.lower()
+    page_num = int(request.form.get('page', 1))
+    dpi = int(request.form.get('dpi', 200))
+
+    try:
+        file_bytes = file.read()
+        pdf_bytes = file_bytes
+
+        # Convertir en PDF si c'est un Office
+        if ext in OFFICE_EXTS:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                in_path = os.path.join(tmpdir, f'input{ext}')
+                with open(in_path, 'wb') as f:
+                    f.write(file_bytes)
+                subprocess.run(
+                    ['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', tmpdir, in_path],
+                    timeout=120, capture_output=True
+                )
+                pdfs = list(Path(tmpdir).glob("*.pdf"))
+                if not pdfs:
+                    return jsonify(error='Conversion echouee'), 500
+                pdf_bytes = pdfs[0].read_bytes()
+        elif ext not in PDF_EXTS:
+            return jsonify(error='Format non supporte'), 415
+
+        # Rendre la page specifique
+        from pdf2image import convert_from_bytes
+        images = convert_from_bytes(pdf_bytes, first_page=page_num, last_page=page_num, dpi=dpi, fmt='png')
+        if not images:
+            return jsonify(error='Page introuvable'), 404
+
+        # Convertir en WebP
+        img = images[0]
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        buf = io.BytesIO()
+        img.save(buf, format='WEBP', quality=85)
+        buf.seek(0)
+
+        return send_file(buf, mimetype='image/webp', download_name=f'page_{page_num}.webp')
+    except Exception as e:
+        app.logger.error(f'doc-page error: {e}')
+        return jsonify(error=str(e)[:200]), 500
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 9090))
     app.run(host='0.0.0.0', port=port, debug=False)

@@ -21,6 +21,7 @@ const { getVideoInfo } = require('./videoInfo');
 const { touchFile } = require('./touch');
 const { createStreamToken } = require('./streamToken');
 const { servePreview } = require('./servePreview');
+const { getDocInfo, getDocPage } = require('./docPages');
 
 module.exports = {
   // Existing (refactored)
@@ -67,4 +68,6 @@ module.exports = {
   touchFile,
   createStreamToken,
   servePreview,
+  getDocInfo,
+  getDocPage,
 };
