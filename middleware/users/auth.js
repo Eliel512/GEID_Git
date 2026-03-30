@@ -17,10 +17,16 @@ const jwt = require("jsonwebtoken");
  */
 module.exports = (req, res, next) => {
   try {
-    // Extrait le token depuis "Authorization: Bearer <token>"
-    const token = req.headers.authorization.split(" ")[1];
+    // Extrait le token depuis "Authorization: Bearer <token>" ou query param ?token=
+    let token;
+    if (req.headers.authorization) {
+      token = req.headers.authorization.split(" ")[1];
+    } else if (req.query.token) {
+      token = req.query.token;
+    }
+    if (!token) throw new Error("No token");
     const decodedToken = jwt.verify(token, process.env.TOKEN_KEY);
-    const userId = decodedToken._id;
+    const userId = decodedToken._id || decodedToken.userId;
 
     // Rend l'userId accessible aux middlewares et contrôleurs suivants
     res.locals.userId = userId;
