@@ -341,12 +341,119 @@ def convert_to_pdf():
         return jsonify(error=str(e)[:200]), 500
 
 
+def _ensure_pdf(file_bytes, ext):
+    """Convertit en PDF si necessaire, retourne les bytes PDF."""
+    if ext in PDF_EXTS:
+        return file_bytes
+    if ext in OFFICE_EXTS:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            in_path = os.path.join(tmpdir, f'input{ext}')
+            with open(in_path, 'wb') as f:
+                f.write(file_bytes)
+            subprocess.run(
+                ['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', tmpdir, in_path],
+                timeout=120, capture_output=True
+            )
+            pdfs = list(Path(tmpdir).glob("*.pdf"))
+            if not pdfs:
+                raise ValueError('Conversion echouee')
+            return pdfs[0].read_bytes()
+    raise ValueError('Format non supporte')
+
+
+def _parse_pdf_xml(pdf_bytes):
+    """Extrait le texte positionne via pdftohtml -xml."""
+    import xml.etree.ElementTree as ET
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        pdf_path = os.path.join(tmpdir, 'doc.pdf')
+        xml_path = os.path.join(tmpdir, 'doc.xml')
+        with open(pdf_path, 'wb') as f:
+            f.write(pdf_bytes)
+
+        subprocess.run(
+            ['pdftohtml', '-xml', '-q', '-i', pdf_path, xml_path],
+            capture_output=True, timeout=60
+        )
+
+        if not os.path.exists(xml_path):
+            return None
+
+        with open(xml_path, 'r', errors='replace') as f:
+            content = f.read()
+
+    # Parser le XML
+    try:
+        root = ET.fromstring(content)
+    except ET.ParseError:
+        return None
+
+    # Extraire les fonts
+    fonts = {}
+    for fspec in root.findall('.//fontspec'):
+        fid = fspec.get('id', '0')
+        fonts[fid] = {
+            'size': int(fspec.get('size', '12')),
+            'family': fspec.get('family', 'sans-serif'),
+            'color': fspec.get('color', '#000000'),
+        }
+
+    # Extraire les pages avec texte positionne
+    pages = []
+    for page_el in root.findall('.//page'):
+        page_num = int(page_el.get('number', '0'))
+        page_w = float(page_el.get('width', '595'))
+        page_h = float(page_el.get('height', '842'))
+        spans = []
+        full_text = []
+
+        for text_el in page_el.findall('.//text'):
+            top = float(text_el.get('top', '0'))
+            left = float(text_el.get('left', '0'))
+            width = float(text_el.get('width', '0'))
+            height = float(text_el.get('height', '0'))
+            font_id = text_el.get('font', '0')
+            font = fonts.get(font_id, {'size': 12, 'family': 'sans-serif', 'color': '#000000'})
+
+            # Extraire tout le texte (y compris les sous-elements bold/italic)
+            txt = ''.join(text_el.itertext()).strip()
+            if not txt:
+                continue
+
+            # Verifier si bold ou italic
+            bold = text_el.find('.//b') is not None
+            italic = text_el.find('.//i') is not None
+
+            spans.append({
+                'text': txt,
+                'top': round(top, 1),
+                'left': round(left, 1),
+                'width': round(width, 1),
+                'height': round(height, 1),
+                'fontSize': font['size'],
+                'fontFamily': font['family'],
+                'color': font['color'],
+                'bold': bold,
+                'italic': italic,
+            })
+            full_text.append(txt)
+
+        pages.append({
+            'page': page_num,
+            'width': round(page_w, 1),
+            'height': round(page_h, 1),
+            'spans': spans,
+            'text': ' '.join(full_text),
+        })
+
+    return pages
+
+
 @app.route('/doc-info', methods=['POST'])
 def doc_info():
     """
-    POST /doc-info — Retourne le nombre de pages d'un document + texte par page.
-    Input: file (binary), filename (string)
-    Output: { pageCount: N, pages: [{ page: 1, text: "..." }, ...] }
+    POST /doc-info — Retourne le nombre de pages + texte positionne par page.
+    Output: { pageCount, pages: [{ page, width, height, text, spans: [{text, top, left, width, height, fontSize, fontFamily, bold, italic}] }] }
     """
     if 'file' not in request.files:
         return jsonify(error='Aucun fichier reçu'), 400
@@ -357,49 +464,13 @@ def doc_info():
 
     try:
         file_bytes = file.read()
-        pdf_bytes = file_bytes
+        pdf_bytes = _ensure_pdf(file_bytes, ext)
 
-        # Convertir en PDF si c'est un Office
-        if ext in OFFICE_EXTS:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                in_path = os.path.join(tmpdir, f'input{ext}')
-                with open(in_path, 'wb') as f:
-                    f.write(file_bytes)
-                subprocess.run(
-                    ['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', tmpdir, in_path],
-                    timeout=120, capture_output=True
-                )
-                pdfs = list(Path(tmpdir).glob("*.pdf"))
-                if not pdfs:
-                    return jsonify(error='Conversion echouee'), 500
-                pdf_bytes = pdfs[0].read_bytes()
-        elif ext not in PDF_EXTS:
-            return jsonify(error='Format non supporte pour le lecteur de pages'), 415
+        pages = _parse_pdf_xml(pdf_bytes)
+        if pages is None:
+            return jsonify(error='Impossible de parser le document'), 500
 
-        # Compter les pages et extraire le texte
-        from pdf2image import pdfinfo_from_bytes
-        info = pdfinfo_from_bytes(pdf_bytes)
-        page_count = info.get('Pages', 0)
-
-        # Extraire le texte page par page avec pdftotext (poppler)
-        pages_text = []
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pdf_path = os.path.join(tmpdir, 'doc.pdf')
-            with open(pdf_path, 'wb') as f:
-                f.write(pdf_bytes)
-            for p in range(1, page_count + 1):
-                txt_path = os.path.join(tmpdir, f'page_{p}.txt')
-                subprocess.run(
-                    ['pdftotext', '-f', str(p), '-l', str(p), pdf_path, txt_path],
-                    capture_output=True, timeout=10
-                )
-                text = ''
-                if os.path.exists(txt_path):
-                    with open(txt_path, 'r', errors='replace') as f:
-                        text = f.read().strip()
-                pages_text.append({ 'page': p, 'text': text })
-
-        return jsonify(pageCount=page_count, pages=pages_text)
+        return jsonify(pageCount=len(pages), pages=pages)
     except Exception as e:
         app.logger.error(f'doc-info error: {e}')
         return jsonify(error=str(e)[:200]), 500
