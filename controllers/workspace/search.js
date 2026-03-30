@@ -9,11 +9,20 @@ exports.search = async (req, res) => {
   }
 
   try {
-    const query = { owner: userId, isTrashed: false };
+    // Search both active and trashed items
+    const query = { owner: userId };
 
-    // Full-text search
+    const projection = {
+      _id: 1, name: 1, path: 1, isDirectory: 1, isTrashed: 1,
+      size: 1, format: 1, contentUrl: 1, color: 1, isFavorite: 1,
+      createdAt: 1, updatedAt: 1, lastAccessedAt: 1,
+    };
+
+    // Fuzzy/partial matching via regex (accent-insensitive, case-insensitive)
     if (q) {
-      query.$text = { $search: q };
+      const sanitized = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Build a regex that matches partial words
+      query.name = { $regex: sanitized, $options: 'i' };
     }
 
     // Filter by file format/type
@@ -40,12 +49,9 @@ exports.search = async (req, res) => {
       query.tags = { $in: tags.split(',').map(t => t.trim()) };
     }
 
-    const projection = q ? { score: { $meta: 'textScore' } } : {};
-    const sort = q ? { score: { $meta: 'textScore' } } : { updatedAt: -1 };
-
     const results = await WorkspaceFile.find(query, projection)
-      .sort(sort)
-      .limit(100);
+      .sort({ isTrashed: 1, updatedAt: -1 })
+      .limit(50);
 
     res.status(200).json(results);
   } catch (err) {
