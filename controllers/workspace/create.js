@@ -22,6 +22,13 @@ exports.create = async (req, res) => {
   const contentRelPath = parts.join('/');
 
   try {
+    // Tags optionnels depuis le formulaire
+    let tags = [];
+    if (req.body.tags) {
+      try { tags = typeof req.body.tags === 'string' ? req.body.tags.split(/[\s,]+/).filter(Boolean) : req.body.tags; }
+      catch { tags = []; }
+    }
+
     const wsFile = new WorkspaceFile({
       name: filename,
       owner: userId,
@@ -31,6 +38,8 @@ exports.create = async (req, res) => {
       size: req.file.size,
       mimeType: req.file.mimetype,
       contentUrl: contentRelPath,
+      tags,
+      description: req.body.description || '',
     });
     await wsFile.save();
 
