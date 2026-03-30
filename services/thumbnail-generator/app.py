@@ -302,6 +302,45 @@ def video_info():
         return jsonify(error=str(e)[:200]), 500
 
 
+@app.route('/convert-to-pdf', methods=['POST'])
+def convert_to_pdf():
+    """Convertit un fichier Office en PDF complet (pas juste une miniature)."""
+    try:
+        if 'file' not in request.files:
+            return jsonify(error='No file'), 400
+        file = request.files['file']
+        filename = request.form.get('filename', file.filename or 'document')
+        ext = Path(filename).suffix.lower()
+
+        # Si c'est deja un PDF, retourner tel quel
+        if ext == '.pdf':
+            return send_file(io.BytesIO(file.read()), mimetype='application/pdf', download_name=filename)
+
+        # Si c'est un fichier Office, convertir via LibreOffice
+        if ext in OFFICE_EXTS:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                in_path = os.path.join(tmpdir, f'input{ext}')
+                file.save(in_path)
+                subprocess.run([
+                    'libreoffice', '--headless', '--convert-to', 'pdf',
+                    '--outdir', tmpdir, in_path
+                ], timeout=120, capture_output=True)
+                pdf_path = os.path.join(tmpdir, 'input.pdf')
+                if os.path.exists(pdf_path):
+                    with open(pdf_path, 'rb') as f:
+                        pdf_data = f.read()
+                    return send_file(io.BytesIO(pdf_data), mimetype='application/pdf', download_name=Path(filename).stem + '.pdf')
+                return jsonify(error='Conversion echouee'), 500
+
+        # Fichier texte → pas de conversion, retourner tel quel
+        if ext in TEXT_EXTS:
+            return send_file(io.BytesIO(file.read()), mimetype='text/plain', download_name=filename)
+
+        return jsonify(error='Type non supporte'), 400
+    except Exception as e:
+        return jsonify(error=str(e)[:200]), 500
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 9090))
     app.run(host='0.0.0.0', port=port, debug=False)

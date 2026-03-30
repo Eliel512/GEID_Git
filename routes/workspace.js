@@ -28,6 +28,9 @@ router.patch('/tags/:id', workCtrl.updateTags);
 // ── Marquer comme consulté ────────────────────────────────────────────────
 router.patch('/touch/:id', workCtrl.touchFile);
 
+// ── Token temporaire pour streaming ──────────────────────────────────────
+router.post('/stream-token', workCtrl.createStreamToken);
+
 // ── Déplacer / Copier ───────────────────────────────────────────────────────
 router.post('/move', workCtrl.moveFile);
 router.post('/copy', workCtrl.copyFile);
@@ -59,6 +62,9 @@ router.delete('/folder/:data', workCtrl.deleteFolder);
 
 // ── Miniature (thumbnail) ──────────────────────────────────────────────────────
 router.get('/thumbnail/*', workCtrl.serveThumbnail);
+
+// ── Apercu document (Office→PDF) ──────────────────────────────────────────────
+router.get('/preview/*', workCtrl.servePreview);
 
 // ── Informations vidéo (durée, résolution, codec) ─────────────────────────────
 router.get('/video-info/*', workCtrl.getVideoInfo);

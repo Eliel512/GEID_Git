@@ -181,6 +181,17 @@ async function getFileSize(relativePath) {
     } catch { return 0; }
 }
 
+async function getPartialStream(relativePath, offset, length) {
+    if (!MINIO_ENABLED) {
+        const mainDir = path.dirname(require.main.filename);
+        const fullPath = path.join(mainDir, relativePath);
+        return fs.createReadStream(fullPath, { start: offset, end: offset + length - 1 });
+    }
+    const resolved = resolveBucketKey(relativePath);
+    if (!resolved) throw new Error('Cannot resolve path');
+    return minioClient.getPartialObject(resolved.bucket, resolved.key, offset, length);
+}
+
 async function getFileStream(relativePath) {
     if (!MINIO_ENABLED) {
         // Fallback filesystem
@@ -375,6 +386,7 @@ module.exports = {
     deleteFile,
     getFileUrl,
     getFileStream,
+    getPartialStream,
     getFileSize,
     fileExists,
     copyFile,
