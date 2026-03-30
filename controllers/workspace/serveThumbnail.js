@@ -27,7 +27,19 @@ exports.serveThumbnail = async (req, res) => {
 
 	if (!isSupported(filePath)) return res.status(204).end();
 
-	res.setHeader('Cache-Control', 'public, max-age=86400');
+	const quality = req.query.quality || 'medium';
+
+	// ETag basee sur le chemin + qualite pour cache navigateur
+	const crypto = require('crypto');
+	const etag = '"' + crypto.createHash('md5').update(filePath + quality).digest('hex') + '"';
+
+	// Repondre 304 si le navigateur a deja ce thumbnail
+	if (req.headers['if-none-match'] === etag) {
+		return res.status(304).end();
+	}
+
+	res.setHeader('Cache-Control', 'public, max-age=604800'); // 7 jours
+	res.setHeader('ETag', etag);
 	res.setHeader('Content-Type', 'image/webp');
 
 	try {
@@ -40,7 +52,6 @@ exports.serveThumbnail = async (req, res) => {
 
 		if (!fileBuffer || fileBuffer.length === 0) return res.status(204).end();
 
-		const quality = req.query.quality || 'medium';
 		const thumb = await getThumbnail(fileBuffer, paths.basename(filePath), relPath, quality);
 		if (thumb) {
 			// Marquer comme consulte (fire-and-forget)
