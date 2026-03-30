@@ -36,6 +36,11 @@ exports.getRecent = async (req, res) => {
         currentPath: f.path || '',
         tags: f.tags || [],
         _id: f._id,
+        duration: f.duration || null,
+        videoWidth: f.videoWidth || null,
+        videoHeight: f.videoHeight || null,
+        imageWidth: f.imageWidth || null,
+        imageHeight: f.imageHeight || null,
       };
     });
 
