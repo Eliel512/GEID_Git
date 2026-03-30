@@ -6,7 +6,7 @@ const { isValidFolderName, escapeRegex } = require('./utils');
 
 exports.createFolder = async (req, res) => {
   const userId = res.locals.userId;
-  const { path: subPath, folderName } = req.body;
+  const { path: subPath, folderName, color } = req.body;
 
   if (!folderName || typeof folderName !== 'string' || typeof subPath !== 'string') {
     return res.status(400).json({ message: 'Paramètres invalides.' });
@@ -32,12 +32,9 @@ exports.createFolder = async (req, res) => {
     }
 
     // Create WorkspaceFile record for the folder
-    await new WorkspaceFile({
-      name: trimmedName,
-      owner: userId,
-      path: normalizedPath,
-      isDirectory: true,
-    }).save();
+    const folderDoc = { name: trimmedName, owner: userId, path: normalizedPath, isDirectory: true };
+    if (color && typeof color === 'string') folderDoc.color = color;
+    await new WorkspaceFile(folderDoc).save();
 
     // Activity log
     new ActivityLog({
