@@ -63,34 +63,43 @@ exports.getTrash = async (req, res) => {
       .sort({ trashedAt: -1 }).lean();
 
     // Ne retourner que les elements de premier niveau :
-    // Un element est de premier niveau si son dossier parent N'EST PAS trashed
-    const trashedPaths = new Set();
+    // un element est top-level si aucun de ses ancêtres n'est un dossier trashé
+    const trashedDirPaths = new Set();
     for (const f of all) {
       if (f.isDirectory) {
-        const folderPath = f.path ? `${f.path}/${f.name}` : f.name;
-        trashedPaths.add(folderPath);
+        const fp = f.path ? `${f.path}/${f.name}` : f.name;
+        trashedDirPaths.add(fp);
       }
     }
 
     const topLevel = all.filter((f) => {
-      if (!f.path) return true;
-      // Vérifier si un dossier trashé est parent (exact ou préfixe)
-      for (const tp of trashedPaths) {
+      // Racine (path vide ou absent) → toujours top-level
+      if (!f.path && f.path !== 0) return true;
+      // Vérifier si un dossier trashé est ancêtre de cet élément
+      for (const tp of trashedDirPaths) {
         if (f.path === tp || f.path.startsWith(tp + '/')) return false;
       }
       return true;
     });
 
-    // Ajouter count pour les dossiers
+    // Ajouter count pour les dossiers (nombre d'enfants récursifs)
     for (const f of topLevel) {
       if (f.isDirectory) {
-        const folderPath = f.path ? `${f.path}/${f.name}` : f.name;
-        f.count = all.filter((c) => c.path === folderPath || (c.path && c.path.startsWith(folderPath + '/'))).length;
+        const fp = f.path ? `${f.path}/${f.name}` : f.name;
+        f.count = all.filter((c) =>
+          c._id.toString() !== f._id.toString() &&
+          (c.path === fp || (c.path && c.path.startsWith(fp + '/')))
+        ).length;
       }
     }
 
+    console.log('[getTrash]', userId, '| all:', all.length, '| topLevel:', topLevel.length,
+      '| trashedDirPaths:', [...trashedDirPaths],
+      '| topLevel items:', topLevel.map(f => ({ name: f.name, path: f.path, isDir: f.isDirectory })));
+
     res.status(200).json(topLevel);
-  } catch {
+  } catch (err) {
+    console.error('[getTrash] error', err);
     res.status(500).json({ message: 'Impossible de récupérer la corbeille.' });
   }
 };
@@ -101,25 +110,32 @@ exports.moveToTrash = async (req, res) => {
   try {
     const file = await WorkspaceFile.findOne({ _id: id, owner: userId });
     if (!file) return res.status(404).json({ message: 'Fichier introuvable.' });
+    if (file.isTrashed) return res.status(200).json({ message: 'Déjà dans la corbeille.' });
+
+    const now = new Date();
 
     if (file.isDirectory) {
-      // Dossier : mettre en corbeille le dossier + tous ses enfants
+      // Dossier : compresser tous les fichiers enfants, puis marquer tout d'un coup
       const children = await getFolderChildren(userId, file);
-      for (const child of children) {
-        if (!child.isTrashed) {
-          await compressToTrash(child);
-          child.isTrashed = true;
-          child.trashedAt = new Date();
-          await child.save();
-        }
+      const toCompress = children.filter((c) => !c.isTrashed && !c.isDirectory && c.contentUrl);
+      // Compresser les fichiers en parallèle (les dossiers n'ont pas de contenu)
+      await Promise.all(toCompress.map((c) => compressToTrash(c)));
+      // Sauvegarder les trashContentUrl/originalSize après compression
+      await Promise.all(toCompress.map((c) => c.save()));
+      // Marquer tous les enfants comme trashés d'un seul coup (atomique)
+      const childIds = children.filter((c) => !c.isTrashed).map((c) => c._id);
+      if (childIds.length > 0) {
+        await WorkspaceFile.updateMany(
+          { _id: { $in: childIds } },
+          { $set: { isTrashed: true, trashedAt: now } }
+        );
       }
     } else {
-      // Fichier : comprimer dans workspace-trash/
       await compressToTrash(file);
     }
 
     file.isTrashed = true;
-    file.trashedAt = new Date();
+    file.trashedAt = now;
     await file.save();
 
     new ActivityLog({ userId, action: 'trash', targetId: file._id, targetName: file.name })
@@ -140,17 +156,19 @@ exports.restoreFromTrash = async (req, res) => {
     if (!file) return res.status(404).json({ message: 'Fichier introuvable dans la corbeille.' });
 
     if (file.isDirectory) {
-      // Dossier : restaurer le dossier + tous ses enfants
       const children = await getFolderChildren(userId, file);
-      for (const child of children) {
-        if (child.isTrashed) {
-          await restoreFromTrashStorage(child);
-          child.isTrashed = false;
-          child.trashedAt = undefined;
-          child.trashContentUrl = undefined;
-          child.originalSize = undefined;
-          await child.save();
-        }
+      const toRestore = children.filter((c) => c.isTrashed && !c.isDirectory && c.trashContentUrl);
+      // Décompresser les fichiers en parallèle
+      await Promise.all(toRestore.map((c) => restoreFromTrashStorage(c)));
+      // Sauvegarder les contentUrl restaurés
+      await Promise.all(toRestore.map((c) => c.save()));
+      // Marquer tous les enfants comme non-trashés d'un seul coup
+      const childIds = children.filter((c) => c.isTrashed).map((c) => c._id);
+      if (childIds.length > 0) {
+        await WorkspaceFile.updateMany(
+          { _id: { $in: childIds } },
+          { $set: { isTrashed: false }, $unset: { trashedAt: 1, trashContentUrl: 1, originalSize: 1 } }
+        );
       }
     } else {
       await restoreFromTrashStorage(file);
