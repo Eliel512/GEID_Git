@@ -74,7 +74,11 @@ exports.getTrash = async (req, res) => {
 
     const topLevel = all.filter((f) => {
       if (!f.path) return true;
-      return !trashedPaths.has(f.path);
+      // Vérifier si un dossier trashé est parent (exact ou préfixe)
+      for (const tp of trashedPaths) {
+        if (f.path === tp || f.path.startsWith(tp + '/')) return false;
+      }
+      return true;
     });
 
     // Ajouter count pour les dossiers
