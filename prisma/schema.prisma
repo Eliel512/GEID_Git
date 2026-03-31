@@ -1,0 +1,874 @@
+// ══════════════════════════════════════════════════════════════
+// GEID — Schema Prisma (documentation SGBD relationnelle)
+//
+// Ce fichier est une DOCUMENTATION du modèle de données.
+// Il n'est PAS utilisé en production (le backend utilise Mongoose/MongoDB).
+// Il sert de référence pour comprendre les entités, leurs champs
+// et les relations entre elles.
+// ══════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │                    UTILISATEURS                             │
+// └─────────────────────────────────────────────────────────────┘
+
+model User {
+  id          String    @id @default(uuid())
+  isValid     Boolean   @default(false)
+  connectedAt DateTime?
+  fname       String
+  mname       String?
+  lname       String
+  email       String    @unique
+  password    String
+  phoneCell   String    @unique
+  gradeTitle  String
+  gradeRole   String    @unique
+  imageUrl    String?
+  joinedAt    DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // ── Relations ──
+  authId   String
+  auth     Auth   @relation(fields: [authId], references: [id])
+
+  contacts         User[]   @relation("UserContacts")
+  contactOf        User[]   @relation("UserContacts")
+
+  // Archives créées
+  archives         Archive[]         @relation("ArchiveCreator")
+  lifecycleActions LifecycleEntry[]
+  records          Record[]
+  documents        PhysicalDocument[]
+
+  // Rôles de gestion
+  managedRoles     Role[]    @relation("RoleManagement")
+
+  // Élimination
+  eliminationsCreated     Elimination[]  @relation("EliminationCreator")
+  eliminationsExecuted    Elimination[]  @relation("EliminationExecutor")
+  producerApprovals       Elimination[]  @relation("ProducerApprover")
+  danticApprovals         Elimination[]  @relation("DanticApprover")
+
+  // Dashboard
+  dashboardPrefs DashboardPrefs?
+
+  // Workspace
+  workspaceFiles      WorkspaceFile[]
+  workspaceActivities WorkspaceActivityLog[]
+
+  // Invitations de partage
+  sharesSent     ShareInvitation[] @relation("ShareFrom")
+  sharesReceived ShareInvitation[] @relation("ShareTo")
+
+  // Chat
+  chatMessages   Message[]
+  chatInvSent    ChatInvitation[] @relation("InvitationFrom")
+  chatInvRecv    ChatInvitation[] @relation("InvitationTo")
+  callSessions   CallSession[]
+
+  // Invalids
+  invalidMgmt   Invalid[] @relation("InvalidManagement")
+
+  @@map("users")
+}
+
+model Auth {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  upper     String[] @default(["admin"])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ── Relations ──
+  users      User[]
+  privileges AuthPrivilege[]
+
+  @@map("auth")
+}
+
+model AuthPrivilege {
+  id     String @id @default(uuid())
+  app    String // "archives", "workspace", etc.
+  authId String
+  auth   Auth   @relation(fields: [authId], references: [id], onDelete: Cascade)
+
+  permissions AuthPermission[]
+
+  @@map("auth_privileges")
+}
+
+model AuthPermission {
+  id          String @id @default(uuid())
+  struct      String // "all" ou ID d'unité administrative
+  access      String // "read" | "write"
+  privilegeId String
+  privilege   AuthPrivilege @relation(fields: [privilegeId], references: [id], onDelete: Cascade)
+
+  @@map("auth_permissions")
+}
+
+model Role {
+  id       String  @id @default(uuid())
+  name     String  @unique
+  parentId String?
+  parent   Role?   @relation("RoleTree", fields: [parentId], references: [id])
+  children Role[]  @relation("RoleTree")
+
+  docTypes String[]
+
+  // ── Relations ──
+  management User[] @relation("RoleManagement")
+
+  // Archives liées à cette unité administrative
+  archives Archive[]
+  floors   Floor[]
+  events   Event[]   @relation("EventUnits")
+  invalids Invalid[]
+  profils  Profil[]  @relation("ProfilRoles")
+
+  @@map("roles")
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │                ARCHIVES NUMÉRIQUES                          │
+// └─────────────────────────────────────────────────────────────┘
+
+model Archive {
+  id             String   @id @default(uuid())
+  version        String?
+  classNumber    String?
+  refNumber      String?
+  designation    String   @unique
+  description    String
+  language       String   @default("FR")
+  tags           String[]
+  ref            String[]
+  folder         String?
+  validated      Boolean  @default(false)
+  status         ArchiveStatus @default(PENDING)
+  fileUrl        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // ── Type documentaire (embedded en Mongo, relation en SGBD) ──
+  typeName    String
+  typeSubtype String?
+  profilId    String
+  profil      Profil @relation(fields: [profilId], references: [id])
+
+  // ── Unité administrative ──
+  administrativeUnitId String?
+  administrativeUnit   Role?  @relation(fields: [administrativeUnitId], references: [id])
+
+  // ── Rattachement physique ──
+  recordId   String?
+  record     Record?           @relation(fields: [recordId], references: [id])
+  documentId String?
+  document   PhysicalDocument? @relation(fields: [documentId], references: [id])
+
+  // ── DUA (embedded en Mongo, relation en SGBD) ──
+  dua Dua?
+
+  // ── Historique du cycle de vie ──
+  lifecycleHistory LifecycleEntry[]
+
+  // ── Élimination ──
+  eliminations Elimination[] @relation("EliminationArchives")
+
+  // ── Créateur (implicite via validated/fileUrl) ──
+  // En Mongo pas de champ createdBy sur Archive, mais le token identifie l'auteur
+
+  @@index([designation, description, folder, classNumber, refNumber])
+  @@map("archives")
+}
+
+enum ArchiveStatus {
+  PENDING
+  ACTIVE
+  SEMI_ACTIVE
+  PERMANENT
+  PROPOSED_ELIMINATION
+  DESTROYED
+}
+
+model Dua {
+  id        String    @id @default(uuid())
+  value     Int?
+  unit      DuaUnit?
+  sortFinal DuaSortFinal?
+  startDate DateTime?
+
+  archiveId String  @unique
+  archive   Archive @relation(fields: [archiveId], references: [id], onDelete: Cascade)
+
+  @@map("dua")
+}
+
+enum DuaUnit {
+  years
+  months
+}
+
+enum DuaSortFinal {
+  conservation
+  elimination
+}
+
+model LifecycleEntry {
+  id        String   @id @default(uuid())
+  status    String
+  changedAt DateTime @default(now())
+  note      String   @default("")
+
+  archiveId   String
+  archive     Archive @relation(fields: [archiveId], references: [id], onDelete: Cascade)
+  changedById String?
+  changedBy   User?   @relation(fields: [changedById], references: [id])
+
+  @@map("lifecycle_entries")
+}
+
+// ── Types documentaires et profils ──────────────────────────
+
+model DocumentType {
+  id       String   @id @default(uuid())
+  name     String   @unique
+  subtypes String[]
+
+  @@map("types")
+}
+
+model Profil {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  privacy   Int      // 0-3
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  retentionId String
+  retention   Retention @relation(fields: [retentionId], references: [id])
+
+  roles    Role[]    @relation("ProfilRoles")
+  archives Archive[]
+
+  @@map("profil")
+}
+
+model Retention {
+  id          String @id @default(uuid())
+  name        String @unique
+  description String?
+  delai       Int    // durée en mois ou années
+  arrangement String // "Conservation" | "Destruction"
+  motif       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profils Profil[]
+
+  @@map("retention")
+}
+
+model Folder {
+  id          String @id @default(uuid())
+  name        String @unique
+  description String
+
+  @@map("folder")
+}
+
+// ── Élimination ─────────────────────────────────────────────
+
+model Elimination {
+  id                 String             @id @default(uuid())
+  pvNumber           String?            @unique
+  pvDate             DateTime           @default(now())
+  motif              String
+  status             EliminationStatus  @default(DRAFT)
+  administrativeUnit String?
+  executedAt         DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  // ── Relations ──
+  createdById  String
+  createdBy    User      @relation("EliminationCreator", fields: [createdById], references: [id])
+  executedById String?
+  executedBy   User?     @relation("EliminationExecutor", fields: [executedById], references: [id])
+
+  archives Archive[] @relation("EliminationArchives")
+
+  // ── Approbations (embedded en Mongo, relation en SGBD) ──
+  producerApproval  Boolean?
+  producerNote      String?
+  producerApprovedAt DateTime?
+  producerApproverId String?
+  producerApprover   User?    @relation("ProducerApprover", fields: [producerApproverId], references: [id])
+
+  danticApproval    Boolean?
+  danticNote        String?
+  danticApprovedAt  DateTime?
+  danticApproverId  String?
+  danticApprover    User?    @relation("DanticApprover", fields: [danticApproverId], references: [id])
+
+  @@map("elimination")
+}
+
+enum EliminationStatus {
+  DRAFT
+  PENDING_PRODUCER
+  PENDING_DANTIC
+  APPROVED
+  REJECTED
+  EXECUTED
+}
+
+// ── Événements (alertes temporaires) ────────────────────────
+
+model Event {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String
+  startDate   DateTime @default(now())
+  endDate     DateTime // TTL en Mongo (172800s = 48h)
+
+  administrativeUnits Role[] @relation("EventUnits")
+  invalids            Invalid[]
+
+  @@map("events")
+}
+
+// ── Archives invalides (rejetées, TTL 7 jours) ─────────────
+
+model Invalid {
+  id          String   @id @default(uuid())
+  typeName    String
+  typeSubtype String?
+  designation String
+  description String
+  notes       String?
+  fileUrl     String
+  createdAt   DateTime @default(now())
+
+  administrativeUnitId String
+  administrativeUnit   Role  @relation(fields: [administrativeUnitId], references: [id])
+  eventId              String?
+  event                Event? @relation(fields: [eventId], references: [id])
+  management           User[] @relation("InvalidManagement")
+
+  @@map("invalids")
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │               ARCHIVAGE PHYSIQUE                            │
+// │  Container → Shelf → Floor → Binder → Record → Document    │
+// └─────────────────────────────────────────────────────────────┘
+
+model Container {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  location    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shelves Shelf[]
+
+  @@map("container")
+}
+
+model Shelf {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  containerId String
+  container   Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
+
+  floors Floor[]
+
+  @@map("shelf")
+}
+
+model Floor {
+  id     String  @id @default(uuid())
+  number Int
+  label  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shelfId String
+  shelf   Shelf @relation(fields: [shelfId], references: [id], onDelete: Cascade)
+
+  administrativeUnitId String?
+  administrativeUnit   Role?  @relation(fields: [administrativeUnitId], references: [id])
+
+  binders Binder[]
+
+  @@map("floor")
+}
+
+model Binder {
+  id          String @id @default(uuid())
+  name        String
+  nature      String
+  maxCapacity Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  floorId String
+  floor   Floor @relation(fields: [floorId], references: [id], onDelete: Cascade)
+
+  records Record[]
+
+  @@map("binder")
+}
+
+model Record {
+  id            String   @id @default(uuid())
+  internalNumber String  @unique
+  refNumber     String
+  editionDate   DateTime
+  archivingDate DateTime
+  subject       String
+  category      String
+  nature        String?
+  qrCode        String?  @unique @default(uuid())
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  binderId String
+  binder   Binder @relation(fields: [binderId], references: [id], onDelete: Cascade)
+  agentId  String
+  agent    User   @relation(fields: [agentId], references: [id])
+
+  documents PhysicalDocument[]
+  archives  Archive[]
+
+  @@index([internalNumber, refNumber, subject, category, nature])
+  @@map("record")
+}
+
+model PhysicalDocument {
+  id           String    @id @default(uuid())
+  title        String
+  description  String    @default("")
+  nature       String?
+  documentDate DateTime?
+  metadata     Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  recordId String
+  record   Record @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  agentId  String
+  agent    User   @relation(fields: [agentId], references: [id])
+
+  // Auto-référence pour les documents imbriqués
+  parentId String?
+  parent   PhysicalDocument?  @relation("DocumentTree", fields: [parentId], references: [id])
+  children PhysicalDocument[] @relation("DocumentTree")
+
+  archives Archive[]
+
+  @@index([recordId, parentId])
+  @@map("document")
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │                    WORKSPACE                                │
+// └─────────────────────────────────────────────────────────────┘
+
+model WorkspaceFile {
+  id             String   @id @default(uuid())
+  name           String
+  path           String   @default("")
+  isDirectory    Boolean  @default(false)
+  format         String?
+  size           Int      @default(0)
+  mimeType       String?
+  contentUrl     String?
+  duration       String?
+  durationSeconds Float?
+  videoWidth     Int?
+  videoHeight    Int?
+  imageWidth     Int?
+  imageHeight    Int?
+  designation    String?
+  docType        String?
+  docSubType     String?
+  isFavorite     Boolean  @default(false)
+  isTrashed      Boolean  @default(false)
+  trashedAt      DateTime?
+  trashContentUrl String?
+  originalSize   Int?
+  tags           String[]
+  color          String?
+  shareLink      String?
+  lastAccessedAt DateTime?
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  sharedWith FileShare[]
+  activities WorkspaceActivityLog[]
+
+  @@index([name, tags, description])
+  @@index([ownerId, path, isTrashed])
+  @@index([ownerId, lastAccessedAt(sort: Desc)])
+  @@index([ownerId, isFavorite])
+  @@map("workspace_files")
+}
+
+model FileShare {
+  id         String @id @default(uuid())
+  permission String @default("view") // "view" | "edit"
+
+  fileId String
+  file   WorkspaceFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@unique([fileId, userId])
+  @@map("file_shares")
+}
+
+model WorkspaceActivityLog {
+  id         String   @id @default(uuid())
+  action     WorkspaceAction
+  targetName String?
+  details    Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  userId   String
+  user     User @relation(fields: [userId], references: [id])
+  targetId String?
+  target   WorkspaceFile? @relation(fields: [targetId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("workspace_activity_log")
+}
+
+enum WorkspaceAction {
+  create
+  delete
+  rename
+  move
+  copy
+  restore
+  share
+  tag
+  favorite
+  trash
+  upload
+}
+
+model ShareInvitation {
+  id         String          @id @default(uuid())
+  fileName   String?
+  isDirectory Boolean        @default(false)
+  permission String          @default("view") // "view" | "edit"
+  status     InvitationStatus @default(pending)
+  message    String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  fromId String
+  from   User   @relation("ShareFrom", fields: [fromId], references: [id])
+  toId   String
+  to     User   @relation("ShareTo", fields: [toId], references: [id])
+  fileId String
+
+  @@index([toId, status])
+  @@index([fromId])
+  @@map("share_invitations")
+}
+
+enum InvitationStatus {
+  pending
+  accepted
+  rejected
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │                   DASHBOARD                                 │
+// └─────────────────────────────────────────────────────────────┘
+
+model DashboardPrefs {
+  id                   String   @id @default(uuid())
+  visibleWidgets       String[] @default(["alerts", "stats", "recent", "distribution", "dua", "binders", "inventory", "users", "quickAccess"])
+  visibleStats         String[] @default(["totalArchives", "pending", "active", "semiActive", "permanent", "containers"])
+  chartType            String   @default("donut") // "pie" | "bar" | "donut" | "list"
+  recentCount          Int      @default(8)
+  alertDuaDays         Int      @default(30)
+  alertBinderCapacity  Int      @default(90)
+  autoRefreshSeconds   Int      @default(0)
+  colorPalette         String   @default("default")
+  defaultUnit          String   @default("")
+  soundNotifications   Boolean  @default(false)
+  customLayout         Json?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("dashboard_prefs")
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │                      CHAT                                   │
+// └─────────────────────────────────────────────────────────────┘
+
+model Chat {
+  id          String   @id @default(uuid())
+  type        ChatType
+  name        String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdById String?
+
+  members  ChatMember[]
+  messages Message[]
+
+  @@map("chats")
+}
+
+enum ChatType {
+  direct
+  room
+}
+
+model ChatMember {
+  id     String         @id @default(uuid())
+  role   ChatMemberRole
+
+  chatId String
+  chat   Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@unique([chatId, userId])
+  @@map("chat_members")
+}
+
+enum ChatMemberRole {
+  admin
+  simple
+}
+
+model Message {
+  id        String      @id @default(uuid())
+  type      MessageType
+  subtype   String?     // "AUDIO" | "VIDEO" | "IMAGE" pour media
+  content   String
+  clientId  String?
+  status    Json?
+  details   Json?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  chatId   String
+  chat     Chat    @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  senderId String
+  sender   User    @relation(fields: [senderId], references: [id])
+
+  // Réponse à un message
+  refId String?
+  ref   Message?  @relation("MessageReply", fields: [refId], references: [id])
+  replies Message[] @relation("MessageReply")
+
+  @@map("messages")
+}
+
+enum MessageType {
+  text
+  doc
+  media
+  event
+  voice
+  call
+}
+
+model ChatInvitation {
+  id        String            @id @default(uuid())
+  purpose   ChatInvitePurpose // "connexion" | "salon"
+  details   String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  fromId String
+  from   User   @relation("InvitationFrom", fields: [fromId], references: [id])
+  toId   String
+  to     User   @relation("InvitationTo", fields: [toId], references: [id])
+
+  @@map("chat_invitations")
+}
+
+enum ChatInvitePurpose {
+  connexion
+  salon
+}
+
+model Space {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members  SpaceMember[]
+  channels SpaceChannel[]
+
+  @@map("spaces")
+}
+
+model SpaceMember {
+  id     String         @id @default(uuid())
+  role   ChatMemberRole
+  userId String
+
+  spaceId String
+  space   Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, userId])
+  @@map("space_members")
+}
+
+model SpaceChannel {
+  id          String @id @default(uuid())
+  name        String
+  description String
+  chatId      String
+
+  spaceId String
+  space   Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@map("space_channels")
+}
+
+model CallSession {
+  id          String  @id // pas d'auto-gen, fourni par le client
+  title       String?
+  startedAt   String
+  endedAt     String?
+  summary     String?
+  description String?
+  status      Int     @default(0)
+  room        Json?
+  callDetails Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Durée
+  durationHours   Int @default(0)
+  durationMinutes Int @default(0)
+  durationSeconds Int @default(0)
+
+  // Contrôles organisateur
+  ctrlAuthorization Boolean @default(false)
+  shareScreen       Boolean @default(true)
+  writeMessage      Boolean @default(true)
+  allowPrivateMsg   Boolean @default(true)
+  allowReact        Boolean @default(true)
+  activateCam       Boolean @default(true)
+  activateMic       Boolean @default(true)
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+  locationId  String // ref chat
+
+  @@map("call_sessions")
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │                  MÉDIATHÈQUE                                │
+// └─────────────────────────────────────────────────────────────┘
+
+model Book {
+  id          String   @id @default(uuid())
+  title       String   @unique
+  author      String
+  type        BookType @default(LIVRES)
+  tags        String[]
+  description String
+  coverUrl    String
+  contentUrl  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("books")
+}
+
+enum BookType {
+  LIVRES
+  ARTICLES
+  REVUES
+  BROCHURES
+}
+
+model Film {
+  id          String   @id @default(uuid())
+  title       String   @unique
+  description String
+  event       String?
+  tags        String[]
+  contentUrl  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("films")
+}
+
+model Image {
+  id          String   @id @default(uuid())
+  title       String   @unique
+  description String
+  event       String?
+  tags        String[]
+  contentUrl  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("images")
+}
+
+model Cover {
+  id         String   @id @default(uuid())
+  name       String   @unique
+  docTypes   String[]
+  contentUrl String   @unique
+
+  @@map("covers")
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │                      LOGS                                   │
+// └─────────────────────────────────────────────────────────────┘
+
+model RequestLog {
+  id           String @id @default(uuid())
+  url          String
+  method       String
+  responseTime Int
+  day          String
+  hour         Int
+
+  @@map("request_log")
+}

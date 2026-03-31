@@ -275,6 +275,8 @@ module.exports = async function generateManualPdf(req, res) {
     p("Nom principal et officiel du document. Doit être précis, sans abréviations non explicitées. C'est le premier critère utilisé par le moteur de recherche.");
     h(4, "Type documentaire (obligatoire)");
     p("Type et sous-type classifiant la nature du document. Utilisé pour les statistiques et les règles de gestion.");
+    h(4, "Numéro de référence (obligatoire)");
+    p("Référence unique attribuée au document. Ce champ est obligatoire pour assurer la traçabilité.");
     h(4, "Numéro de classe");
     p("Code de classement selon le plan documentaire. Permet de regrouper les documents par famille.");
     h(4, "Dossier (automatique)");
@@ -282,8 +284,21 @@ module.exports = async function generateManualPdf(req, res) {
     h(4, "Description");
     p("Résumé du contenu en quelques phrases. Améliore significativement la pertinence des recherches.");
     h(4, "Pièce jointe");
-    p("Fichier numérique du document. Formats recommandés : PDF, DOC/DOCX, XLS/XLSX, JPG, PNG.");
+    p("Fichier numérique du document. Deux sources possibles : depuis votre appareil (glisser-déposer ou sélection) ou depuis votre espace personnel (fichiers déjà enregistrés dans votre espace de travail). Lorsque vous choisissez un fichier depuis votre espace personnel, la désignation et le type documentaire sont pré-remplis automatiquement.");
     succ("Avant de soumettre, relisez la désignation et la description. Ce sont les deux champs les plus consultés lors des recherches.");
+    addPageFooter();
+
+    // ── 4.3 — Lecteur de fichiers intégré ─────────────────────────
+    h(2, "4.3 — Le lecteur de fichiers intégré");
+    p("Double-cliquez sur une archive pour ouvrir son fichier dans le lecteur intégré. Le lecteur s'adapte automatiquement au type de fichier.");
+    h(4, "Documents (PDF, Word, présentations)");
+    p("Chaque page est affichée individuellement avec une barre de navigation en bas pour parcourir les pages, zoomer et rechercher dans le texte. Raccourcis clavier : flèches gauche/droite pour changer de page, +/- pour zoomer, Ctrl+F pour la recherche. Sur écran tactile, pincez à deux doigts pour zoomer.");
+    h(4, "Images");
+    p("Zoom à la molette ou au pincé tactile, glissement pour explorer les détails, rotation. Double-clic pour recentrer.");
+    h(4, "Vidéos");
+    p("Contrôles classiques, barre de progression avec aperçu au survol, vitesse réglable, mode image dans l'image et plein écran (double-clic). Sur tactile, glissez horizontalement pour avancer ou reculer.");
+    h(4, "Fichiers audio");
+    p("Lecteur avec visualisation animée, contrôles complets : lecture, pause, progression, volume et vitesse.");
     addPageFooter();
 
     // ── CHAPITRE 5 ───────────────────────────────────────────────

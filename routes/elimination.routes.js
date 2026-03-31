@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 
-const eliminationCtrl = require('../controllers/archives/elimination');
+const eliminationCtrl    = require('../controllers/archives/elimination');
+const eliminationPdfCtrl = require('../controllers/archives/eliminationPdf');
 
 router.post('/',                       eliminationCtrl.create);
 router.get('/',                        eliminationCtrl.getAll);
-router.get('/:id/pdf',                 eliminationCtrl.generatePdf);
+router.get('/:id/pdf',                 eliminationPdfCtrl.generatePdf);
 router.get('/:id',                     eliminationCtrl.getOne);
 router.patch('/:id/submit',            eliminationCtrl.submit);
 router.patch('/:id/approve-producer',  eliminationCtrl.approveProducer);

@@ -1,0 +1,1048 @@
+// ══════════════════════════════════════════════════════════════
+// GEID — Schema DBML (pour visualisation sur dbdiagram.io)
+//
+// Coller ce fichier sur https://dbdiagram.io pour voir
+// le diagramme entite-relation avec toutes les fleches.
+//
+// Systeme de gestion documentaire du Secretariat General
+// du Budget — Republique Democratique du Congo.
+// ══════════════════════════════════════════════════════════════
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │                    UTILISATEURS                             │
+// └─────────────────────────────────────────────────────────────┘
+
+Table users {
+  id          uuid [pk]
+  is_valid    boolean [default: false]
+  connected_at timestamp
+  fname       varchar [not null]
+  mname       varchar
+  lname       varchar [not null]
+  email       varchar [not null, unique]
+  password    varchar [not null]
+  phone_cell  varchar [not null, unique]
+  grade_title varchar [not null]
+  grade_role  varchar [not null, unique]
+  image_url   varchar
+  auth_id     uuid [not null, ref: > auth.id]
+  joined_at   timestamp [default: `now()`]
+  updated_at  timestamp
+
+  Note: '''Utilisateurs du systeme GEID.
+  Exemple :
+  | fname  | lname   | email                  | grade_title      | grade_role                         | auth_id    |
+  | Jean   | Mukendi | j.mukendi@budget.gouv  | Chef de Division | Division Archives et Publications  | → archiviste |
+  | Marie  | Kabongo | m.kabongo@budget.gouv  | Directeur        | DANTIC                             | → admin      |
+  | Paul   | Tshimanga| p.tshimanga@budget.gouv| Agent            | Pool Technique DANTIC              | → agent      |
+
+  grade_role correspond au poste de l utilisateur dans le cadre organique (= nom d une unite dans la table roles).
+  auth_id determine ses droits (admin, archiviste, agent).'''
+}
+
+Table user_contacts {
+  user_id    uuid [ref: > users.id]
+  contact_id uuid [ref: > users.id]
+
+  indexes {
+    (user_id, contact_id) [pk]
+  }
+
+  Note: '''Table de jointure N:N — contacts entre utilisateurs.
+  Exemple : Jean Mukendi a dans ses contacts Marie Kabongo et Paul Tshimanga.'''
+}
+
+Table auth {
+  id         uuid [pk]
+  name       varchar [not null, unique]
+  upper      varchar[] [default: '{"admin"}']
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+
+  Note: '''Profils d autorisation — definissent les droits d acces par application.
+  Exemple :
+  | name        | upper     |
+  | admin       | []        | → droits complets sur tout le systeme
+  | archiviste  | ["admin"] | → peut valider, configurer DUA, gerer le cycle de vie
+  | agent       | ["admin"] | → peut soumettre des archives et les consulter'''
+}
+
+Table auth_privileges {
+  id      uuid [pk]
+  app     varchar [not null, note: 'archives, workspace, bibliotheque, etc.']
+  auth_id uuid [not null, ref: > auth.id]
+
+  Note: '''Privileges par application pour un profil auth.
+  Exemple : le profil "archiviste" a un privilege pour app="archives" et un pour app="workspace".
+  | auth_id      | app        |
+  | → archiviste | archives   |
+  | → archiviste | workspace  |
+  | → admin      | archives   |
+  | → admin      | workspace  |
+  | → admin      | admin      |'''
+}
+
+Table auth_permissions {
+  id           uuid [pk]
+  struct       varchar [not null, note: '"all" ou ID unite administrative']
+  access       varchar [not null, note: '"read" ou "write"']
+  privilege_id uuid [not null, ref: > auth_privileges.id]
+
+  Note: '''Permissions granulaires par structure/unite.
+  struct="all" → acces a toutes les unites (admin DANTIC).
+  struct=<id role> → acces limite a cette unite + ses sous-unites.
+
+  Exemple :
+  | privilege_id       | struct                            | access |
+  | → admin/archives   | all                               | write  | → admin : ecriture partout
+  | → archiviste/arch  | Direction Ressources Humaines     | write  | → archiviste DRH : ecriture DRH + sous-unites
+  | → archiviste/arch  | Direction Admin et Financiere     | read   | → lecture seule sur la DAF
+  | → agent/archives   | Division Archives et Publications | read   | → agent : lecture sur sa division uniquement'''
+}
+
+Table roles {
+  id        uuid [pk]
+  name      varchar [not null, unique]
+  parent_id uuid [ref: > roles.id]
+  doc_types varchar[]
+
+  Note: '''Cadre organique — arbre hierarchique des unites administratives du Secretariat General du Budget.
+  Chaque unite a un parent (sauf la racine) et peut avoir des enfants.
+  doc_types = types de documents que cette unite peut produire.
+
+  Hierarchie reelle :
+  SECRETARIAT GENERAL (racine)
+  ├── Secretariat Administratif du Secretaire General
+  ├── Cellule Technique d Appui
+  ├── Cellule de Gestion des Projets et Marches Publics
+  ├── DG Politique et Programmation Budgetaire
+  │   ├── Direction de la Preparation du Budget
+  │   ├── Direction de la Programmation Budgetaire
+  │   └── ...
+  ├── DG Developpement & Suivi des Performances
+  ├── Direction Coordination Informatique Interministerielle
+  ├── Direction Controle Budgetaire
+  ├── Direction Suivi & Exploitation Operations de Remuneration
+  ├── Direction Intendance Generale et Credits Centralises
+  ├── Direction des Ressources Humaines
+  │   ├── Secretariat DRH
+  │   ├── Division Gestion du Personnel
+  │   └── Division Formation et Perfectionnement
+  ├── Direction Administrative et Financiere
+  ├── Direction Etudes et Planification
+  └── DANTIC (Direction Archives & NTIC)
+      ├── Secretariat DANTIC
+      ├── Division Archives, Bibliotheque et Publications
+      │   ├── Bureau Gestion des Archives
+      │   └── Bureau Bibliotheque et Publications
+      └── Division Nouvelles Technologies (NTIC)
+          ├── Bureau Developpement et Maintenance
+          └── Bureau Reseau et Securite
+
+  ~80 unites au total. Les permissions d acces sont en cascade :
+  un utilisateur avec acces en ecriture sur "DANTIC" a aussi acces
+  a "Division Archives", "Bureau Gestion des Archives", etc.
+
+  Exemple de donnees :
+  | id  | name                                    | parent_id | doc_types                          |
+  | a1  | SECRETARIAT GENERAL                     | null      | [CORRESPONDANCES, RAPPORTS, ...]   |
+  | b1  | Direction des Ressources Humaines       | a1        | [CORRESPONDANCES, NOTES, PV, ...]  |
+  | b2  | DANTIC                                  | a1        | [CORRESPONDANCES, RAPPORTS, ...]   |
+  | c1  | Division Archives, Biblio et Publications| b2        | [CORRESPONDANCES, NOTES]           |
+  | c2  | Division NTIC                           | b2        | [CORRESPONDANCES, RAPPORTS]        |
+  | d1  | Bureau Gestion des Archives             | c1        | [CORRESPONDANCES]                  |
+  | d2  | Bureau Bibliotheque et Publications     | c1        | [CORRESPONDANCES]                  |'''
+}
+
+Table role_management {
+  role_id uuid [ref: > roles.id]
+  user_id uuid [ref: > users.id]
+
+  indexes {
+    (role_id, user_id) [pk]
+  }
+
+  Note: '''Table de jointure N:N — gestionnaires d une unite administrative.
+  Exemple : Marie Kabongo (Directeur DANTIC) gere l unite "DANTIC" et ses sous-unites.
+  | role_id  | user_id        |
+  | → DANTIC | → Marie Kabongo |
+  | → DRH    | → Chef DRH      |'''
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │                ARCHIVES NUMERIQUES                          │
+// └─────────────────────────────────────────────────────────────┘
+
+Table archives {
+  id                    uuid [pk]
+  version               varchar
+  class_number          varchar
+  ref_number            varchar
+  designation           varchar [not null, unique]
+  description           text [not null]
+  language              varchar [not null, default: 'FR']
+  tags                  varchar[]
+  ref                   varchar[]
+  folder                varchar
+  validated             boolean [not null, default: false]
+  status                archive_status [not null, default: 'PENDING']
+  file_url              varchar [not null]
+  type_name             varchar [not null]
+  type_subtype          varchar
+  profil_id             uuid [not null, ref: > profil.id]
+  administrative_unit_id uuid [ref: > roles.id]
+  record_id             uuid [ref: > records.id]
+  document_id           uuid [ref: > physical_documents.id]
+  created_at            timestamp [default: `now()`]
+  updated_at            timestamp
+
+  indexes {
+    (designation, description, folder, class_number, ref_number) [name: 'idx_archives_text']
+  }
+
+  Note: '''Archives numeriques — documents electroniques du fonds documentaire.
+  Chaque archive est rattachee a une unite administrative (celle de l utilisateur qui l a soumise)
+  et peut etre liee a un dossier physique (record) et un document physique.
+
+  Exemple :
+  | designation                              | type_name | ref_number     | status  | administrative_unit_id | folder           |
+  | Rapport d activite annuel 2024 — DG      | Rapport   | REF-DG-042/24  | ACTIVE  | → DANTIC               | Rapports annuels |
+  | Note de service N 15 — Conge             | Note      | NS-DRH-015/24  | PENDING | → DRH                  | Notes de service |
+  | PV Reunion du Comite budgetaire Mars 2024| PV        | PV-CB-003/24   | PERMANENT| → DG Programmation    | Proces-verbaux   |
+  | Contrat Maintenance Serveur 2024         | Contrat   | CTR-NTIC-007/24| SEMI_ACTIVE| → Division NTIC     | Contrats         |'''
+}
+
+Enum archive_status {
+  PENDING [note: 'En attente de validation par un archiviste']
+  ACTIVE [note: 'Validee, en cours d utilisation']
+  SEMI_ACTIVE [note: 'Intermediaire — DUA en cours']
+  PERMANENT [note: 'Conservation definitive (historique)']
+  PROPOSED_ELIMINATION [note: 'Proposee a l elimination — en attente de PV']
+  DESTROYED [note: 'Eliminee definitivement']
+}
+
+Table dua {
+  id         uuid [pk]
+  value      int [note: 'Duree (nombre)']
+  unit       dua_unit [note: 'years ou months']
+  sort_final dua_sort_final [note: 'conservation ou elimination']
+  start_date timestamp
+  archive_id uuid [not null, unique, ref: - archives.id]
+
+  Note: '''Duree d Utilite Administrative — attachee 1:1 a une archive.
+  Determine combien de temps une archive intermediaire doit etre conservee
+  avant sa destination finale (conservation definitive ou elimination).
+
+  Exemple :
+  | archive_id                  | value | unit  | sort_final    | start_date |
+  | → Rapport annuel 2024       | 5     | years | conservation  | 2024-01-01 | → conserve 5 ans puis historique
+  | → Contrat Maintenance 2024  | 3     | years | elimination   | 2024-06-01 | → conserve 3 ans puis elimination
+  | → Note de service Conge     | 6     | months| elimination   | 2024-03-15 | → conserve 6 mois puis elimination'''
+}
+
+Enum dua_unit {
+  years
+  months
+}
+
+Enum dua_sort_final {
+  conservation [note: 'A conserver definitivement apres la DUA']
+  elimination [note: 'A eliminer apres la DUA']
+}
+
+Table lifecycle_entries {
+  id            uuid [pk]
+  status        varchar [not null]
+  changed_at    timestamp [default: `now()`]
+  note          text [default: '']
+  archive_id    uuid [not null, ref: > archives.id]
+  changed_by_id uuid [ref: > users.id]
+
+  Note: '''Historique des transitions du cycle de vie d une archive.
+  Chaque changement de statut est trace avec date, auteur et note.
+
+  Exemple pour le "Rapport annuel 2024" :
+  | status      | changed_at          | changed_by       | note                                      |
+  | PENDING     | 2024-01-15 09:00    | → Paul Tshimanga | Soumission initiale                       |
+  | ACTIVE      | 2024-01-16 14:30    | → Jean Mukendi   | Valide apres verification                 |
+  | SEMI_ACTIVE | 2024-07-01 10:00    | → Jean Mukendi   | Passe en intermediaire — DUA configuree   |
+  | PERMANENT   | 2029-07-01 08:00    | → Marie Kabongo  | DUA expiree — conservation definitive     |'''
+}
+
+Table types {
+  id       uuid [pk]
+  name     varchar [not null, unique]
+  subtypes varchar[]
+
+  Note: '''Types documentaires — classification des archives.
+  Exemple :
+  | name            | subtypes                                          |
+  | CORRESPONDANCES | [Lettre officielle, Courrier interne, Circulaire] |
+  | RAPPORTS        | [Administratif, Financier, Activite, Mission]     |
+  | NOTES           | [Note de service, Note technique, Note d info]    |
+  | PROCES-VERBAUX  | [Reunion, Passation, Installation, Elimination]   |
+  | CONTRATS        | [Marche public, Bail, Prestation, Maintenance]    |
+  | DECISIONS       | [Nomination, Affectation, Sanction, Promotion]    |'''
+}
+
+Table profil {
+  id           uuid [pk]
+  name         varchar [not null, unique]
+  privacy      int [not null, note: '0=public, 1=interne, 2=confidentiel, 3=secret']
+  retention_id uuid [not null, ref: > retention.id]
+  created_at   timestamp [default: `now()`]
+  updated_at   timestamp
+
+  Note: '''Profils de classement — relient type documentaire, unites autorisees et regle de retention.
+  Exemple :
+  | name                    | privacy | retention_id             |
+  | Correspondance officielle| 1      | → Retention 10 ans      |
+  | Document confidentiel   | 2       | → Retention permanente   |
+  | Note interne            | 0       | → Retention 2 ans        |'''
+}
+
+Table profil_roles {
+  profil_id uuid [ref: > profil.id]
+  role_id   uuid [ref: > roles.id]
+
+  indexes {
+    (profil_id, role_id) [pk]
+  }
+
+  Note: '''Table de jointure N:N — unites autorisees a utiliser un profil de classement.
+  Exemple : le profil "Correspondance officielle" est autorise pour DANTIC et DRH.
+  | profil_id                   | role_id  |
+  | → Correspondance officielle | → DANTIC |
+  | → Correspondance officielle | → DRH    |
+  | → Document confidentiel     | → DANTIC |'''
+}
+
+Table retention {
+  id          uuid [pk]
+  name        varchar [not null, unique]
+  description text
+  delai       int [not null, note: 'Duree en mois ou annees']
+  arrangement varchar [not null, note: 'Conservation ou Destruction']
+  motif       text [not null]
+  created_at  timestamp [default: `now()`]
+  updated_at  timestamp
+
+  Note: '''Regles de retention (DUA predefinies par profil).
+  Exemple :
+  | name                 | delai | arrangement  | motif                                           |
+  | Retention 10 ans     | 10    | Conservation | Obligation legale de conservation decennale      |
+  | Retention permanente | 99    | Conservation | Valeur patrimoniale ou juridique permanente       |
+  | Retention 2 ans      | 2     | Destruction  | Document operationnel a duree limitee             |
+  | Retention 5 ans      | 5     | Destruction  | Delai legal de conservation des contrats publics  |'''
+}
+
+Table folder {
+  id          uuid [pk]
+  name        varchar [not null, unique]
+  description text [not null]
+
+  Note: '''Dossiers de classement (determines automatiquement par le type documentaire).
+  Exemple :
+  | name               | description                                        |
+  | Rapports annuels   | Rapports d activite et bilans annuels               |
+  | Notes de service   | Notes internes et communications de service          |
+  | Proces-verbaux     | PV de reunions, passations, installations            |
+  | Contrats           | Marches publics, baux, prestations, maintenance      |
+  | Correspondances    | Lettres officielles, courriers, circulaires          |'''
+}
+
+// ── Elimination ─────────────────────────────────────────────
+
+Table elimination {
+  id                   uuid [pk]
+  pv_number            varchar [unique]
+  pv_date              timestamp [default: `now()`]
+  motif                text [not null]
+  status               elimination_status [not null, default: 'DRAFT']
+  administrative_unit  varchar
+  executed_at          timestamp
+  created_by_id        uuid [not null, ref: > users.id]
+  executed_by_id       uuid [ref: > users.id]
+  producer_approval    boolean
+  producer_note        text
+  producer_approved_at timestamp
+  producer_approver_id uuid [ref: > users.id]
+  dantic_approval      boolean
+  dantic_note          text
+  dantic_approved_at   timestamp
+  dantic_approver_id   uuid [ref: > users.id]
+  created_at           timestamp [default: `now()`]
+  updated_at           timestamp
+
+  Note: '''Proces-verbaux d elimination — workflow de destruction des archives.
+  Circuit : Brouillon → Visa producteur → Visa DANTIC → Approuve → Execute.
+
+  Exemple :
+  | pv_number         | motif                               | status           | created_by      | administrative_unit |
+  | PV-ELIM-2024-0001 | DUA expiree — documents operationnels| EXECUTED         | → Jean Mukendi  | DRH                 |
+  | PV-ELIM-2024-0002 | Fin de delai legal — contrats 2019   | PENDING_DANTIC   | → Jean Mukendi  | Division NTIC       |
+  | PV-ELIM-2024-0003 | Doublons identifies                  | REJECTED         | → Jean Mukendi  | Division Archives   |
+
+  Pour PV-ELIM-2024-0001 (execute) :
+  - producer_approval = true, producer_approver = → Chef DRH, producer_note = "RAS"
+  - dantic_approval = true, dantic_approver = → Marie Kabongo, dantic_note = "Conforme Directive 23"
+  - executed_by = → Marie Kabongo, executed_at = 2024-09-15'''
+}
+
+Enum elimination_status {
+  DRAFT [note: 'Brouillon — en cours de redaction']
+  PENDING_PRODUCER [note: 'En attente du visa du service producteur']
+  PENDING_DANTIC [note: 'En attente du visa de la DANTIC']
+  APPROVED [note: 'Approuve — pret a etre execute']
+  REJECTED [note: 'Rejete par le producteur ou la DANTIC']
+  EXECUTED [note: 'Execute — archives detruites definitivement']
+}
+
+Table elimination_archives {
+  elimination_id uuid [ref: > elimination.id]
+  archive_id     uuid [ref: > archives.id]
+
+  indexes {
+    (elimination_id, archive_id) [pk]
+  }
+
+  Note: '''Table de jointure N:N — archives liees a un PV d elimination.
+  Exemple : PV-ELIM-2024-0001 concerne 3 notes de service de la DRH.
+  | elimination_id        | archive_id                  |
+  | → PV-ELIM-2024-0001   | → Note de service Conge     |
+  | → PV-ELIM-2024-0001   | → Note de service Mutation  |
+  | → PV-ELIM-2024-0001   | → Note de service Formation |'''
+}
+
+// ── Evenements et invalides ─────────────────────────────────
+
+Table events {
+  id          uuid [pk]
+  name        varchar [not null, unique]
+  description text [not null]
+  start_date  timestamp [default: `now()`]
+  end_date    timestamp [not null, note: 'TTL 48h en Mongo']
+
+  Note: '''Evenements/alertes temporaires (auto-supprimes apres 48h).
+  Exemple :
+  | name                            | description                                   | end_date   |
+  | Reunion budgetaire Q1 2024      | Session de validation des previsions Q1        | 2024-03-20 |
+  | Audit externe — Cabinet Deloitte| Mission d audit des comptes 2023               | 2024-04-15 |'''
+}
+
+Table event_units {
+  event_id uuid [ref: > events.id]
+  role_id  uuid [ref: > roles.id]
+
+  indexes {
+    (event_id, role_id) [pk]
+  }
+
+  Note: '''Table de jointure N:N — unites concernees par un evenement.
+  Exemple : la reunion budgetaire concerne la DG Programmation et la DAF.
+  | event_id                    | role_id                    |
+  | → Reunion budgetaire Q1     | → DG Programmation         |
+  | → Reunion budgetaire Q1     | → Direction Admin et Fin   |'''
+}
+
+Table invalids {
+  id                    uuid [pk]
+  type_name             varchar [not null]
+  type_subtype          varchar
+  designation           varchar [not null]
+  description           text [not null]
+  notes                 text
+  file_url              varchar [not null]
+  administrative_unit_id uuid [not null, ref: > roles.id]
+  event_id              uuid [ref: > events.id]
+  created_at            timestamp [default: `now()`, note: 'TTL 7 jours en Mongo']
+
+  Note: '''Archives rejetees lors de la validation (auto-supprimees apres 7 jours).
+  Exemple :
+  | designation                 | notes                          | administrative_unit_id |
+  | Brouillon rapport Mars     | Fichier illisible — rescanner  | → DRH                  |
+  | Note sans signature         | Pas de signature du directeur  | → Division NTIC        |'''
+}
+
+Table invalid_management {
+  invalid_id uuid [ref: > invalids.id]
+  user_id    uuid [ref: > users.id]
+
+  indexes {
+    (invalid_id, user_id) [pk]
+  }
+
+  Note: 'Table de jointure N:N — gestionnaires informes du rejet'
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │               ARCHIVAGE PHYSIQUE                            │
+// │  Container > Shelf > Floor > Binder > Record > Document    │
+// └─────────────────────────────────────────────────────────────┘
+
+Table containers {
+  id          uuid [pk]
+  name        varchar [not null, unique]
+  description text
+  location    varchar
+  created_at  timestamp [default: `now()`]
+  updated_at  timestamp
+
+  Note: '''Conteneurs de stockage physique (armoires metalliques, rayonnages).
+  Exemple :
+  | name        | description                        | location                    |
+  | ARMOIRE A1  | Armoire metallique double battant   | Salle d archives — Batiment B|
+  | ARMOIRE A2  | Rayonnage mobile compactus          | Salle d archives — Batiment B|
+  | ARMOIRE B1  | Armoire securisee documents confidentiels| Bureau DANTIC          |'''
+}
+
+Table shelves {
+  id           uuid [pk]
+  name         varchar [not null]
+  description  text
+  container_id uuid [not null, ref: > containers.id]
+  created_at   timestamp [default: `now()`]
+  updated_at   timestamp
+
+  Note: '''Etageres dans un conteneur.
+  Exemple :
+  | name       | container_id  | description                 |
+  | ETAGERE 1  | → ARMOIRE A1  | Etagere haute               |
+  | ETAGERE 2  | → ARMOIRE A1  | Etagere centrale            |
+  | ETAGERE 3  | → ARMOIRE A1  | Etagere basse               |'''
+}
+
+Table floors {
+  id                    uuid [pk]
+  number                int [not null]
+  label                 varchar
+  shelf_id              uuid [not null, ref: > shelves.id]
+  administrative_unit_id uuid [ref: > roles.id]
+  created_at            timestamp [default: `now()`]
+  updated_at            timestamp
+
+  Note: '''Niveaux (travees) d une etagere. Peuvent etre assignes a une unite administrative.
+  Exemple :
+  | number | label            | shelf_id     | administrative_unit_id |
+  | 1      | Niveau superieur | → ETAGERE 1  | → DANTIC               |
+  | 2      | Niveau central   | → ETAGERE 1  | → DRH                  |
+  | 3      | Niveau inferieur | → ETAGERE 1  | → DAF                  |'''
+}
+
+Table binders {
+  id           uuid [pk]
+  name         varchar [not null]
+  nature       varchar [not null]
+  max_capacity int [not null]
+  floor_id     uuid [not null, ref: > floors.id]
+  created_at   timestamp [default: `now()`]
+  updated_at   timestamp
+
+  Note: '''Classeurs physiques — chaque classeur a une capacite max en dossiers.
+  Exemple :
+  | name              | nature          | max_capacity | floor_id          |
+  | CLASSEUR DRH-2024 | ADMINISTRATIF   | 50           | → Niveau 2 / Et.1|
+  | CLASSEUR FIN-2024  | FINANCIER       | 30           | → Niveau 3 / Et.1|
+  | CLASSEUR CONF-01   | CONFIDENTIEL    | 20           | → Niveau 1 / Et.1|'''
+}
+
+Table records {
+  id              uuid [pk]
+  internal_number varchar [not null, unique]
+  ref_number      varchar [not null]
+  edition_date    timestamp [not null]
+  archiving_date  timestamp [not null]
+  subject         varchar [not null]
+  category        varchar [not null]
+  nature          varchar
+  qr_code         varchar [unique, note: 'UUID v4 auto-genere']
+  metadata        json
+  binder_id       uuid [not null, ref: > binders.id]
+  agent_id        uuid [not null, ref: > users.id]
+  created_at      timestamp [default: `now()`]
+  updated_at      timestamp
+
+  indexes {
+    (internal_number, ref_number, subject, category, nature) [name: 'idx_records_text']
+  }
+
+  Note: '''Dossiers physiques dans un classeur — identifiables par QR code.
+  Chaque dossier contient des documents physiques et peut etre lie a des archives numeriques.
+
+  Exemple :
+  | internal_number | ref_number    | subject                          | category      | binder_id           | agent_id        |
+  | DOS-2024-0001   | REF-DRH-001  | Dossier personnel — Agent Mbaki  | PERSONNEL     | → CLASSEUR DRH-2024 | → Jean Mukendi  |
+  | DOS-2024-0002   | REF-FIN-015  | Etats de paie Janvier 2024       | FINANCIER     | → CLASSEUR FIN-2024  | → Paul Tshimanga|
+  | DOS-2024-0003   | REF-CONF-003 | Audit interne 2023               | CONFIDENTIEL  | → CLASSEUR CONF-01   | → Marie Kabongo |'''
+}
+
+Table physical_documents {
+  id            uuid [pk]
+  title         varchar [not null]
+  description   text [default: '']
+  nature        varchar
+  document_date timestamp
+  metadata      json
+  record_id     uuid [not null, ref: > records.id]
+  agent_id      uuid [not null, ref: > users.id]
+  parent_id     uuid [ref: > physical_documents.id, note: 'Auto-reference pour documents imbriques']
+  created_at    timestamp [default: `now()`]
+  updated_at    timestamp
+
+  indexes {
+    (record_id, parent_id) [name: 'idx_doc_record_parent']
+  }
+
+  Note: '''Documents physiques dans un dossier — structure arborescente (parent_id).
+  Un document peut contenir des sous-documents (pieces jointes, annexes).
+  Les archives numeriques peuvent etre rattachees a un document physique.
+
+  Exemple dans le dossier DOS-2024-0001 :
+  | title                        | nature       | document_date | record_id        | parent_id |
+  | Arrete de nomination         | ORIGINAL     | 2024-01-05    | → DOS-2024-0001  | null      |
+  | Diplome universitaire        | COPIE        | 2020-06-15    | → DOS-2024-0001  | null      |
+  | Certificat medical           | ORIGINAL     | 2024-01-03    | → DOS-2024-0001  | null      |
+  | Annexe — Releve de notes     | ANNEXE       | 2020-06-15    | → DOS-2024-0001  | → Diplome |'''
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │                    WORKSPACE                                │
+// └─────────────────────────────────────────────────────────────┘
+
+Table workspace_files {
+  id               uuid [pk]
+  name             varchar [not null]
+  path             varchar [default: '']
+  is_directory     boolean [default: false]
+  format           varchar
+  size             int [default: 0]
+  mime_type        varchar
+  content_url      varchar
+  duration         varchar
+  duration_seconds float
+  video_width      int
+  video_height     int
+  image_width      int
+  image_height     int
+  designation      varchar
+  doc_type         varchar
+  doc_sub_type     varchar
+  is_favorite      boolean [default: false]
+  is_trashed       boolean [default: false]
+  trashed_at       timestamp
+  trash_content_url varchar
+  original_size    int
+  tags             varchar[]
+  color            varchar
+  share_link       varchar
+  last_accessed_at timestamp
+  description      text
+  owner_id         uuid [not null, ref: > users.id]
+  created_at       timestamp [default: `now()`]
+  updated_at       timestamp
+
+  indexes {
+    (owner_id, path, is_trashed) [name: 'idx_ws_owner_path']
+    (owner_id, is_favorite) [name: 'idx_ws_owner_fav']
+  }
+
+  Note: '''Fichiers et dossiers de l espace de travail personnel.
+  Chaque utilisateur a son propre espace (comme un disque personnel).
+  Les fichiers peuvent etre archives vers le systeme d archives.
+
+  Exemple pour l utilisateur Jean Mukendi :
+  | name                      | path              | is_directory | format | size      |
+  | Documents                 | /                 | true         | null   | 0         |
+  | Rapport annuel 2024.pdf   | /Documents        | false        | pdf    | 2 450 000 |
+  | Photos mission Lubumbashi | /                 | true         | null   | 0         |
+  | IMG_20240315.jpg          | /Photos mission   | false        | jpg    | 3 200 000 |
+  | Brouillon note.docx       | /Documents        | false        | docx   | 145 000   |'''
+}
+
+Table file_shares {
+  id         uuid [pk]
+  permission varchar [not null, default: 'view', note: 'view ou edit']
+  file_id    uuid [not null, ref: > workspace_files.id]
+  user_id    uuid [not null, ref: > users.id]
+
+  indexes {
+    (file_id, user_id) [unique]
+  }
+
+  Note: '''Partages de fichiers workspace avec d autres utilisateurs.
+  Exemple : Jean partage son rapport avec Marie en lecture seule.
+  | file_id                   | user_id         | permission |
+  | → Rapport annuel 2024.pdf | → Marie Kabongo | view       |'''
+}
+
+Table workspace_activity_log {
+  id          uuid [pk]
+  action      workspace_action [not null]
+  target_name varchar
+  details     json
+  user_id     uuid [not null, ref: > users.id]
+  target_id   uuid [ref: > workspace_files.id]
+  created_at  timestamp [default: `now()`]
+  updated_at  timestamp
+
+  indexes {
+    (user_id, created_at) [name: 'idx_activity_user_date']
+  }
+
+  Note: '''Journal d activite workspace.
+  Exemple :
+  | action  | target_name                | user_id         | created_at       |
+  | upload  | Rapport annuel 2024.pdf    | → Jean Mukendi  | 2024-03-15 09:30 |
+  | share   | Rapport annuel 2024.pdf    | → Jean Mukendi  | 2024-03-15 09:35 |
+  | rename  | Brouillon → Note finale    | → Jean Mukendi  | 2024-03-15 10:00 |
+  | trash   | Ancien brouillon.docx      | → Jean Mukendi  | 2024-03-15 10:05 |'''
+}
+
+Enum workspace_action {
+  create
+  delete
+  rename
+  move
+  copy
+  restore
+  share
+  tag
+  favorite
+  trash
+  upload
+}
+
+Table share_invitations {
+  id           uuid [pk]
+  file_name    varchar
+  is_directory boolean [default: false]
+  permission   varchar [default: 'view', note: 'view ou edit']
+  status       invitation_status [default: 'pending']
+  message      text
+  from_id      uuid [not null, ref: > users.id]
+  to_id        uuid [not null, ref: > users.id]
+  file_id      uuid [not null]
+  created_at   timestamp [default: `now()`]
+  updated_at   timestamp
+
+  indexes {
+    (to_id, status) [name: 'idx_share_to_status']
+    from_id [name: 'idx_share_from']
+  }
+
+  Note: '''Invitations de partage de fichiers entre utilisateurs.
+  Exemple :
+  | from_id         | to_id           | file_name                 | permission | status   | message                     |
+  | → Jean Mukendi  | → Marie Kabongo | Rapport annuel 2024.pdf   | view       | accepted | Pour validation SVP          |
+  | → Paul Tshimanga| → Jean Mukendi  | Photos mission.zip        | edit       | pending  | A completer avec vos photos  |'''
+}
+
+Enum invitation_status {
+  pending
+  accepted
+  rejected
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │                   DASHBOARD                                 │
+// └─────────────────────────────────────────────────────────────┘
+
+Table dashboard_prefs {
+  id                    uuid [pk]
+  visible_widgets       varchar[] [default: '{"alerts","stats","recent","distribution","dua","binders","inventory","users","quickAccess"}']
+  visible_stats         varchar[] [default: '{"totalArchives","pending","active","semiActive","permanent","containers"}']
+  chart_type            varchar [default: 'donut', note: 'pie, bar, donut, list']
+  recent_count          int [default: 8]
+  alert_dua_days        int [default: 30]
+  alert_binder_capacity int [default: 90]
+  auto_refresh_seconds  int [default: 0]
+  color_palette         varchar [default: 'default']
+  default_unit          varchar [default: '']
+  sound_notifications   boolean [default: false]
+  custom_layout         json
+  user_id               uuid [not null, unique, ref: - users.id]
+  created_at            timestamp [default: `now()`]
+  updated_at            timestamp
+
+  Note: '''Preferences du tableau de bord — 1:1 avec User.
+  Chaque utilisateur peut personnaliser ses widgets, graphiques et seuils d alerte.
+  Exemple :
+  | user_id         | chart_type | recent_count | alert_dua_days | color_palette |
+  | → Marie Kabongo | donut      | 10           | 15             | default       |
+  | → Jean Mukendi  | bar        | 5            | 30             | accessible    |'''
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │                      CHAT                                   │
+// └─────────────────────────────────────────────────────────────┘
+
+Table chats {
+  id           uuid [pk]
+  type         chat_type [not null]
+  name         varchar
+  description  text
+  created_by_id uuid
+  created_at   timestamp [default: `now()`]
+  updated_at   timestamp
+
+  Note: '''Conversations — direct (1:1) ou room (groupe).
+  Exemple :
+  | type   | name                    | description                         |
+  | direct | null                    | Conversation privee Jean ↔ Marie    |
+  | room   | Equipe DANTIC           | Discussion de l equipe DANTIC       |
+  | room   | Comite budgetaire 2024  | Echanges du comite de programmation  |'''
+}
+
+Enum chat_type {
+  direct
+  room
+}
+
+Table chat_members {
+  id      uuid [pk]
+  role    chat_member_role [not null]
+  chat_id uuid [not null, ref: > chats.id]
+  user_id uuid [not null, ref: > users.id]
+
+  indexes {
+    (chat_id, user_id) [unique]
+  }
+
+  Note: '''Membres d une conversation.
+  Exemple pour "Equipe DANTIC" :
+  | chat_id          | user_id          | role   |
+  | → Equipe DANTIC  | → Marie Kabongo  | admin  |
+  | → Equipe DANTIC  | → Jean Mukendi   | simple |
+  | → Equipe DANTIC  | → Paul Tshimanga | simple |'''
+}
+
+Enum chat_member_role {
+  admin
+  simple
+}
+
+Table messages {
+  id        uuid [pk]
+  type      message_type [not null]
+  subtype   varchar [note: 'AUDIO, VIDEO, IMAGE pour type=media']
+  content   text [not null]
+  client_id varchar
+  status    json
+  details   json
+  chat_id   uuid [not null, ref: > chats.id]
+  sender_id uuid [not null, ref: > users.id]
+  ref_id    uuid [ref: > messages.id, note: 'Reponse a un message']
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+
+  Note: '''Messages dans une conversation.
+  Exemple :
+  | type  | content                                    | sender_id        | chat_id          | ref_id |
+  | text  | Bonjour, le rapport est pret              | → Jean Mukendi   | → Equipe DANTIC  | null   |
+  | text  | Merci Jean, je le valide cet apres-midi   | → Marie Kabongo  | → Equipe DANTIC  | → msg1 |
+  | media | photo_reunion.jpg                          | → Paul Tshimanga | → Equipe DANTIC  | null   |
+  | doc   | PV_reunion_mars.pdf                        | → Marie Kabongo  | → Equipe DANTIC  | null   |'''
+}
+
+Enum message_type {
+  text
+  doc
+  media
+  event
+  voice
+  call
+}
+
+Table chat_invitations {
+  id        uuid [pk]
+  purpose   chat_invite_purpose [not null]
+  details   text
+  from_id   uuid [not null, ref: > users.id]
+  to_id     uuid [not null, ref: > users.id]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+
+  Note: '''Invitations de contact ou de salon.
+  Exemple :
+  | from_id          | to_id            | purpose   | details                     |
+  | → Jean Mukendi   | → Paul Tshimanga | connexion | Ajout comme contact         |
+  | → Marie Kabongo  | → Jean Mukendi   | salon     | Invitation au Comite budget |'''
+}
+
+Enum chat_invite_purpose {
+  connexion
+  salon
+}
+
+Table spaces {
+  id          uuid [pk]
+  name        varchar [not null]
+  description text [not null]
+  created_at  timestamp [default: `now()`]
+  updated_at  timestamp
+
+  Note: '''Espaces collaboratifs (contiennent des canaux de discussion).
+  Exemple :
+  | name                   | description                                    |
+  | Secretariat General    | Espace de coordination du SG Budget            |
+  | Projet GEID            | Equipe de developpement du systeme GEID        |'''
+}
+
+Table space_members {
+  id       uuid [pk]
+  role     chat_member_role [not null]
+  user_id  uuid [not null]
+  space_id uuid [not null, ref: > spaces.id]
+
+  indexes {
+    (space_id, user_id) [unique]
+  }
+
+  Note: 'Membres d un espace collaboratif'
+}
+
+Table space_channels {
+  id          uuid [pk]
+  name        varchar [not null]
+  description text [not null]
+  chat_id     uuid [not null]
+  space_id    uuid [not null, ref: > spaces.id]
+
+  Note: '''Canaux de discussion dans un espace.
+  Exemple dans l espace "Projet GEID" :
+  | name          | description                     |
+  | general       | Discussions generales           |
+  | bugs          | Signalement et suivi des bugs   |
+  | deploiement   | Coordination des mises en prod  |'''
+}
+
+Table call_sessions {
+  id                 varchar [pk, note: 'Fourni par le client, pas auto-genere']
+  title              varchar
+  started_at         varchar [not null]
+  ended_at           varchar
+  summary            text
+  description        text
+  status             int [default: 0]
+  room               json
+  call_details       json [not null]
+  duration_hours     int [default: 0]
+  duration_minutes   int [default: 0]
+  duration_seconds   int [default: 0]
+  ctrl_authorization boolean [default: false]
+  share_screen       boolean [default: true]
+  write_message      boolean [default: true]
+  allow_private_msg  boolean [default: true]
+  allow_react        boolean [default: true]
+  activate_cam       boolean [default: true]
+  activate_mic       boolean [default: true]
+  created_by_id      uuid [not null, ref: > users.id]
+  location_id        uuid [not null, note: 'ref vers chats']
+  created_at         timestamp [default: `now()`]
+  updated_at         timestamp
+
+  Note: '''Sessions d appel video/audio (TTL 24h en Mongo).
+  Exemple :
+  | title                       | started_at          | duration    | created_by       |
+  | Reunion hebdo DANTIC        | 2024-03-18 10:00    | 1h 15min    | → Marie Kabongo  |
+  | Point rapide archives       | 2024-03-19 14:30    | 0h 25min    | → Jean Mukendi   |'''
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │                  MEDIATHEQUE                                │
+// └─────────────────────────────────────────────────────────────┘
+
+Table books {
+  id          uuid [pk]
+  title       varchar [not null, unique]
+  author      varchar [not null]
+  type        book_type [not null, default: 'LIVRES']
+  tags        varchar[]
+  description text [not null]
+  cover_url   varchar [not null]
+  content_url varchar [not null]
+  created_at  timestamp [default: `now()`]
+  updated_at  timestamp
+
+  Note: '''Livres, articles, revues et brochures de la bibliotheque.
+  Exemple :
+  | title                                       | author          | type     | tags                        |
+  | Guide pratique de l archivage en RDC        | DANTIC          | LIVRES   | [archivage, guide, RDC]     |
+  | Loi de finances 2024                        | Min. Budget     | BROCHURES| [budget, loi, finances]     |
+  | Revue trimestrielle des depenses publiques  | IGF             | REVUES   | [depenses, audit, controle] |'''
+}
+
+Enum book_type {
+  LIVRES
+  ARTICLES
+  REVUES
+  BROCHURES
+}
+
+Table films {
+  id          uuid [pk]
+  title       varchar [not null, unique]
+  description text [not null]
+  event       varchar
+  tags        varchar[]
+  content_url varchar [not null]
+  created_at  timestamp [default: `now()`]
+  updated_at  timestamp
+
+  Note: '''Films et videos de la filmotheque.
+  Exemple :
+  | title                                    | event                     | tags                    |
+  | Ceremonie de passation SG Budget 2024    | Passation de service      | [ceremonie, passation]  |
+  | Formation GEID — Module Archives         | Formation interne         | [formation, archives]   |'''
+}
+
+Table images {
+  id          uuid [pk]
+  title       varchar [not null, unique]
+  description text [not null]
+  event       varchar
+  tags        varchar[]
+  content_url varchar [not null]
+  created_at  timestamp [default: `now()`]
+  updated_at  timestamp
+
+  Note: '''Images de la phototheque.
+  Exemple :
+  | title                                    | event                | tags                       |
+  | Photo officielle SG Budget 2024          | Ceremonie officielle | [portrait, officiel, 2024] |
+  | Salle d archives — Batiment B            | Documentation interne| [archives, infrastructure] |'''
+}
+
+Table covers {
+  id          uuid [pk]
+  name        varchar [not null, unique]
+  doc_types   varchar[]
+  content_url varchar [not null, unique]
+
+  Note: '''Couvertures illustratives par type documentaire.
+  Exemple :
+  | name              | doc_types                  | content_url               |
+  | Correspondance    | [CORRESPONDANCES]          | /covers/correspondance.png|
+  | Rapport           | [RAPPORTS]                 | /covers/rapport.png       |
+  | Proces-verbal     | [PROCES-VERBAUX]           | /covers/pv.png            |'''
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │                      LOGS                                   │
+// └─────────────────────────────────────────────────────────────┘
+
+Table request_log {
+  id            uuid [pk]
+  url           varchar [not null]
+  method        varchar [not null]
+  response_time int [not null, note: 'en ms']
+  day           varchar [not null]
+  hour          int [not null]
+
+  Note: '''Journal des requetes API (monitoring de performance).
+  Exemple :
+  | url                           | method | response_time | day        | hour |
+  | /api/stuff/archives/archived  | GET    | 245           | 2024-03-18 | 10   |
+  | /api/stuff/archives/upload    | POST   | 1830          | 2024-03-18 | 10   |
+  | /api/auth/login               | POST   | 89            | 2024-03-18 | 8    |'''
+}
