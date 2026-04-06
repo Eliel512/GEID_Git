@@ -15,11 +15,17 @@ const register = require("../controllers/chats/room/register");
 const auth = require("../middleware/users/auth");
 const callDetailsAuth = require("../middleware/users/callDetails");
 
+const { serveFile, streamToken } = require("../controllers/chats/serveFile");
+const { serveThumbnail } = require("../controllers/chats/serveThumbnail");
 const multer = require("../middleware/multer-chat");
 const nocache = require("../middleware/chats/nocache");
-//const { check } = require('../middleware/chat');
 
 router.get("/", auth, getAll);
+
+// Fichiers chat authentifiés (MinIO)
+router.get("/thumbnail/*", auth, serveThumbnail);
+router.get("/file/*", auth, serveFile);
+router.post("/stream-token", auth, streamToken);
 
 router.post("/call/create", auth, createCallRoom);
 router.post("/guest/create", createGuest);
