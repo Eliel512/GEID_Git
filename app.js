@@ -153,12 +153,11 @@ app.use((req, res, next) => {
 
 // ─── Fichiers statiques ───────────────────────────────────────────────────────
 
-// /ARCHIVES est protégé — accès via /api/stuff/archives/file/:id (authentifié)
-app.use("/profils", express.static(path.join(__dirname, "profils")));
-// REMOVED: workspace files must go through authenticated route /api/stuff/workspace/file/*
-// app.use("/workspace", express.static(path.join(__dirname, "workspace")));
-app.use("/salon", express.static(path.join(__dirname, "salon")));
-app.use("/ressources", express.static(path.join(__dirname, "ressources")));
+// Fichiers servis depuis MinIO (avec fallback filesystem)
+const serveFromStorage = require("./middleware/serveFromStorage");
+app.use("/profils", serveFromStorage("profils"));
+app.use("/salon", serveFromStorage("salon"));
+app.use("/ressources", serveFromStorage("ressources"));
 
 // ─── Routes API & Admin ───────────────────────────────────────────────────────
 

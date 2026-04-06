@@ -1,4 +1,5 @@
 const multer = require('multer');
+const minioStorage = require('../tools/storage');
 
 const MIME_TYPES = {
   'image/jpg': 'jpg',
@@ -8,17 +9,30 @@ const MIME_TYPES = {
   'image/webp': 'webp'
 };
 
+const memStorage = multer.memoryStorage();
+const upload = multer({ storage: memStorage }).single('file');
 
+module.exports = (req, res, next) => {
+  upload(req, res, async (err) => {
+    if (err) return next(err);
+    if (!req.file) return next();
 
-const storage = multer.diskStorage({
-    destination: (req, file, callback) => {
-      callback(null, `ressources/covers/`);
-    },
-    filename: (req, file, callback) => {
-      const name = req.body.name/*.split(' ').join('_')*/;
-      const extension = MIME_TYPES[file.mimetype];
-      callback(null, name + '.' + extension);
+    const name = req.body.name;
+    const extension = MIME_TYPES[req.file.mimetype];
+    if (!extension) {
+      return res.status(400).json({ message: 'Type de fichier non reconnu.' });
     }
+
+    const filename = `${name}.${extension}`;
+    const relativePath = `ressources/covers/${filename}`;
+    req.file.filename = filename;
+
+    try {
+      await minioStorage.uploadFile(relativePath, req.file.buffer);
+    } catch (err2) {
+      console.error('[MinIO upload] addCover:', err2.message);
+    }
+
+    next();
   });
-  
-  module.exports = multer({storage: storage}).single('file');
+};
