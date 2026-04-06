@@ -198,8 +198,7 @@ module.exports = {
             await chat.save();
             socket.data.chatId = chat._id;
             delete socket.newChat;
-            fs.mkdirSync(`salon/${chat._id}/`, { recursive: true });
-            storage.ensureDir(`salon/${chat._id}`).catch(e => console.error('[MinIO] chat.create:', e.message));
+            // MinIO n'a pas besoin de créer de dossier — les préfixes sont gérés automatiquement
             return true;
         }catch(error){
             console.log(error);
