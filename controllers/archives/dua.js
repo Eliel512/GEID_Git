@@ -3,8 +3,10 @@
  *
  * PUT /api/stuff/archives/:id/dua
  *
- * Configure or update the DUA (Durée d'Utilité Administrative) parameters
- * for an archive. The archive must exist and the caller must have write access.
+ * Configure ou met a jour la DUA (Duree d'Utilite Administrative).
+ * Autorise des l'etat ACTIVE : l'archiviste peut planifier la duree
+ * avant le passage en intermediaire. Le compte a rebours (startDate)
+ * ne demarre qu'au passage en SEMI_ACTIVE.
  *
  * Body: {
  *   value:     number      — DUA duration (e.g., 5)
@@ -12,8 +14,8 @@
  *   sortFinal: 'conservation' | 'elimination'
  * }
  *
- * If the archive is already in SEMI_ACTIVE and has no startDate yet,
- * startDate is set to now automatically.
+ * Si l'archive est deja en SEMI_ACTIVE et n'a pas encore de startDate,
+ * celle-ci est posee automatiquement a la date actuelle.
  */
 
 const Archive = require('../../models/archives/archive.model');
