@@ -104,9 +104,14 @@ module.exports = async (req, res) => {
             status: targetStatus,
             validated: VALIDATED_STATUSES.has(targetStatus)
         };
-        // Start DUA timer when transitioning to SEMI_ACTIVE
-        if (targetStatus === 'SEMI_ACTIVE' && !archive.dua?.startDate) {
-            setFields['dua.startDate'] = new Date();
+        // Au passage en SEMI_ACTIVE : demarrer la DUA et appliquer
+        // une valeur par defaut de 10 ans / conservation si non definie.
+        // L'utilisateur peut modifier ces valeurs via PUT /dua.
+        if (targetStatus === 'SEMI_ACTIVE') {
+            if (!archive.dua?.startDate) setFields['dua.startDate'] = new Date();
+            if (archive.dua?.value == null) setFields['dua.value'] = 10;
+            if (!archive.dua?.unit) setFields['dua.unit'] = 'years';
+            if (!archive.dua?.sortFinal) setFields['dua.sortFinal'] = 'conservation';
         }
 
         const updatedArchive = await Archive.findByIdAndUpdate(

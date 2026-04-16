@@ -309,7 +309,7 @@ module.exports = async function generateManualPdf(req, res) {
     h(2, "5.2 — Archive active");
     p("Document validé faisant partie du fonds courant. Accessible à tous les utilisateurs autorisés. État normal d'un document en cours d'utilisation opérationnelle.");
     h(2, "5.3 — Archive intermédiaire");
-    p("Document dont l'usage courant est terminé mais dont la conservation reste obligatoire pendant la DUA. Accessible en cas de besoin légal ou de contentieux. C'est à ce stade que la DUA doit être configurée.");
+    p("Document dont l'usage courant est terminé mais dont la conservation reste obligatoire pendant la DUA. Accessible en cas de besoin légal ou de contentieux. Dès le passage en intermédiaire, le système applique automatiquement une DUA par défaut de 10 ans en conservation, ajustable à tout moment par l'archiviste.");
     h(2, "5.4 — Archive historique");
     p("Conservation définitive. Le document a une valeur patrimoniale ou juridique permanente. Cet état est irréversible : aucune action de destruction n'est possible.");
     h(2, "5.5 — Archive détruite");
@@ -332,15 +332,17 @@ module.exports = async function generateManualPdf(req, res) {
     // ── CHAPITRE 6 ───────────────────────────────────────────────
     chapterHeader("6", "La Durée d'Utilité Administrative (DUA)");
     p("La DUA est la période légale ou réglementaire pendant laquelle une organisation est tenue de conserver un document avant de pouvoir décider de son sort final.");
-    h(2, "6.1 — Configurer une DUA");
-    step(1, "L'archive doit être en état Intermédiaire. Ouvrez son panneau de détail.");
-    step(2, "Cliquez sur le bouton DUA dans la barre d'actions rapides.");
-    step(3, "Saisissez la valeur numérique (ex. : 5 pour cinq unités).");
-    step(4, "Choisissez l'unité : jours, mois ou années.");
-    step(5, "Indiquez la date de départ (date de clôture du dossier, fin du contrat...).");
+    h(2, "6.1 — DUA par défaut appliquée automatiquement");
+    p("Dès qu'une archive passe en état Intermédiaire, le système applique automatiquement une DUA par défaut de 10 années en conservation définitive, calculée à compter du jour de la transition. Cette valeur par défaut garantit qu'aucune archive intermédiaire ne se retrouve sans règle de conservation et correspond à la durée légale la plus couramment observée. L'archiviste peut à tout moment ajuster cette valeur.");
+    h(2, "6.2 — Ajuster la DUA d'une archive");
+    step(1, "Ouvrez le panneau de détail de l'archive intermédiaire.");
+    step(2, "Cliquez sur le bouton « Configurer la durée de conservation » dans la barre d'actions rapides.");
+    step(3, "Les champs sont pré-remplis avec les valeurs actuelles (ou avec les valeurs par défaut si la DUA vient d'être appliquée).");
+    step(4, "Ajustez la valeur numérique (ex. : 5 pour cinq unités).");
+    step(5, "Choisissez l'unité : mois ou années.");
     step(6, "Choisissez le sort final : Conservation définitive ou Élimination.");
-    step(7, "Cliquez sur Enregistrer. La date d'expiration est calculée et affichée.");
-    h(2, "6.2 — Tableau des DUA courantes");
+    step(7, "Cliquez sur Enregistrer. La date d'expiration est recalculée et affichée.");
+    h(2, "6.3 — Tableau des DUA courantes");
     bullet("Contrats et conventions : 10 ans — Conservation");
     bullet("Décisions administratives : 10 ans — Conservation");
     bullet("Rapports d'activité : 10 ans — Conservation");
