@@ -1,37 +1,31 @@
 const Archive = require('../../models/archives/archive.model');
-// const Doc = require('../../models/archives/doc.model');
-// const Profil = require('../../models/archives/profil.model');
-// const Folder = require('../../models/archives/folder.model');
-// const Role = require('../../models/users/role.model');
-// const User = require('../../models/users/user.model');
-// const fs = require('fs');
-// const path = require('path');
-// const getPath = require('../../tools/getRoleUrl');
 
 module.exports = async (req, res) => {
     try {
-        const archive = await Archive.findOneAndUpdate(
-            { _id: req.body.id },
-            {
-                $set: {
-                    classNumber: req.body.classNumber,
-                    refNumber: req.body.refNumber,
-                    'type.profil': res.locals.profil,
-                    validated: true,
-                    status: 'ACTIVE'
-                },
-                $push: {
-                    lifecycleHistory: {
-                        status: 'ACTIVE',
-                        changedAt: new Date(),
-                        changedBy: res.locals.userId,
-                        note: 'Validation — promoted to ACTIVE (current archives)'
-                    }
-                }
-            },
-            { new: true }
-        );
+        const archive = await Archive.findById(req.body.id);
         if (!archive) return res.status(404).json({ message: 'Archive introuvable' });
+
+        archive.classNumber = req.body.classNumber;
+        archive.refNumber   = req.body.refNumber;
+        archive.type.profil = res.locals.profil;
+        archive.validated   = true;
+        archive.status      = 'ACTIVE';
+
+        // DUA par defaut 10 ans / conservation — visible des l'etat ACTIVE.
+        // startDate reste vide : le compte a rebours ne demarre qu'au passage SEMI_ACTIVE.
+        if (!archive.dua) archive.dua = {};
+        if (archive.dua.value == null) archive.dua.value = 10;
+        if (!archive.dua.unit)         archive.dua.unit = 'years';
+        if (!archive.dua.sortFinal)    archive.dua.sortFinal = 'conservation';
+
+        archive.lifecycleHistory.push({
+            status: 'ACTIVE',
+            changedAt: new Date(),
+            changedBy: res.locals.userId,
+            note: 'Validation — promoted to ACTIVE (current archives)'
+        });
+
+        await archive.save();
         res.status(200).json(archive);
     } catch (error) {
         console.log(error);
