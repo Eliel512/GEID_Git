@@ -104,14 +104,29 @@ module.exports = async (req, res) => {
             status: targetStatus,
             validated: VALIDATED_STATUSES.has(targetStatus)
         };
-        // Au passage en SEMI_ACTIVE : demarrer la DUA et appliquer
-        // une valeur par defaut de 10 ans / conservation si non definie.
-        // L'utilisateur peut modifier ces valeurs via PUT /dua.
+        // ── Cycle DUA par phase ──
+        if (targetStatus === 'ACTIVE' && !archive.dua?.active?.startDate) {
+            // Reactivation ou init : demarre/reinitialise la phase active.
+            setFields['dua.active.value'] = archive.dua?.active?.value ?? 10;
+            setFields['dua.active.unit']  = archive.dua?.active?.unit ?? 'years';
+            setFields['dua.active.startDate'] = new Date();
+            if (!archive.dua?.semiActive?.value) setFields['dua.semiActive.value'] = 10;
+            if (!archive.dua?.semiActive?.unit)  setFields['dua.semiActive.unit'] = 'years';
+            if (!archive.dua?.sortFinal)         setFields['dua.sortFinal'] = 'conservation';
+        }
         if (targetStatus === 'SEMI_ACTIVE') {
-            if (!archive.dua?.startDate) setFields['dua.startDate'] = new Date();
-            if (archive.dua?.value == null) setFields['dua.value'] = 10;
-            if (!archive.dua?.unit) setFields['dua.unit'] = 'years';
-            if (!archive.dua?.sortFinal) setFields['dua.sortFinal'] = 'conservation';
+            // Demarre le compte a rebours de la phase intermediaire.
+            // Applique les defauts si absents (archives legacy).
+            if (!archive.dua?.semiActive?.startDate) {
+                setFields['dua.semiActive.startDate'] = new Date();
+            }
+            if (archive.dua?.semiActive?.value == null) setFields['dua.semiActive.value'] = 10;
+            if (!archive.dua?.semiActive?.unit)         setFields['dua.semiActive.unit'] = 'years';
+            if (!archive.dua?.sortFinal)                setFields['dua.sortFinal'] = 'conservation';
+            // Compat legacy : synchro des anciens champs top-level
+            setFields['dua.value']     = archive.dua?.semiActive?.value ?? archive.dua?.value ?? 10;
+            setFields['dua.unit']      = archive.dua?.semiActive?.unit ?? archive.dua?.unit ?? 'years';
+            setFields['dua.startDate'] = setFields['dua.semiActive.startDate'] ?? archive.dua?.semiActive?.startDate;
         }
 
         const updatedArchive = await Archive.findByIdAndUpdate(

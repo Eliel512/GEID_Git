@@ -3,55 +3,69 @@
  *
  * PUT /api/stuff/archives/:id/dua
  *
- * Configure ou met a jour la DUA (Duree d'Utilite Administrative).
- * Autorise des l'etat ACTIVE : l'archiviste peut planifier la duree
- * avant le passage en intermediaire. Le compte a rebours (startDate)
- * ne demarre qu'au passage en SEMI_ACTIVE.
+ * Configure ou met a jour la DUA par phase (active + semiActive + sortFinal).
  *
- * Body: {
- *   value:     number      — DUA duration (e.g., 5)
- *   unit:      'years' | 'months'
- *   sortFinal: 'conservation' | 'elimination'
- * }
+ * Body accepte (compat : ancien format lu comme semiActive) :
+ *   {
+ *     active:     { value, unit }?        // phase active (defaut 10 ans/years)
+ *     semiActive: { value, unit }?        // phase intermediaire (defaut 10 ans/years)
+ *     sortFinal:  'conservation' | 'elimination'
+ *     // Ancien format (retro-compat) :
+ *     value, unit   // traites comme semiActive
+ *   }
  *
- * Si l'archive est deja en SEMI_ACTIVE et n'a pas encore de startDate,
- * celle-ci est posee automatiquement a la date actuelle.
+ * Les startDate ne sont PAS modifiables via cet endpoint :
+ *   - dua.active.startDate est posee a la validation ou lors d'une transition ACTIVE
+ *   - dua.semiActive.startDate est posee au passage SEMI_ACTIVE
  */
 
 const Archive = require('../../models/archives/archive.model');
 const { computeExpiresAt } = require('./duaScheduler');
 
-const SEMI_ACTIVE_STATUSES = new Set(['SEMI_ACTIVE', 'intermédiaire', 'archived']);
+function validDuration(obj) {
+    if (!obj) return null;
+    const value = Number(obj.value);
+    if (!value || value <= 0) return null;
+    if (!['years', 'months'].includes(obj.unit)) return null;
+    return { value, unit: obj.unit };
+}
 
 module.exports = async (req, res) => {
-    const { value, unit, sortFinal } = req.body;
+    const { active, semiActive, sortFinal } = req.body;
 
-    const numValue = Number(value);
-    if (!numValue || numValue <= 0) {
-        return res.status(400).json({ error: 'value must be a positive number.' });
+    // Compat : ancien format { value, unit } traite comme semiActive
+    const legacy = req.body.value != null
+        ? validDuration({ value: req.body.value, unit: req.body.unit })
+        : null;
+    const semiIn = validDuration(semiActive) ?? legacy;
+    const activeIn = validDuration(active);
+
+    if (!semiIn && !activeIn) {
+        return res.status(400).json({
+            error: "Au moins une phase (active ou semiActive) doit être fournie avec value + unit.",
+        });
     }
-    if (!['years', 'months'].includes(unit)) {
-        return res.status(400).json({ error: "unit must be 'years' or 'months'." });
-    }
-    if (!['conservation', 'elimination'].includes(sortFinal)) {
-        return res.status(400).json({ error: "sortFinal must be 'conservation' or 'elimination'." });
+    if (sortFinal !== undefined && !['conservation', 'elimination'].includes(sortFinal)) {
+        return res.status(400).json({ error: "sortFinal doit etre 'conservation' ou 'elimination'." });
     }
 
     try {
         const archive = await Archive.findById(req.params.id);
-        if (!archive) return res.status(404).json({ error: 'Archive not found.' });
+        if (!archive) return res.status(404).json({ error: 'Archive introuvable.' });
 
-        const setFields = {
-            'dua.value':     numValue,
-            'dua.unit':      unit,
-            'dua.sortFinal': sortFinal,
-        };
-
-        // Auto-set startDate if the archive is SEMI_ACTIVE and has none yet
-        const currentStatus = archive.status;
-        if (SEMI_ACTIVE_STATUSES.has(currentStatus) && !archive.dua?.startDate) {
-            setFields['dua.startDate'] = new Date();
+        const setFields = {};
+        if (activeIn) {
+            setFields['dua.active.value'] = activeIn.value;
+            setFields['dua.active.unit']  = activeIn.unit;
         }
+        if (semiIn) {
+            setFields['dua.semiActive.value'] = semiIn.value;
+            setFields['dua.semiActive.unit']  = semiIn.unit;
+            // Compat legacy
+            setFields['dua.value'] = semiIn.value;
+            setFields['dua.unit']  = semiIn.unit;
+        }
+        if (sortFinal !== undefined) setFields['dua.sortFinal'] = sortFinal;
 
         const updated = await Archive.findByIdAndUpdate(
             req.params.id,
@@ -59,13 +73,22 @@ module.exports = async (req, res) => {
             { new: true, runValidators: false }
         );
 
-        // Compute and return the expiry date for client display
-        const startDate = updated.dua?.startDate;
-        const expiresAt = startDate ? computeExpiresAt(startDate, numValue, unit) : null;
+        // Dates d'expiration calculees pour affichage client
+        const expiresActive = updated.dua?.active?.startDate && updated.dua?.active?.value
+            ? computeExpiresAt(updated.dua.active.startDate, updated.dua.active.value, updated.dua.active.unit)
+            : null;
+        const expiresSemi = updated.dua?.semiActive?.startDate && updated.dua?.semiActive?.value
+            ? computeExpiresAt(updated.dua.semiActive.startDate, updated.dua.semiActive.value, updated.dua.semiActive.unit)
+            : null;
 
-        res.status(200).json({ ...updated.toObject(), duaExpiresAt: expiresAt });
+        res.status(200).json({
+            ...updated.toObject(),
+            duaExpiresAt: expiresSemi ?? expiresActive, // compat (ancien champ)
+            duaActiveExpiresAt: expiresActive,
+            duaSemiActiveExpiresAt: expiresSemi,
+        });
     } catch (err) {
         console.error('[dua]', err);
-        res.status(500).json({ error: 'An error occurred.' });
+        res.status(500).json({ error: 'Une erreur est survenue.' });
     }
 };

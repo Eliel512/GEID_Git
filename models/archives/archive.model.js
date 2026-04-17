@@ -113,10 +113,30 @@ const archiveSchema = new Schema({
 		note: { type: String, default: '' }
 	}],
 	// DUA — Durée d'Utilité Administrative (directives archivage RDC)
+	// Modele par etape : chaque phase a sa propre duree et sa propre startDate.
+	// Le scheduler quotidien fait les transitions auto (ACTIVE -> SEMI_ACTIVE,
+	// puis SEMI_ACTIVE -> PERMANENT ou PROPOSED_ELIMINATION selon sortFinal).
 	dua: {
+		// Phase active (age courant) — demarre a la validation
+		active: {
+			value:     { type: Number, required: false },
+			unit:      { type: String, enum: ['years', 'months'], required: false },
+			startDate: { type: Date, required: false }
+		},
+		// Phase intermediaire (age semi-actif) — demarre au passage SEMI_ACTIVE
+		semiActive: {
+			value:     { type: Number, required: false },
+			unit:      { type: String, enum: ['years', 'months'], required: false },
+			startDate: { type: Date, required: false }
+		},
+		// Destination finale a l'expiration de la phase intermediaire
+		sortFinal: { type: String, enum: ['conservation', 'elimination'], required: false },
+
+		// ── Compat legacy (ancien modele single-dua) ──
+		// Ces champs restent presents pour les archives existantes en DB.
+		// Lus comme "semiActive" en fallback si dua.semiActive n'est pas defini.
 		value:     { type: Number, required: false },
 		unit:      { type: String, enum: ['years', 'months'], required: false },
-		sortFinal: { type: String, enum: ['conservation', 'elimination'], required: false },
 		startDate: { type: Date, required: false }
 	},
 	fileUrl: {

@@ -1,40 +1,25 @@
 /**
  * controllers/archives/duaScheduler.js
  *
- * Scheduler automatique du cycle de vie des archives (aligné sur les Directives DANTIC).
+ * Scheduler automatique du cycle de vie des archives (Directives DANTIC).
  *
- * Toutes les heures, vérifie les archives dont la DUA a expiré :
+ * MODELE PAR PHASE :
+ *   ACTIVE       --DUA active expire-->    SEMI_ACTIVE      (auto, sans validation humaine)
+ *   SEMI_ACTIVE  --DUA semi expire-->      PERMANENT        (si sortFinal=conservation)
+ *                                        ou PROPOSED_ELIM  (si sortFinal=elimination — PV humain requis)
  *
- *   1. SEMI_ACTIVE + DUA expirée + sortFinal="conservation"
- *      → Transition automatique vers PERMANENT (conservation définitive)
- *
- *   2. SEMI_ACTIVE + DUA expirée + sortFinal="elimination"
- *      → Transition vers PROPOSED_ELIMINATION (proposition d'élimination)
- *      → Un archiviste doit valider manuellement la destruction (Directive 23)
- *      → Après le délai de grâce sans intervention → reste en PROPOSED_ELIMINATION
- *        (PAS de destruction automatique — conformité Directive 23 : PV obligatoire)
- *
- * L'intervention humaine reste possible à tout moment :
- *   - Bloquer une transition en modifiant la DUA
- *   - Réactiver une archive intermédiaire
- *   - Valider ou refuser une élimination proposée
- *
- * PARAMÈTRES AJUSTABLES (via env ou constantes) :
- *   - CHECK_INTERVAL_MS : fréquence de vérification (défaut 1h)
- *   - GRACE_PERIOD_DAYS : jours d'alerte avant transition auto conservation (défaut 0)
+ * Compat legacy : les archives SEMI_ACTIVE qui n'ont que dua.value/unit/startDate
+ * (ancien modele single-DUA) sont traitees comme dua.semiActive.
  */
 
 const Archive = require('../../models/archives/archive.model');
 
+const ACTIVE_STATUSES      = ['ACTIVE', 'actif', 'validated'];
 const SEMI_ACTIVE_STATUSES = ['SEMI_ACTIVE', 'intermédiaire', 'archived'];
 
-// Paramètres ajustables
-const CHECK_INTERVAL_MS  = Number(process.env.DUA_CHECK_INTERVAL_MS)  || 60 * 60 * 1000; // 1h
-const GRACE_PERIOD_DAYS  = Number(process.env.DUA_GRACE_PERIOD_DAYS)  || 0;
+const CHECK_INTERVAL_MS = Number(process.env.DUA_CHECK_INTERVAL_MS) || 60 * 60 * 1000; // 1h
+const GRACE_PERIOD_DAYS = Number(process.env.DUA_GRACE_PERIOD_DAYS) || 0;
 
-/**
- * Calcule la date d'expiration de la DUA.
- */
 function computeExpiresAt(startDate, value, unit) {
     const d = new Date(startDate);
     if (unit === 'years')  d.setFullYear(d.getFullYear() + value);
@@ -43,42 +28,94 @@ function computeExpiresAt(startDate, value, unit) {
     return d;
 }
 
-/**
- * Passage unique de vérification des DUA expirées.
- */
+/** Retourne la DUA effective d'une phase, avec fallback legacy. */
+function phaseDua(archive, phase) {
+    const d = archive.dua || {};
+    if (phase === 'active') {
+        if (d.active?.startDate && d.active?.value && d.active?.unit) {
+            return { value: d.active.value, unit: d.active.unit, startDate: d.active.startDate };
+        }
+        return null;
+    }
+    // semiActive : preferer dua.semiActive, fallback sur dua top-level (legacy)
+    if (d.semiActive?.startDate && d.semiActive?.value && d.semiActive?.unit) {
+        return { value: d.semiActive.value, unit: d.semiActive.unit, startDate: d.semiActive.startDate };
+    }
+    if (d.startDate && d.value && d.unit) {
+        return { value: d.value, unit: d.unit, startDate: d.startDate };
+    }
+    return null;
+}
+
 async function processDuaTransitions() {
     const now = new Date();
     console.log(`[DUA Scheduler] Vérification à ${now.toISOString()}`);
 
+    let countToSemi = 0;
+    let countToPermanent = 0;
+    let countToProposed  = 0;
+
     try {
-        // ── 1. Archives SEMI_ACTIVE dont la DUA a expiré ─────────────
-        const archives = await Archive.find({
-            status: { $in: SEMI_ACTIVE_STATUSES },
-            'dua.value':     { $exists: true, $ne: null },
-            'dua.unit':      { $exists: true },
-            'dua.sortFinal': { $exists: true },
-            'dua.startDate': { $exists: true, $ne: null },
+        // ── 1. ACTIVE -> SEMI_ACTIVE ──────────────────────────
+        const actives = await Archive.find({
+            status: { $in: ACTIVE_STATUSES },
+            'dua.active.startDate': { $exists: true, $ne: null },
+            'dua.active.value':     { $exists: true, $ne: null },
+            'dua.active.unit':      { $exists: true },
         }).lean();
 
-        let countConservation = 0;
-        let countProposedElim = 0;
+        for (const archive of actives) {
+            const d = phaseDua(archive, 'active');
+            if (!d) continue;
+            const expiresAt = computeExpiresAt(d.startDate, d.value, d.unit);
+            if (now < expiresAt) continue;
 
-        for (const archive of archives) {
-            const { value, unit, sortFinal, startDate } = archive.dua || {};
-            if (!startDate || !value || !unit || !sortFinal) continue;
+            const setFields = {
+                status: 'SEMI_ACTIVE',
+                validated: true,
+                'dua.semiActive.startDate': now,
+            };
+            if (archive.dua?.semiActive?.value == null) setFields['dua.semiActive.value'] = 10;
+            if (!archive.dua?.semiActive?.unit)         setFields['dua.semiActive.unit'] = 'years';
+            if (!archive.dua?.sortFinal)                setFields['dua.sortFinal'] = 'conservation';
+            // Compat legacy
+            setFields['dua.value']     = archive.dua?.semiActive?.value ?? 10;
+            setFields['dua.unit']      = archive.dua?.semiActive?.unit ?? 'years';
+            setFields['dua.startDate'] = now;
 
-            const expiresAt = computeExpiresAt(startDate, value, unit);
+            await Archive.findByIdAndUpdate(archive._id, {
+                $set: setFields,
+                $push: {
+                    lifecycleHistory: {
+                        status: 'SEMI_ACTIVE',
+                        changedAt: now,
+                        changedBy: null,
+                        note: `Transition automatique — phase active expirée (${d.value} ${d.unit}). Démarrage de la phase intermédiaire.`,
+                    },
+                },
+            }, { runValidators: false });
+            countToSemi++;
+            console.log(`[DUA] ${archive._id} : ACTIVE → SEMI_ACTIVE`);
+        }
 
-            // Délai de grâce pour conservation
+        // ── 2. SEMI_ACTIVE -> PERMANENT ou PROPOSED_ELIMINATION ──
+        const semis = await Archive.find({
+            status: { $in: SEMI_ACTIVE_STATUSES },
+        }).lean();
+
+        for (const archive of semis) {
+            const d = phaseDua(archive, 'semiActive');
+            if (!d) continue;
+            const sortFinal = archive.dua?.sortFinal ?? 'conservation';
+
+            const expiresAt = computeExpiresAt(d.startDate, d.value, d.unit);
             const graceDate = new Date(expiresAt);
             graceDate.setDate(graceDate.getDate() + GRACE_PERIOD_DAYS);
 
-            if (now < expiresAt) continue; // DUA pas encore expirée
+            if (now < expiresAt) continue;
 
             if (sortFinal === 'conservation') {
-                // Conservation : transition automatique vers PERMANENT après le délai de grâce
-                if (now < graceDate) continue; // Encore dans le délai de grâce
-
+                if (now < graceDate) continue;
                 await Archive.findByIdAndUpdate(archive._id, {
                     $set: { status: 'PERMANENT', validated: true },
                     $push: {
@@ -86,17 +123,13 @@ async function processDuaTransitions() {
                             status: 'PERMANENT',
                             changedAt: now,
                             changedBy: null,
-                            note: `Transition automatique — DUA expirée (${value} ${unit}). Conservation définitive conformément à la Directive 21.`,
+                            note: `Transition automatique — phase intermédiaire expirée (${d.value} ${d.unit}). Conservation définitive (Directive 21).`,
                         },
                     },
                 }, { runValidators: false });
-
-                countConservation++;
-                console.log(`[DUA] ${archive._id} → PERMANENT (conservation automatique)`);
-
+                countToPermanent++;
+                console.log(`[DUA] ${archive._id} : SEMI_ACTIVE → PERMANENT`);
             } else if (sortFinal === 'elimination') {
-                // Élimination : NE PAS détruire automatiquement (Directive 23)
-                // Proposer l'élimination — un archiviste doit valider avec PV
                 await Archive.findByIdAndUpdate(archive._id, {
                     $set: { status: 'PROPOSED_ELIMINATION', validated: false },
                     $push: {
@@ -104,19 +137,18 @@ async function processDuaTransitions() {
                             status: 'PROPOSED_ELIMINATION',
                             changedAt: now,
                             changedBy: null,
-                            note: `Proposition d'élimination automatique — DUA expirée (${value} ${unit}). En attente de validation par un archiviste (Directive 23 : PV et bordereau d'élimination requis).`,
+                            note: `Proposition d'élimination automatique — phase intermédiaire expirée (${d.value} ${d.unit}). En attente de PV (Directive 23).`,
                         },
                     },
                 }, { runValidators: false });
-
-                countProposedElim++;
-                console.log(`[DUA] ${archive._id} → PROPOSED_ELIMINATION (en attente de PV)`);
+                countToProposed++;
+                console.log(`[DUA] ${archive._id} : SEMI_ACTIVE → PROPOSED_ELIMINATION`);
             }
         }
 
-        const total = countConservation + countProposedElim;
+        const total = countToSemi + countToPermanent + countToProposed;
         if (total > 0) {
-            console.log(`[DUA Scheduler] ${countConservation} conservation(s), ${countProposedElim} proposition(s) d'élimination.`);
+            console.log(`[DUA Scheduler] ${countToSemi} → intermédiaire, ${countToPermanent} → historique, ${countToProposed} → proposition élimination.`);
         }
         return total;
     } catch (err) {
@@ -129,7 +161,7 @@ let intervalHandle = null;
 
 module.exports = {
     start() {
-        console.log(`[DUA Scheduler] Démarré — intervalle : ${CHECK_INTERVAL_MS / 60000} minutes, grâce : ${GRACE_PERIOD_DAYS} jours.`);
+        console.log(`[DUA Scheduler] Démarré — intervalle : ${CHECK_INTERVAL_MS / 60000} min, grâce : ${GRACE_PERIOD_DAYS} jour(s).`);
         processDuaTransitions();
         intervalHandle = setInterval(processDuaTransitions, CHECK_INTERVAL_MS);
     },
@@ -139,4 +171,5 @@ module.exports = {
     },
     processDuaTransitions,
     computeExpiresAt,
+    phaseDua,
 };
